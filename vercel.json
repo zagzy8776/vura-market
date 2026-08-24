@@ -3,10 +3,8 @@
   "buildCommand": "npm run build && npm run typecheck:api",
   "outputDirectory": "dist",
   "rewrites": [
-    {
-      "source": "/((?!api/).*)",
-      "destination": "/index.html"
-    }
+    { "source": "/api/admin/:resource", "destination": "/api/admin?resource=:resource" },
+    { "source": "/((?!api/).*)", "destination": "/index.html" }
   ],
   "headers": [
     {
