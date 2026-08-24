@@ -40,7 +40,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const updated = await sql`UPDATE orders SET status = ${nextStatus}, payment_status = ${nextPaymentStatus}, sourcing_status = ${nextSourcing}, supplier_id = COALESCE(${supplierId || null}, supplier_id), purchase_cost_kobo = COALESCE(${purchase}, purchase_cost_kobo), delivery_fee_kobo = ${delivery}, other_cost_kobo = ${other}, actual_profit_kobo = COALESCE(${actualProfit}, actual_profit_kobo), purchased_at = CASE WHEN ${purchase} IS NOT NULL THEN COALESCE(purchased_at, now()) ELSE purchased_at END, paid_at = CASE WHEN ${nextPaymentStatus} = 'paid' THEN COALESCE(paid_at, now()) ELSE paid_at END, payment_verified_at = CASE WHEN ${nextPaymentStatus} IN ('paid', 'rejected') THEN now() ELSE payment_verified_at END, updated_at = now() WHERE id = ${orderId} RETURNING id, order_number, status, payment_status, sourcing_status, actual_profit_kobo`;
 
     const stateChanged = existing[0].payment_status !== nextPaymentStatus || existing[0].status !== nextStatus || existing[0].sourcing_status !== nextSourcing;
-    const costsChanged = Number(existing[0].purchase_cost_kobo || 0) !== Number(purchase ?? existing[0].purchase_cost_kobo || 0) || Number(existing[0].delivery_fee_kobo || 0) !== delivery || Number(existing[0].other_cost_kobo || 0) !== other || (supplierId && supplierId !== existing[0].supplier_id);
+    const costsChanged = Number(existing[0].purchase_cost_kobo || 0) !== Number((purchase ?? existing[0].purchase_cost_kobo) || 0) || Number(existing[0].delivery_fee_kobo || 0) !== delivery || Number(existing[0].other_cost_kobo || 0) !== other || (supplierId && supplierId !== existing[0].supplier_id);
 
     if (stateChanged || costsChanged) {
       const before = {
