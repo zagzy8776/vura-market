@@ -1,8 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { sql, json } from '../_lib/db';
-import { requireAdmin } from '../_lib/auth';
-import { simpleOrderEmail } from '../_lib/email';
-import { notifyUser } from '../_lib/notifications';
+import { sql, json } from '../_lib/db.js';
+import { requireAdmin } from '../_lib/auth.js';
+import { simpleOrderEmail } from '../_lib/email.js';
+import { notifyUser } from '../_lib/notifications.js';
 
 const allowedStatuses = new Set(['awaiting_payment', 'payment_verification', 'confirmed', 'sourcing', 'purchased', 'out_for_delivery', 'delivered', 'cancelled']);
 const allowedSourcing = new Set(['awaiting_confirmation', 'confirmed', 'sourcing', 'purchased', 'out_for_delivery', 'delivered', 'cancelled']);
@@ -44,18 +44,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (nextPaymentStatus === 'paid') message = `Your payment for order ${updated[0].order_number} has been verified. We can now proceed with sourcing.`;
       if (nextPaymentStatus === 'rejected') message = `We could not verify the payment for order ${updated[0].order_number}. Please check your transfer details and contact Vura support.`;
       const email = simpleOrderEmail(`Vura order ${updated[0].order_number} update`, existing[0].buyer_name, updated[0].order_number, message);
-      await notifyUser({
-        userId: existing[0].buyer_id,
-        email: existing[0].buyer_email,
-        firstName: existing[0].buyer_name,
-        orderId: updated[0].id,
-        eventType: `order.status.${nextStatus}`,
-        title: nextPaymentStatus === 'paid' ? 'Payment verified' : 'Order updated',
-        body: message,
-        subject: email.subject,
-        text: email.text,
-        html: email.html,
-      });
+      await notifyUser({ userId: existing[0].buyer_id, email: existing[0].buyer_email, firstName: existing[0].buyer_name, orderId: updated[0].id, eventType: `order.status.${nextStatus}`, title: nextPaymentStatus === 'paid' ? 'Payment verified' : 'Order updated', body: message, subject: email.subject, text: email.text, html: email.html });
     }
 
     return json(res, 200, { order: updated[0] });
