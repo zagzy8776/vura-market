@@ -19,51 +19,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const rows = await sql`INSERT INTO orders (buyer_id, product_id, quantity, unit_price_kobo, total_kobo, delivery_name, delivery_phone, delivery_address, delivery_city, payment_method) SELECT ${user.id}, id, ${quantity}, price_kobo, price_kobo * ${quantity}, ${name.trim()}, ${phone.trim()}, ${address.trim()}, ${city.trim()}, 'bank_transfer' FROM products WHERE id = ${productId} AND is_active = true AND stock_status = 'available' RETURNING id, order_number, total_kobo, payment_method, payment_status`;
     if (!rows[0]) return json(res, 409, { error: 'That product is no longer available.' });
 
+    if (!rows[0].order_number) {
+      const numbered = await sql`UPDATE orders SET order_number = 'VURA-' || UPPER(SUBSTRING(REPLACE(id::text, '-', '') FROM 1 FOR 10)) WHERE id = ${rows[0].id} RETURNING order_number`;
+      rows[0].order_number = numbered[0]?.order_number || `VURA-${String(rows[0].id).replaceAll('-', '').slice(0, 10).toUpperCase()}`;
+    }
+
     const settings = await sql`SELECT key, value FROM platform_settings WHERE key IN ('payout_account_number', 'payout_account_name', 'payout_bank_name')`;
     const paymentDetails = Object.fromEntries(settings.map((row) => [row.key, row.value]));
     const productRows = await sql`SELECT name FROM products WHERE id = ${productId} LIMIT 1`;
     const productName = String(productRows[0]?.name || 'your product');
-    const email = orderEmail({
-      orderNumber: rows[0].order_number,
-      productName,
-      totalKobo: Number(rows[0].total_kobo),
-      accountNumber: paymentDetails.payout_account_number || '',
-      accountName: paymentDetails.payout_account_name || '',
-      bankName: paymentDetails.payout_bank_name || '',
-    }, user.name);
+    const email = orderEmail({ orderNumber: rows[0].order_number, productName, totalKobo: Number(rows[0].total_kobo), accountNumber: paymentDetails.payout_account_number || '', accountName: paymentDetails.payout_account_name || '', bankName: paymentDetails.payout_bank_name || '' }, user.name);
     const customerMessage = `Your order ${rows[0].order_number} is ready for bank-transfer payment. We are waiting for your transfer confirmation.`;
     const adminEmail = simpleOrderEmail(`New Vura order ${rows[0].order_number}`, 'Vura admin', rows[0].order_number, `A new order for ${productName} was created for ${(Number(rows[0].total_kobo) / 100).toLocaleString('en-NG', { maximumFractionDigits: 0 })} NGN. Payment is awaiting confirmation.`);
 
-    await notifyUser({
-      userId: user.id,
-      email: user.email,
-      firstName: user.name,
-      orderId: rows[0].id,
-      eventType: 'order.created',
-      title: 'Order received',
-      body: customerMessage,
-      subject: email.subject,
-      text: email.text,
-      html: email.html,
-    });
-    await notifyAdmins({
-      orderId: rows[0].id,
-      eventType: 'order.created.admin',
-      title: `New order ${rows[0].order_number}`,
-      body: `A new order for ${productName} is awaiting payment confirmation.`,
-      subject: adminEmail.subject,
-      text: adminEmail.text,
-      html: adminEmail.html,
-    });
+    await notifyUser({ userId: user.id, email: user.email, firstName: user.name, orderId: rows[0].id, eventType: 'order.created', title: 'Order received', body: customerMessage, subject: email.subject, text: email.text, html: email.html });
+    await notifyAdmins({ orderId: rows[0].id, eventType: 'order.created.admin', title: `New order ${rows[0].order_number}`, body: `A new order for ${productName} is awaiting payment confirmation.`, subject: adminEmail.subject, text: adminEmail.text, html: adminEmail.html });
 
     return json(res, 201, {
       order: rows[0],
-      payment: {
-        method: 'bank_transfer',
-        accountNumber: paymentDetails.payout_account_number || '',
-        accountName: paymentDetails.payout_account_name || '',
-        bankName: paymentDetails.payout_bank_name || '',
-      },
+      payment: { method: 'bank_transfer', accountNumber: paymentDetails.payout_account_number || '', accountName: paymentDetails.payout_account_name || '', bankName: paymentDetails.payout_bank_name || '' },
     });
   } catch {
     return json(res, 500, { error: 'We could not process that request.' });
