@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Wire Studio route and remove Promise.all from Studio loader
+      - name: Wire Studio route and data loader
         run: |
           python3 - <<'PY'
           from pathlib import Path
@@ -25,9 +25,10 @@ jobs:
           studio = Path('src/StudioApp.tsx')
           ss = studio.read_text()
           old = '''      const [o, ord, prod, sup, cus, note] = await Promise.all([\n        fetch('/api/admin/overview', { credentials: 'include' }).then(r => r.json()),\n        fetch('/api/admin/orders', { credentials: 'include' }).then(r => r.json()),\n        fetch('/api/admin/products', { credentials: 'include' }).then(r => r.json()),\n        fetch('/api/admin/suppliers', { credentials: 'include' }).then(r => r.json()),\n        fetch('/api/admin/customers', { credentials: 'include' }).then(r => r.json()),\n        fetch('/api/admin/notifications', { credentials: 'include' }).then(r => r.json()),\n      ]);'''
-          new = '''      const o = await fetch('/api/admin/overview', { credentials: 'include' }).then(r => r.json());\n      const ord = await fetch('/api/admin/orders', { credentials: 'include' }).then(r => r.json());\n      const prod = await fetch('/api/admin/products', { credentials: 'include' }).then(r => r.json());\n      const sup = await fetch('/api/admin/suppliers', { credentials: 'include' }).then(r => r.json());\n      const cus = await fetch('/api/admin/customers', { credentials: 'include' }).then(r => r.json());\n      const note = await fetch('/api/admin/notifications', { credentials: 'include' }).then(r => r.json());'''
           if old in ss:
+              new = '''      const o = await fetch('/api/admin/overview', { credentials: 'include' }).then(r => r.json());\n      const ord = await fetch('/api/admin/orders', { credentials: 'include' }).then(r => r.json());\n      const prod = await fetch('/api/admin/products', { credentials: 'include' }).then(r => r.json());\n      const sup = await fetch('/api/admin/suppliers', { credentials: 'include' }).then(r => r.json());'''
               ss = ss.replace(old, new)
+              ss = ss.replace("setOverview(o); setOrders(ord.orders || []); setProducts(prod.products || []); setSuppliers(sup.suppliers || []); setCustomers(cus.customers || []); setNotifications(note.notifications || []);", "setOverview(o); setOrders(ord.orders || []); setProducts(prod.products || []); setSuppliers(sup.suppliers || []); setCustomers(o.customers || []); setNotifications(o.notifications || []);")
           studio.write_text(ss)
           PY
       - name: Commit Studio wiring
@@ -35,5 +36,6 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add src/App.tsx src/StudioApp.tsx
-          git commit -m "Attach Studio app" || exit 0
+          git diff --cached --quiet && exit 0
+          git commit -m "Attach Studio app"
           git push
