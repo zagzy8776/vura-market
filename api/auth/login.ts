@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { compare } from 'bcryptjs';
-import { sql, json } from '../_lib/db';
-import { createSession } from '../_lib/auth';
+import { sql, json } from '../_lib/db.js';
+import { createSession } from '../_lib/auth.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return json(res, 405, { error: 'Method not allowed' });
