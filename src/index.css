@@ -1,0 +1,18 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root { font-family: 'DM Sans', sans-serif; color: #18241f; background: #f6f7f4; font-synthesis: none; text-rendering: optimizeLegibility; }
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; min-width: 320px; }
+button, input, textarea, select { font: inherit; }
+button { cursor: pointer; }
+::selection { background: #ffd9ce; color: #18241f; }
+.font-display { font-family: 'Space Grotesk', sans-serif; }
+.glass-card { border: 1px solid rgba(255, 255, 255, .72); background: rgba(255, 255, 255, .68); box-shadow: 0 20px 70px rgba(24, 36, 31, .08); backdrop-filter: blur(18px); }
+.glass-button { border: 1px solid rgba(255, 255, 255, .8); background: rgba(255, 255, 255, .58); box-shadow: 0 10px 30px rgba(24, 36, 31, .06); backdrop-filter: blur(16px); transition: transform .2s ease, box-shadow .2s ease, background .2s ease; }
+.glass-button:hover { transform: translateY(-1px); background: rgba(255, 255, 255, .86); box-shadow: 0 14px 32px rgba(24, 36, 31, .1); }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; } }
