@@ -10,7 +10,15 @@ const routes: Record<string, string> = {
   '/api/products': '/api/products/index.ts',
   '/api/orders': '/api/orders/index.ts',
   '/api/orders/payment-submission': '/api/orders/payment-submission.ts',
+  '/api/payment-info': '/api/payment-info.ts',
+  '/api/notifications': '/api/notifications.ts',
   '/api/health': '/api/health.ts',
+  '/api/admin/overview': '/api/admin/overview.ts',
+  '/api/admin/orders': '/api/admin/orders.ts',
+  '/api/admin/products': '/api/admin/products.ts',
+  '/api/admin/suppliers': '/api/admin/suppliers.ts',
+  '/api/admin/customers': '/api/admin/customers.ts',
+  '/api/admin/notifications': '/api/admin/notifications.ts',
 };
 
 export function apiRoutesPlugin(): Plugin {

@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, useRef, type FormEvent, type ReactNode } from 'react';
+import { uploadFilesToCloudinary } from '@/lib/cloudinary';
 import {
   Bell, Check, ChevronRight, CircleDollarSign, Clock3, FileText, Filter, LayoutDashboard,
   Loader2, LogOut, Package, Plus, RefreshCw, Search, ShieldCheck, ShoppingBag, Store,
@@ -170,7 +171,152 @@ function DarkKV({k,v}:{k:string;v:string}){return <div className="rounded-xl bor
 function Select({label,value,onChange,options,labels}:{label:string;value:string;onChange:(v:string)=>void;options:string[];labels?:string[]}){return <label className="block"><span className="text-xs font-bold text-white/45">{label}</span><select value={value} onChange={e=>onChange(e.target.value)} className="mt-1.5 w-full rounded-xl border border-white/10 bg-[#121522] px-3 py-3 text-sm text-white outline-none focus:border-[#7d69ff]">{options.map((o,i)=><option key={o} value={o}>{labels?.[i] || o.replaceAll('_',' ')}</option>)}</select></label>}
 function MoneyField({label,value,onChange}:{label:string;value:string;onChange:(v:string)=>void}){return <label className="block"><span className="text-xs font-bold text-white/45">{label}</span><div className="mt-1.5 flex items-center rounded-xl border border-white/10 bg-[#121522]"><span className="pl-3 text-white/35">₦</span><input value={value} onChange={e=>onChange(e.target.value)} inputMode="decimal" className="w-full bg-transparent px-2 py-3 text-sm text-white outline-none"/></div></label>}
 
-function ProductCreateModal({ suppliers, onClose, onCreated, onError }: { suppliers: Supplier[]; onClose:()=>void; onCreated:()=>void; onError:(s:string)=>void }) { const [name,setName]=useState(''); const [brand,setBrand]=useState(''); const [categoryId,setCategoryId]=useState(''); const [price,setPrice]=useState(''); const [source,setSource]=useState(''); const [supplierId,setSupplierId]=useState(''); const [sourceLocation,setSourceLocation]=useState(''); const [description,setDescription]=useState(''); const [images,setImages]=useState(''); const [busy,setBusy]=useState(false); const submit=async(e:FormEvent)=>{e.preventDefault();setBusy(true);try{const r=await fetch('/api/products',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,brand,categoryId:categoryId||null,description,priceKobo:Math.round(Number(price)*100),conditionLabel:'New',supplierId:supplierId||null,sourcePriceKobo:source?Math.round(Number(source)*100):null,sourceLocation,images:images.split(/\s*,\s*/).filter(Boolean)})});const d=await r.json();if(!r.ok)throw new Error(d.error||'Unable to create product');onCreated()}catch(err){onError(err instanceof Error?err.message:'Unable to create product')}finally{setBusy(false)}}; return <Modal title="Create product" onClose={onClose}><form onSubmit={submit} className="grid gap-4 sm:grid-cols-2"><Field label="Product name" value={name} onChange={setName}/><Field label="Brand" value={brand} onChange={setBrand}/><Field label="Retail price" value={price} onChange={setPrice}/><Field label="Supplier price" value={source} onChange={setSource}/><Field label="Source location" value={sourceLocation} onChange={setSourceLocation}/><label className="block"><span className="text-xs font-bold text-white/45">Supplier</span><select value={supplierId} onChange={e=>setSupplierId(e.target.value)} className="mt-1.5 w-full rounded-xl border border-white/10 bg-[#121522] px-3 py-3 text-sm">{<option value="">Select supplier</option>}{suppliers.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select></label><label className="sm:col-span-2 block"><span className="text-xs font-bold text-white/45">Description</span><textarea value={description} onChange={e=>setDescription(e.target.value)} className="mt-1.5 min-h-28 w-full rounded-xl border border-white/10 bg-[#121522] px-3 py-3 text-sm"/></label><Field label="Image URLs (comma separated)" value={images} onChange={setImages}/><div className="sm:col-span-2 flex justify-end gap-2"><button type="button" onClick={onClose} className="rounded-xl border border-white/10 px-4 py-3 font-bold">Cancel</button><button disabled={busy} className="rounded-xl bg-[#5b35f5] px-5 py-3 font-bold">{busy?'Publishing…':'Publish product'}</button></div></form></Modal>; }
+function ProductCreateModal({ suppliers, onClose, onCreated, onError }: { suppliers: Supplier[]; onClose: () => void; onCreated: () => void; onError: (s: string) => void }) {
+  const [name, setName] = useState('');
+  const [brand, setBrand] = useState('');
+  const [categoryId, setCategoryId] = useState('');
+  const [price, setPrice] = useState('');
+  const [source, setSource] = useState('');
+  const [supplierId, setSupplierId] = useState('');
+  const [sourceLocation, setSourceLocation] = useState('');
+  const [description, setDescription] = useState('');
+  const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
+  const [imageFiles, setImageFiles] = useState<File[]>([]);
+  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    fetch('/api/categories').then(r => r.ok ? r.json() : null).then(d => {
+      if (d?.categories) setCategories(d.categories);
+    }).catch(() => undefined);
+  }, []);
+
+  function handleFiles(files: FileList | null) {
+    if (!files) return;
+    const selected = Array.from(files).slice(0, 6 - imageFiles.length);
+    setImageFiles(prev => [...prev, ...selected]);
+    selected.forEach(f => {
+      const reader = new FileReader();
+      reader.onload = e => setImagePreviews(prev => [...prev, e.target?.result as string]);
+      reader.readAsDataURL(f);
+    });
+  }
+
+  function removeImage(idx: number) {
+    setImageFiles(prev => prev.filter((_, i) => i !== idx));
+    setImagePreviews(prev => prev.filter((_, i) => i !== idx));
+  }
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (imageFiles.length < 1) { onError('Please upload at least one product image.'); return; }
+    setBusy(true);
+    try {
+      setUploading(true);
+      let imageUrls: string[];
+      try {
+        imageUrls = await uploadFilesToCloudinary(imageFiles);
+      } catch (err) {
+        throw new Error(err instanceof Error ? `Image upload failed: ${err.message}` : 'Image upload failed');
+      } finally {
+        setUploading(false);
+      }
+      const r = await fetch('/api/products', {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name, brand,
+          categoryId: categoryId || null,
+          description,
+          priceKobo: Math.round(Number(price) * 100),
+          conditionLabel: 'New',
+          supplierId: supplierId || null,
+          sourcePriceKobo: source ? Math.round(Number(source) * 100) : null,
+          sourceLocation,
+          images: imageUrls,
+        }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Unable to create product');
+      onCreated();
+    } catch (err) {
+      onError(err instanceof Error ? err.message : 'Unable to create product');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Modal title="Create product" onClose={onClose}>
+      <form onSubmit={submit} className="grid gap-4 sm:grid-cols-2">
+        <Field label="Product name" value={name} onChange={setName} />
+        <Field label="Brand" value={brand} onChange={setBrand} />
+        <Field label="Retail price (₦)" value={price} onChange={setPrice} />
+        <Field label="Supplier price (₦)" value={source} onChange={setSource} />
+        <Field label="Source location" value={sourceLocation} onChange={setSourceLocation} />
+        <label className="block">
+          <span className="text-xs font-bold text-white/45">Category</span>
+          <select value={categoryId} onChange={e => setCategoryId(e.target.value)} className="mt-1.5 w-full rounded-xl border border-white/10 bg-[#121522] px-3 py-3 text-sm text-white">
+            <option value="">Select category</option>
+            {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+        </label>
+        <label className="block">
+          <span className="text-xs font-bold text-white/45">Supplier</span>
+          <select value={supplierId} onChange={e => setSupplierId(e.target.value)} className="mt-1.5 w-full rounded-xl border border-white/10 bg-[#121522] px-3 py-3 text-sm text-white">
+            <option value="">Select supplier</option>
+            {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+        </label>
+        <label className="sm:col-span-2 block">
+          <span className="text-xs font-bold text-white/45">Description</span>
+          <textarea value={description} onChange={e => setDescription(e.target.value)} className="mt-1.5 min-h-24 w-full rounded-xl border border-white/10 bg-[#121522] px-3 py-3 text-sm text-white" />
+        </label>
+
+        {/* Image upload */}
+        <div className="sm:col-span-2">
+          <span className="text-xs font-bold text-white/45">Product images (up to 6)</span>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {imagePreviews.map((src, i) => (
+              <div key={i} className="relative">
+                <img src={src} alt="" className="h-20 w-20 rounded-lg object-cover border border-white/10" />
+                <button type="button" onClick={() => removeImage(i)} className="absolute -right-1.5 -top-1.5 grid h-5 w-5 place-items-center rounded-full bg-red-500 text-white text-xs">×</button>
+              </div>
+            ))}
+            {imageFiles.length < 6 && (
+              <button
+                type="button"
+                onClick={() => fileRef.current?.click()}
+                className="grid h-20 w-20 place-items-center rounded-lg border border-dashed border-white/20 text-white/40 hover:border-[#7d69ff] hover:text-[#c2baff] transition"
+              >
+                <Plus size={22} />
+              </button>
+            )}
+          </div>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            onChange={e => handleFiles(e.target.files)}
+          />
+          {uploading && <p className="mt-2 text-xs text-[#b9b0ff] animate-pulse">Uploading images to Cloudinary…</p>}
+          {imageFiles.length === 0 && <p className="mt-1.5 text-xs text-white/30">Click + to choose product photos</p>}
+        </div>
+
+        <div className="sm:col-span-2 flex justify-end gap-2 pt-2">
+          <button type="button" onClick={onClose} className="rounded-xl border border-white/10 px-4 py-3 font-bold text-white/70">Cancel</button>
+          <button disabled={busy || imageFiles.length === 0} className="rounded-xl bg-[#5b35f5] px-5 py-3 font-bold disabled:opacity-50">
+            {uploading ? 'Uploading…' : busy ? 'Publishing…' : 'Publish product'}
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
 function SupplierCreateModal({ onClose, onCreated, onError }: { onClose:()=>void; onCreated:()=>void; onError:(s:string)=>void }) { const [name,setName]=useState(''); const [location,setLocation]=useState(''); const [phone,setPhone]=useState(''); const [notes,setNotes]=useState(''); const [busy,setBusy]=useState(false); const submit=async(e:FormEvent)=>{e.preventDefault();setBusy(true);try{const r=await fetch('/api/admin/suppliers',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,location,phone,notes})});const d=await r.json();if(!r.ok)throw new Error(d.error||'Unable to save supplier');onCreated()}catch(err){onError(err instanceof Error?err.message:'Unable to save supplier')}finally{setBusy(false)}}; return <Modal title="Add supplier" onClose={onClose}><form onSubmit={submit} className="grid gap-4"><Field label="Supplier / store name" value={name} onChange={setName}/><Field label="Location" value={location} onChange={setLocation}/><Field label="Phone / WhatsApp" value={phone} onChange={setPhone}/><label><span className="text-xs font-bold text-white/45">Notes</span><textarea value={notes} onChange={e=>setNotes(e.target.value)} className="mt-1.5 min-h-28 w-full rounded-xl border border-white/10 bg-[#121522] px-3 py-3 text-sm"/></label><button disabled={busy} className="rounded-xl bg-[#5b35f5] px-4 py-3 font-bold">{busy?'Saving…':'Save supplier'}</button></form></Modal>; }
 function Modal({title,onClose,children}:{title:string;onClose:()=>void;children:ReactNode}){return <div className="fixed inset-0 z-[110] grid place-items-center bg-black/60 p-4"><div className="w-full max-w-2xl rounded-2xl border border-white/10 bg-[#0d0f1a] p-6 shadow-2xl"><div className="mb-6 flex items-center justify-between"><h2 className="text-xl font-black">{title}</h2><button onClick={onClose} className="grid h-9 w-9 place-items-center rounded-lg border border-white/10"><X size={17}/></button></div>{children}</div></div>}
 function Field({label,value,onChange}:{label:string;value:string;onChange:(v:string)=>void}){return <label className="block"><span className="text-xs font-bold text-white/45">{label}</span><input required value={value} onChange={e=>onChange(e.target.value)} className="mt-1.5 w-full rounded-xl border border-white/10 bg-[#121522] px-3 py-3 text-sm text-white outline-none focus:border-[#7d69ff]"/></label>}
