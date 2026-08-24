@@ -40,6 +40,12 @@ CREATE TABLE IF NOT EXISTS suppliers (
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS platform_settings (
+  key text PRIMARY KEY,
+  value text NOT NULL,
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
 CREATE TABLE IF NOT EXISTS products (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   seller_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -83,6 +89,7 @@ CREATE TABLE IF NOT EXISTS orders (
   delivery_city text NOT NULL,
   status text NOT NULL DEFAULT 'awaiting_payment',
   payment_reference text UNIQUE,
+  payment_method text NOT NULL DEFAULT 'bank_transfer',
   payment_status text NOT NULL DEFAULT 'unpaid',
   paid_at timestamptz,
   sourcing_status text NOT NULL DEFAULT 'awaiting_confirmation',
@@ -100,6 +107,13 @@ INSERT INTO categories (name, slug, icon) VALUES
   ('Audio', 'audio', 'Headphones'), ('Gaming', 'gaming', 'Gamepad2'),
   ('Accessories', 'accessories', 'Package'), ('Wearables', 'wearables', 'Watch')
 ON CONFLICT (slug) DO NOTHING;
+
+INSERT INTO platform_settings (key, value) VALUES
+  ('payout_account_number', '4600544947'),
+  ('payout_account_name', 'Vura Tech Hub'),
+  ('payout_bank_name', 'VFD Microfinance Bank'),
+  ('payment_method', 'bank_transfer')
+ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now();
 
 CREATE INDEX IF NOT EXISTS sessions_user_idx ON sessions(user_id, expires_at DESC);
 CREATE INDEX IF NOT EXISTS sessions_expiry_idx ON sessions(expires_at);
