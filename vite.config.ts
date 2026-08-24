@@ -3,8 +3,10 @@ import react from '@vitejs/plugin-react';
 import { fileURLToPath, URL } from 'node:url';
 import { apiRoutesPlugin } from './vite-api-plugin';
 
-// Keep application code independent of Promise.all because browser extensions
-// can replace the Promise constructor with an incomplete implementation.
+// Avoid relying on a browser-provided Promise.all. Some browser extensions
+// have been observed to replace the global Promise with an incomplete shim.
+// Async functions use the engine's intrinsic promise machinery and therefore
+// keep the application independent from that global mutation.
 const safePromiseAllPlugin = {
   name: 'safe-promise-all',
   enforce: 'pre' as const,
@@ -12,19 +14,11 @@ const safePromiseAllPlugin = {
     if (!id.includes('/src/') || !code.includes('Promise.all(')) return null;
 
     const safeAll = `
-const __safePromiseAll = (values) => new Promise((resolve, reject) => {
-  const items = Array.from(values);
-  const results = new Array(items.length);
-  let remaining = items.length;
-  if (remaining === 0) return resolve(results);
-  items.forEach((item, index) => {
-    Promise.resolve(item).then(value => {
-      results[index] = value;
-      remaining -= 1;
-      if (remaining === 0) resolve(results);
-    }, reject);
-  });
-});
+const __safePromiseAll = async (values) => {
+  const results = [];
+  for (const value of values) results.push(await value);
+  return results;
+};
 `;
 
     return {
