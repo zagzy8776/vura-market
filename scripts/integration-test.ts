@@ -1,8 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { neon } from '@neondatabase/serverless';
 import { hash } from 'bcryptjs';
-import loginHandler from '../api/auth/login.ts';
-import signupHandler from '../api/auth/signup.ts';
+import authHandler from '../api/auth/[action].ts';
 import ordersHandler from '../api/orders/index.ts';
 import paymentSubmissionHandler from '../api/orders/payment-submission.ts';
 
@@ -47,8 +46,8 @@ function makeRes(): TestRes {
   res.status = (code) => ({ json: (body) => { res._code = code; res._body = body; } });
   return res;
 }
-function makeReq(method: string, body: unknown, cookie = '') {
-  return { method, body, headers: cookie ? { cookie } : {}, socket: {} } as any;
+function makeReq(method: string, action: string, body: unknown, cookie = '') {
+  return { method, query: action ? { action } : {}, body, headers: cookie ? { cookie } : {}, socket: {} } as any;
 }
 function cookieFrom(res: TestRes) { return res.headers['Set-Cookie']?.split(';')[0] || ''; }
 function check(name: string, cond: boolean, extra = '') {
@@ -62,7 +61,7 @@ const run = (name: string, cond: boolean, extra = '') => cond ? (pass++, check(n
 console.log('Running Vura integration tests against dedicated test database');
 
 const signupRes = makeRes();
-await signupHandler(makeReq('POST', { name: 'Ada Lovelace', email: 'ada@example.com', password: 'secret123' }), signupRes);
+await authHandler(makeReq('POST', 'signup', { name: 'Ada Lovelace', email: 'ada@example.com', password: 'secret123' }), signupRes);
 run('signup creates account (201)', signupRes._code === 201, `${signupRes._code}`);
 run('signup returns public user', (signupRes._body as any)?.user?.email === 'ada@example.com');
 const customerCookie = cookieFrom(signupRes);
@@ -74,22 +73,22 @@ const welcomeEmail = await sql`SELECT status FROM email_deliveries WHERE user_id
 run('signup records transactional email attempt', welcomeEmail.length === 1);
 
 const shortRes = makeRes();
-await signupHandler(makeReq('POST', { name: 'Bo', email: 'bo@example.com', password: '123' }), shortRes);
+await authHandler(makeReq('POST', 'signup', { name: 'Bo', email: 'bo@example.com', password: '123' }), shortRes);
 run('signup rejects short password (400)', shortRes._code === 400);
 
 const duplicateRes = makeRes();
-await signupHandler(makeReq('POST', { name: 'Ada Again', email: 'ada@example.com', password: 'secret123' }), duplicateRes);
+await authHandler(makeReq('POST', 'signup', { name: 'Ada Again', email: 'ada@example.com', password: 'secret123' }), duplicateRes);
 run('signup rejects duplicate email (400)', duplicateRes._code === 400);
 
 const loginRes = makeRes();
-await loginHandler(makeReq('POST', { email: 'ada@example.com', password: 'secret123' }), loginRes);
+await authHandler(makeReq('POST', 'login', { email: 'ada@example.com', password: 'secret123' }), loginRes);
 run('signin succeeds (200)', loginRes._code === 200);
 run('signin never exposes password hash', !JSON.stringify(loginRes._body).includes('password_hash'));
 
 const userId = (signupRes._body as any).user.id;
 const productRows = await sql`INSERT INTO products (seller_id, name, brand, description, price_kobo) VALUES (${userId}, 'Test Phone', 'Test', 'Integration product', 12500000) RETURNING id`;
 const orderRes = makeRes();
-await ordersHandler(makeReq('POST', { productId: productRows[0].id, quantity: 1, name: 'Ada Lovelace', phone: '08000000000', address: '1 Test Street', city: 'Lagos' }, customerCookie), orderRes);
+await ordersHandler(makeReq('POST', '', { productId: productRows[0].id, quantity: 1, name: 'Ada Lovelace', phone: '08000000000', address: '1 Test Street', city: 'Lagos' }, customerCookie), orderRes);
 run('order creation succeeds (201)', orderRes._code === 201, `${orderRes._code}: ${JSON.stringify(orderRes._body)}`);
 run('order returns Vura bank transfer details', (orderRes._body as any)?.payment?.accountNumber === '4600544947');
 const orderId = (orderRes._body as any)?.order?.id;
@@ -99,7 +98,7 @@ const orderNotification = await sql`SELECT COUNT(*)::int AS count FROM notificat
 run('order creates customer notification', orderNotification[0].count >= 1);
 
 const paymentRes = makeRes();
-await paymentSubmissionHandler(makeReq('POST', { orderId, transferReference: 'TRX-TEST-001' }, customerCookie), paymentRes);
+await paymentSubmissionHandler(makeReq('POST', '', { orderId, transferReference: 'TRX-TEST-001' }, customerCookie), paymentRes);
 run('payment confirmation submission succeeds (200)', paymentRes._code === 200, `${paymentRes._code}: ${JSON.stringify(paymentRes._body)}`);
 const paymentRow = await sql`SELECT payment_status, status, transfer_reference FROM orders WHERE id = ${orderId}`;
 run('payment moves to pending verification', paymentRow[0].payment_status === 'pending_verification' && paymentRow[0].status === 'payment_verification');

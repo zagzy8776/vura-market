@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { hash } from 'bcryptjs';
-import loginHandler from '../api/auth/login';
-import signupHandler from '../api/auth/signup';
+import authHandler from '../api/auth/[action]';
 
 // Mock the datastore so the handlers run without a live database.
 vi.mock('../api/_lib/db', () => {
@@ -33,8 +32,14 @@ function makeRes(): TestRes {
   });
   return res;
 }
-function makeReq(method: string, body: unknown) {
-  return { method, body } as { method: string; body: unknown };
+function makeReq(method: string, action: string, body: unknown) {
+  return {
+    method,
+    query: { action },
+    body,
+    headers: {},
+    socket: { remoteAddress: '127.0.0.1' },
+  } as any;
 }
 
 const mockedSql = () => vi.mocked(sql);
@@ -46,21 +51,21 @@ beforeEach(() => {
 describe('POST /api/auth/login', () => {
   it('rejects non-POST methods with 405', async () => {
     const res = makeRes();
-    await loginHandler(makeReq('GET', undefined), res);
+    await authHandler(makeReq('GET', 'login', undefined), res);
     expect(res._code).toBe(405);
   });
 
   it('returns 400 when email or password is missing', async () => {
     const res = makeRes();
-    await loginHandler(makeReq('POST', { email: 'ada@example.com' }), res);
+    await authHandler(makeReq('POST', 'login', { email: 'ada@example.com' }), res);
     expect(res._code).toBe(400);
   });
 
   it('returns 401 when the account does not exist', async () => {
     mockedSql().mockResolvedValue([]);
     const res = makeRes();
-    await loginHandler(
-      makeReq('POST', { email: 'ghost@example.com', password: 'password123' }),
+    await authHandler(
+      makeReq('POST', 'login', { email: 'ghost@example.com', password: 'password123' }),
       res,
     );
     expect(res._code).toBe(401);
@@ -72,8 +77,8 @@ describe('POST /api/auth/login', () => {
       { id: 'u1', name: 'Ada', email: 'ada@example.com', password_hash: passwordHash },
     ]);
     const res = makeRes();
-    await loginHandler(
-      makeReq('POST', { email: 'ada@example.com', password: 'wrong' }),
+    await authHandler(
+      makeReq('POST', 'login', { email: 'ada@example.com', password: 'wrong' }),
       res,
     );
     expect(res._code).toBe(401);
@@ -85,12 +90,12 @@ describe('POST /api/auth/login', () => {
       { id: 'u1', name: 'Ada Lovelace', email: 'ada@example.com', password_hash: passwordHash },
     ]);
     const res = makeRes();
-    await loginHandler(
-      makeReq('POST', { email: 'ADA@example.com', password: 'correct-horse' }),
+    await authHandler(
+      makeReq('POST', 'login', { email: 'ADA@example.com', password: 'correct-horse' }),
       res,
     );
     expect(res._code).toBe(200);
-    expect(res._body).toEqual({ user: { id: 'u1', name: 'Ada Lovelace', email: 'ada@example.com' } });
+    expect(res._body).toEqual({ user: { id: 'u1', name: 'Ada Lovelace', email: 'ada@example.com', role: undefined } });
     // The password hash is never sent to the client.
     expect(JSON.stringify(res._body)).not.toContain(passwordHash);
   });
@@ -98,8 +103,8 @@ describe('POST /api/auth/login', () => {
   it('returns 500 on a datastore failure', async () => {
     mockedSql().mockRejectedValue(new Error('connection lost'));
     const res = makeRes();
-    await loginHandler(
-      makeReq('POST', { email: 'ada@example.com', password: 'correct-horse' }),
+    await authHandler(
+      makeReq('POST', 'login', { email: 'ada@example.com', password: 'correct-horse' }),
       res,
     );
     expect(res._code).toBe(500);
@@ -109,13 +114,13 @@ describe('POST /api/auth/login', () => {
 describe('POST /api/auth/signup', () => {
   it('rejects non-POST methods with 405', async () => {
     const res = makeRes();
-    await signupHandler(makeReq('GET', undefined), res);
+    await authHandler(makeReq('GET', 'signup', undefined), res);
     expect(res._code).toBe(405);
   });
 
   it('returns 400 for invalid input', async () => {
     const res = makeRes();
-    await signupHandler(makeReq('POST', { name: 'Bo', email: 'bo@example.com', password: '12345' }), res);
+    await authHandler(makeReq('POST', 'signup', { name: 'Bo', email: 'bo@example.com', password: '12345' }), res);
     expect(res._code).toBe(400);
   });
 
@@ -124,8 +129,8 @@ describe('POST /api/auth/signup', () => {
       { id: 'new-1', name: 'Ada Lovelace', email: 'ada@example.com' },
     ]);
     const res = makeRes();
-    await signupHandler(
-      makeReq('POST', { name: ' Ada Lovelace ', email: 'ADA@example.com', password: 'secret123' }),
+    await authHandler(
+      makeReq('POST', 'signup', { name: ' Ada Lovelace ', email: 'ADA@example.com', password: 'secret123' }),
       res,
     );
     expect(res._code).toBe(201);
@@ -141,10 +146,11 @@ describe('POST /api/auth/signup', () => {
   it('returns 400 when the email is already taken', async () => {
     mockedSql().mockRejectedValue(new Error('duplicate key value'));
     const res = makeRes();
-    await signupHandler(
-      makeReq('POST', { name: 'Ada Lovelace', email: 'ada@example.com', password: 'secret123' }),
+    await authHandler(
+      makeReq('POST', 'signup', { name: 'Ada Lovelace', email: 'ada@example.com', password: 'secret123' }),
       res,
     );
     expect(res._code).toBe(400);
   });
 });
+
