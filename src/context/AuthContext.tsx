@@ -1,20 +1,56 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 
-export type AppUser = { id: string; name: string; email: string };
-type AuthContextValue = { user: AppUser | null; loading: boolean; signIn: (email: string, password: string) => Promise<{ error: Error | null }>; signUp: (email: string, password: string, name: string) => Promise<{ error: Error | null }>; signOut: () => void };
+export type AppUser = { id: string; name: string; email: string; role: 'customer' | 'admin' };
+type AuthContextValue = { user: AppUser | null; loading: boolean; signIn: (email: string, password: string) => Promise<{ error: Error | null }>; signUp: (email: string, password: string, name: string) => Promise<{ error: Error | null }>; signOut: () => Promise<void> };
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
-const STORAGE_KEY = 'vura-user';
+
+async function readUser(response: Response) {
+  const result = await response.json() as { user?: AppUser | null; error?: string };
+  return { result, ok: response.ok };
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
-  useEffect(() => { const saved = localStorage.getItem(STORAGE_KEY); if (saved) { try { setUser(JSON.parse(saved) as AppUser); } catch { localStorage.removeItem(STORAGE_KEY); } } setLoading(false); }, []);
+
+  useEffect(() => {
+    fetch('/api/auth/me', { credentials: 'include' })
+      .then(readUser)
+      .then(({ result }) => setUser(result.user || null))
+      .catch(() => setUser(null))
+      .finally(() => setLoading(false));
+  }, []);
+
   const value = useMemo<AuthContextValue>(() => ({
-    user, loading,
-    async signIn(email, password) { try { const response = await fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) }); const result = await response.json() as { user?: AppUser; error?: string }; if (!response.ok || !result.user) return { error: new Error(result.error || 'Unable to sign in') }; setUser(result.user); localStorage.setItem(STORAGE_KEY, JSON.stringify(result.user)); return { error: null }; } catch { return { error: new Error('Unable to sign in') }; } },
-    async signUp(email, password, name) { try { const response = await fetch('/api/auth/signup', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password, name }) }); const result = await response.json() as { user?: AppUser; error?: string }; if (!response.ok || !result.user) return { error: new Error(result.error || 'Unable to create account') }; setUser(result.user); localStorage.setItem(STORAGE_KEY, JSON.stringify(result.user)); return { error: null }; } catch { return { error: new Error('Unable to create account') }; } },
-    signOut() { setUser(null); localStorage.removeItem(STORAGE_KEY); },
+    user,
+    loading,
+    async signIn(email, password) {
+      try {
+        const response = await fetch('/api/auth/login', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) });
+        const { result } = await readUser(response);
+        if (!response.ok || !result.user) return { error: new Error(result.error || 'Unable to sign in') };
+        setUser(result.user);
+        return { error: null };
+      } catch {
+        return { error: new Error('Unable to sign in') };
+      }
+    },
+    async signUp(email, password, name) {
+      try {
+        const response = await fetch('/api/auth/signup', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password, name }) });
+        const { result } = await readUser(response);
+        if (!response.ok || !result.user) return { error: new Error(result.error || 'Unable to create account') };
+        setUser(result.user);
+        return { error: null };
+      } catch {
+        return { error: new Error('Unable to create account') };
+      }
+    },
+    async signOut() {
+      try { await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }); } finally { setUser(null); }
+    },
   }), [loading, user]);
+
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
