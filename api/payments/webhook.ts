@@ -1,4 +1,4 @@
-import { createHmac } from 'node:crypto';
+import { createHmac, timingSafeEqual } from 'node:crypto';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { sql } from '../_lib/db';
 
@@ -16,10 +16,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!secret) return res.status(503).json({ error: 'Payments are not configured.' });
   try {
     const body = await rawBody(req);
-    const signature = String(req.headers['x-paystack-signature'] || '');
+    const signature = String(req.headers['x-paystack-signature'] || '').toLowerCase();
     const expected = createHmac('sha512', secret).update(body).digest('hex');
-    if (!signature || signature.length !== expected.length || !createHmac('sha512', secret).update(body).digest('hex').toLowerCase().includes(signature.toLowerCase())) return res.status(401).json({ error: 'Invalid signature.' });
-    const event = JSON.parse(body.toString('utf8')) as { event?: string; data?: { reference?: string; status?: string; amount?: number; metadata?: { order_id?: string } } };
+    const valid = signature.length === expected.length && timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
+    if (!valid) return res.status(401).json({ error: 'Invalid signature.' });
+    const event = JSON.parse(body.toString('utf8')) as { event?: string; data?: { reference?: string; status?: string; amount?: number } };
     if (event.event === 'charge.success' && event.data?.reference) {
       const reference = event.data.reference;
       const rows = await sql`SELECT id, total_kobo FROM orders WHERE payment_reference = ${reference} LIMIT 1`;
