@@ -1,5 +1,5 @@
-import { sql } from './db';
-import { sendTransactionalEmail } from './email';
+import { sql } from './db.js';
+import { sendTransactionalEmail } from './email.js';
 
 export async function createNotification(userId: string, type: string, title: string, body: string, orderId?: string | null) {
   await sql`
