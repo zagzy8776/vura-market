@@ -1,8 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { sql, json } from '../_lib/db';
-import { requireUser } from '../_lib/auth';
-import { orderEmail, simpleOrderEmail } from '../_lib/email';
-import { notifyAdmins, notifyUser } from '../_lib/notifications';
+import { sql, json } from '../_lib/db.js';
+import { requireUser } from '../_lib/auth.js';
+import { orderEmail, simpleOrderEmail } from '../_lib/email.js';
+import { notifyAdmins, notifyUser } from '../_lib/notifications.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const user = await requireUser(req, res);
@@ -35,10 +35,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     await notifyUser({ userId: user.id, email: user.email, firstName: user.name, orderId: rows[0].id, eventType: 'order.created', title: 'Order received', body: customerMessage, subject: email.subject, text: email.text, html: email.html });
     await notifyAdmins({ orderId: rows[0].id, eventType: 'order.created.admin', title: `New order ${rows[0].order_number}`, body: `A new order for ${productName} is awaiting payment confirmation.`, subject: adminEmail.subject, text: adminEmail.text, html: adminEmail.html });
 
-    return json(res, 201, {
-      order: rows[0],
-      payment: { method: 'bank_transfer', accountNumber: paymentDetails.payout_account_number || '', accountName: paymentDetails.payout_account_name || '', bankName: paymentDetails.payout_bank_name || '' },
-    });
+    return json(res, 201, { order: rows[0], payment: { method: 'bank_transfer', accountNumber: paymentDetails.payout_account_number || '', accountName: paymentDetails.payout_account_name || '', bankName: paymentDetails.payout_bank_name || '' } });
   } catch {
     return json(res, 500, { error: 'We could not process that request.' });
   }
