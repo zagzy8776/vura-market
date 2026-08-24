@@ -1,0 +1,39 @@
+name: attach-studio
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  attach:
+    if: github.event.head_commit.message != 'Attach Studio app'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Wire Studio route and remove Promise.all from Studio loader
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          app = Path('src/App.tsx')
+          s = app.read_text()
+          if "import StudioApp from '@/StudioApp';" not in s:
+              s = s.replace("import { useAuth, type AppUser } from '@/context/AuthContext';", "import { useAuth, type AppUser } from '@/context/AuthContext';\nimport StudioApp from '@/StudioApp';")
+          marker = "  if (loading) return <Loading />;"
+          if "window.location.pathname === '/studio'" not in s:
+              s = s.replace(marker, marker + "\n  if (user?.role === 'admin' && window.location.pathname === '/studio') return <StudioApp />;")
+          app.write_text(s)
+          studio = Path('src/StudioApp.tsx')
+          ss = studio.read_text()
+          old = '''      const [o, ord, prod, sup, cus, note] = await Promise.all([\n        fetch('/api/admin/overview', { credentials: 'include' }).then(r => r.json()),\n        fetch('/api/admin/orders', { credentials: 'include' }).then(r => r.json()),\n        fetch('/api/admin/products', { credentials: 'include' }).then(r => r.json()),\n        fetch('/api/admin/suppliers', { credentials: 'include' }).then(r => r.json()),\n        fetch('/api/admin/customers', { credentials: 'include' }).then(r => r.json()),\n        fetch('/api/admin/notifications', { credentials: 'include' }).then(r => r.json()),\n      ]);'''
+          new = '''      const o = await fetch('/api/admin/overview', { credentials: 'include' }).then(r => r.json());\n      const ord = await fetch('/api/admin/orders', { credentials: 'include' }).then(r => r.json());\n      const prod = await fetch('/api/admin/products', { credentials: 'include' }).then(r => r.json());\n      const sup = await fetch('/api/admin/suppliers', { credentials: 'include' }).then(r => r.json());\n      const cus = await fetch('/api/admin/customers', { credentials: 'include' }).then(r => r.json());\n      const note = await fetch('/api/admin/notifications', { credentials: 'include' }).then(r => r.json());'''
+          if old in ss:
+              ss = ss.replace(old, new)
+          studio.write_text(ss)
+          PY
+      - name: Commit Studio wiring
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/App.tsx src/StudioApp.tsx
+          git commit -m "Attach Studio app" || exit 0
+          git push
