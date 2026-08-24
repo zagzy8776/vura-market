@@ -1,6 +1,7 @@
+/// <reference types="node" />
 import { createHash, randomBytes } from 'node:crypto';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { sql } from './db';
+import { sql } from './db.js';
 
 const COOKIE_NAME = 'vura_session';
 const SESSION_DAYS = 30;
