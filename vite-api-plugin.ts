@@ -2,11 +2,14 @@ import type { Plugin, ViteDevServer } from 'vite';
 import { loadEnv } from 'vite';
 
 const routes: Record<string, string> = {
-  '/api/auth/login': '/api/auth/login.ts',
-  '/api/auth/signup': '/api/auth/signup.ts',
+  '/api/auth/login': '/api/auth/[action].ts',
+  '/api/auth/signup': '/api/auth/[action].ts',
+  '/api/auth/logout': '/api/auth/[action].ts',
+  '/api/auth/me': '/api/auth/[action].ts',
   '/api/categories': '/api/categories/index.ts',
   '/api/products': '/api/products/index.ts',
   '/api/orders': '/api/orders/index.ts',
+  '/api/orders/payment-submission': '/api/orders/payment-submission.ts',
   '/api/health': '/api/health.ts',
 };
 
@@ -33,7 +36,7 @@ export function apiRoutesPlugin(): Plugin {
         }
 
         let body: unknown = undefined;
-        if (req.method === 'POST' || req.method === 'PUT') {
+        if (req.method === 'POST' || req.method === 'PUT' || req.method === 'PATCH') {
           const chunks: Buffer[] = [];
           for await (const chunk of req) chunks.push(chunk as Buffer);
           const raw = Buffer.concat(chunks).toString();
@@ -44,6 +47,13 @@ export function apiRoutesPlugin(): Plugin {
           const module = await server.ssrLoadModule(handlerPath);
           const handler = module.default;
           (req as unknown as Record<string, unknown>).body = body;
+
+          const query: Record<string, string | string[]> = {};
+          url.searchParams.forEach((val, key) => { query[key] = val; });
+          if (url.pathname.startsWith('/api/auth/')) {
+            query.action = url.pathname.slice('/api/auth/'.length);
+          }
+          (req as any).query = query;
 
           const resAdapter = {
             setHeader: (key: string, value: string) => res.setHeader(key, value),

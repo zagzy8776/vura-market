@@ -1,22 +1,42 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { sql, json } from '../_lib/db.js';
-import { requireUser } from '../_lib/auth.js';
+import { getSessionUser } from '../_lib/auth.js';
 import { orderEmail, simpleOrderEmail } from '../_lib/email.js';
 import { notifyAdmins, notifyUser } from '../_lib/notifications.js';
+import { hash } from 'bcryptjs';
+import { randomBytes } from 'node:crypto';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  const user = await requireUser(req, res);
-  if (!user) return;
+  const sessionUser = await getSessionUser(req);
   try {
     if (req.method === 'GET') {
-      const rows = await sql`SELECT o.id, o.order_number, o.quantity, o.total_kobo, o.status, o.payment_method, o.payment_status, o.transfer_reference, o.payment_submitted_at, o.payment_verified_at, o.sourcing_status, o.delivery_name, o.delivery_phone, o.delivery_address, o.delivery_city, o.created_at, p.name AS product_name, p.brand, ARRAY_AGG(pi.image_url ORDER BY pi.sort_order) FILTER (WHERE pi.image_url IS NOT NULL) AS images FROM orders o JOIN products p ON p.id = o.product_id LEFT JOIN product_images pi ON pi.product_id = p.id WHERE o.buyer_id = ${user.id} GROUP BY o.id, p.name, p.brand ORDER BY o.created_at DESC LIMIT 100`;
+      if (!sessionUser) return json(res, 401, { error: 'Please sign in to view orders.' });
+      const rows = await sql`SELECT o.id, o.order_number, o.quantity, o.total_kobo, o.status, o.payment_method, o.payment_status, o.transfer_reference, o.payment_submitted_at, o.payment_verified_at, o.sourcing_status, o.delivery_name, o.delivery_phone, o.delivery_address, o.delivery_city, o.created_at, p.name AS product_name, p.brand, ARRAY_AGG(pi.image_url ORDER BY pi.sort_order) FILTER (WHERE pi.image_url IS NOT NULL) AS images FROM orders o JOIN products p ON p.id = o.product_id LEFT JOIN product_images pi ON pi.product_id = p.id WHERE o.buyer_id = ${sessionUser.id} GROUP BY o.id, p.name, p.brand ORDER BY o.created_at DESC LIMIT 100`;
       return json(res, 200, { orders: rows });
     }
     if (req.method !== 'POST') return json(res, 405, { error: 'Method not allowed' });
-    const { productId, quantity, name, phone, address, city } = req.body || {};
-    if (typeof productId !== 'string' || !Number.isInteger(quantity) || quantity < 1 || quantity > 10 || [name, phone, address, city].some((value) => typeof value !== 'string' || value.trim().length < 2)) return json(res, 400, { error: 'Please check your delivery details.' });
+    const { productId, quantity, email, name, phone, address, city } = req.body || {};
+    if (typeof productId !== 'string' || !Number.isInteger(quantity) || quantity < 1 || quantity > 10 || [name, phone, address, city].some((value) => typeof value !== 'string' || value.trim().length < 2)) {
+      return json(res, 400, { error: 'Please check your delivery details.' });
+    }
 
-    const rows = await sql`INSERT INTO orders (buyer_id, product_id, quantity, unit_price_kobo, total_kobo, delivery_name, delivery_phone, delivery_address, delivery_city, payment_method) SELECT ${user.id}, id, ${quantity}, price_kobo, price_kobo * ${quantity}, ${name.trim()}, ${phone.trim()}, ${address.trim()}, ${city.trim()}, 'bank_transfer' FROM products WHERE id = ${productId} AND is_active = true AND stock_status = 'available' RETURNING id, order_number, total_kobo, payment_method, payment_status`;
+    let buyer = sessionUser;
+    if (!buyer) {
+      if (typeof email !== 'string' || !/^\S+@\S+\.\S+$/.test(email.trim())) {
+        return json(res, 400, { error: 'Please enter a valid email address.' });
+      }
+      const existing = await sql`SELECT id, name, email FROM users WHERE email = ${email.toLowerCase().trim()} LIMIT 1`;
+      if (existing[0]) {
+        buyer = existing[0] as any;
+      } else {
+        const dummyPassword = randomBytes(16).toString('hex');
+        const passwordHash = await hash(dummyPassword, 12);
+        const guestRows = await sql`INSERT INTO users (name, email, password_hash, role) VALUES (${name.trim()}, ${email.toLowerCase().trim()}, ${passwordHash}, 'customer') RETURNING id, name, email`;
+        buyer = guestRows[0] as any;
+      }
+    }
+
+    const rows = await sql`INSERT INTO orders (buyer_id, product_id, quantity, unit_price_kobo, total_kobo, delivery_name, delivery_phone, delivery_address, delivery_city, payment_method) SELECT ${buyer!.id}, id, ${quantity}, price_kobo, price_kobo * ${quantity}, ${name.trim()}, ${phone.trim()}, ${address.trim()}, ${city.trim()}, 'bank_transfer' FROM products WHERE id = ${productId} AND is_active = true AND stock_status = 'available' RETURNING id, order_number, total_kobo, payment_method, payment_status`;
     if (!rows[0]) return json(res, 409, { error: 'That product is no longer available.' });
 
     if (!rows[0].order_number) {
@@ -28,11 +48,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const paymentDetails = Object.fromEntries(settings.map((row) => [row.key, row.value]));
     const productRows = await sql`SELECT name FROM products WHERE id = ${productId} LIMIT 1`;
     const productName = String(productRows[0]?.name || 'your product');
-    const email = orderEmail({ orderNumber: rows[0].order_number, productName, totalKobo: Number(rows[0].total_kobo), accountNumber: paymentDetails.payout_account_number || '', accountName: paymentDetails.payout_account_name || '', bankName: paymentDetails.payout_bank_name || '' }, user.name);
+    const emailData = orderEmail({ orderNumber: rows[0].order_number, productName, totalKobo: Number(rows[0].total_kobo), accountNumber: paymentDetails.payout_account_number || '', accountName: paymentDetails.payout_account_name || '', bankName: paymentDetails.payout_bank_name || '' }, buyer!.name);
     const customerMessage = `Your order ${rows[0].order_number} is ready for bank-transfer payment. We are waiting for your transfer confirmation.`;
     const adminEmail = simpleOrderEmail(`New Vura order ${rows[0].order_number}`, 'Vura admin', rows[0].order_number, `A new order for ${productName} was created for ${(Number(rows[0].total_kobo) / 100).toLocaleString('en-NG', { maximumFractionDigits: 0 })} NGN. Payment is awaiting confirmation.`);
 
-    await notifyUser({ userId: user.id, email: user.email, firstName: user.name, orderId: rows[0].id, eventType: 'order.created', title: 'Order received', body: customerMessage, subject: email.subject, text: email.text, html: email.html });
+    await notifyUser({ userId: buyer!.id, email: buyer!.email, firstName: buyer!.name, orderId: rows[0].id, eventType: 'order.created', title: 'Order received', body: customerMessage, subject: emailData.subject, text: emailData.text, html: emailData.html });
     await notifyAdmins({ orderId: rows[0].id, eventType: 'order.created.admin', title: `New order ${rows[0].order_number}`, body: `A new order for ${productName} is awaiting payment confirmation.`, subject: adminEmail.subject, text: adminEmail.text, html: adminEmail.html });
 
     return json(res, 201, { order: rows[0], payment: { method: 'bank_transfer', accountNumber: paymentDetails.payout_account_number || '', accountName: paymentDetails.payout_account_name || '', bankName: paymentDetails.payout_bank_name || '' } });
