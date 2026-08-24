@@ -19,12 +19,18 @@ function parseCookies(req: VercelRequest) {
   }));
 }
 
+function setNoStore(res: VercelResponse) {
+  res.setHeader('Cache-Control', 'private, no-store, max-age=0');
+  res.setHeader('Pragma', 'no-cache');
+}
+
 function setCookie(res: VercelResponse, value: string, maxAge: number) {
   const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
-  res.setHeader('Set-Cookie', `${COOKIE_NAME}=${encodeURIComponent(value)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure}`);
+  res.setHeader('Set-Cookie', `${COOKIE_NAME}=${encodeURIComponent(value)}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${maxAge}; Priority=High${secure}`);
 }
 
 export async function createSession(req: VercelRequest, res: VercelResponse, userId: string) {
+  setNoStore(res);
   const token = randomBytes(32).toString('base64url');
   const expiresAt = new Date(Date.now() + SESSION_DAYS * 24 * 60 * 60 * 1000);
   await sql`INSERT INTO sessions (user_id, token_hash, expires_at, user_agent, ip_address) VALUES (${userId}, ${hashToken(token)}, ${expiresAt.toISOString()}, ${String(req.headers['user-agent'] || '').slice(0, 500)}, ${String(req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '').split(',')[0].trim().slice(0, 64)})`;
@@ -39,6 +45,7 @@ export async function getSessionUser(req: VercelRequest): Promise<SessionUser | 
 }
 
 export async function requireUser(req: VercelRequest, res: VercelResponse) {
+  setNoStore(res);
   const user = await getSessionUser(req);
   if (!user) {
     res.status(401).json({ error: 'Please sign in to continue.' });
@@ -58,6 +65,7 @@ export async function requireAdmin(req: VercelRequest, res: VercelResponse) {
 }
 
 export async function destroySession(req: VercelRequest, res: VercelResponse) {
+  setNoStore(res);
   const token = parseCookies(req)[COOKIE_NAME];
   if (token) await sql`DELETE FROM sessions WHERE token_hash = ${hashToken(token)}`;
   setCookie(res, '', 0);
