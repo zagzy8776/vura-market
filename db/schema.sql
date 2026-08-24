@@ -6,8 +6,10 @@ CREATE TABLE IF NOT EXISTS users (
   email text UNIQUE NOT NULL,
   password_hash text NOT NULL,
   role text NOT NULL DEFAULT 'customer',
+  email_verified_at timestamptz,
   created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now()
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT users_role_check CHECK (role IN ('customer', 'admin'))
 );
 
 CREATE TABLE IF NOT EXISTS sessions (
@@ -77,6 +79,7 @@ CREATE TABLE IF NOT EXISTS product_images (
 
 CREATE TABLE IF NOT EXISTS orders (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  order_number text UNIQUE,
   buyer_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   product_id uuid NOT NULL REFERENCES products(id) ON DELETE RESTRICT,
   supplier_id uuid REFERENCES suppliers(id) ON DELETE SET NULL,
@@ -89,9 +92,12 @@ CREATE TABLE IF NOT EXISTS orders (
   delivery_city text NOT NULL,
   status text NOT NULL DEFAULT 'awaiting_payment',
   payment_reference text UNIQUE,
+  transfer_reference text UNIQUE,
   payment_method text NOT NULL DEFAULT 'bank_transfer',
   payment_status text NOT NULL DEFAULT 'unpaid',
   paid_at timestamptz,
+  payment_submitted_at timestamptz,
+  payment_verified_at timestamptz,
   sourcing_status text NOT NULL DEFAULT 'awaiting_confirmation',
   purchased_at timestamptz,
   purchase_cost_kobo bigint,
@@ -99,7 +105,35 @@ CREATE TABLE IF NOT EXISTS orders (
   other_cost_kobo bigint NOT NULL DEFAULT 0,
   actual_profit_kobo bigint,
   created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now()
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT orders_payment_method_check CHECK (payment_method = 'bank_transfer'),
+  CONSTRAINT orders_payment_status_check CHECK (payment_status IN ('unpaid', 'pending_verification', 'paid', 'rejected')),
+  CONSTRAINT orders_status_check CHECK (status IN ('awaiting_payment', 'payment_verification', 'confirmed', 'sourcing', 'purchased', 'out_for_delivery', 'delivered', 'cancelled')),
+  CONSTRAINT orders_sourcing_status_check CHECK (sourcing_status IN ('awaiting_confirmation', 'confirmed', 'sourcing', 'purchased', 'out_for_delivery', 'delivered', 'cancelled'))
+);
+
+CREATE TABLE IF NOT EXISTS notifications (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  order_id uuid REFERENCES orders(id) ON DELETE CASCADE,
+  type text NOT NULL,
+  title text NOT NULL,
+  body text NOT NULL,
+  read_at timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS email_deliveries (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES users(id) ON DELETE SET NULL,
+  order_id uuid REFERENCES orders(id) ON DELETE SET NULL,
+  event_type text NOT NULL,
+  recipient text NOT NULL,
+  provider_id text,
+  status text NOT NULL DEFAULT 'queued',
+  error_message text,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT email_deliveries_status_check CHECK (status IN ('queued', 'sent', 'failed'))
 );
 
 INSERT INTO categories (name, slug, icon) VALUES
@@ -128,3 +162,6 @@ CREATE INDEX IF NOT EXISTS orders_status_created_idx ON orders(status, created_a
 CREATE INDEX IF NOT EXISTS orders_payment_status_idx ON orders(payment_status, created_at DESC);
 CREATE INDEX IF NOT EXISTS orders_sourcing_status_idx ON orders(sourcing_status, created_at DESC);
 CREATE INDEX IF NOT EXISTS suppliers_name_idx ON suppliers(name);
+CREATE INDEX IF NOT EXISTS notifications_user_created_idx ON notifications(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS notifications_unread_idx ON notifications(user_id, read_at, created_at DESC);
+CREATE INDEX IF NOT EXISTS email_deliveries_order_event_idx ON email_deliveries(order_id, event_type, created_at DESC);
