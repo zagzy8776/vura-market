@@ -18,38 +18,30 @@ BEGIN
   SELECT * INTO r FROM return_requests WHERE id = p_return_request_id FOR UPDATE;
   IF NOT FOUND THEN RAISE EXCEPTION 'RETURN_NOT_FOUND'; END IF;
   IF r.status <> 'refunded' THEN RAISE EXCEPTION 'RETURN_NOT_REFUNDED'; END IF;
-  IF r.inventory_restocked_at IS NOT NULL THEN
-    RETURN 0;
-  END IF;
+  IF r.inventory_restocked_at IS NOT NULL THEN RETURN 0; END IF;
 
   FOR item IN
     SELECT ri.product_id, ri.variant_id, ri.quantity
       FROM return_items ri
      WHERE ri.return_request_id = r.id
   LOOP
-    IF item.variant_id IS NULL THEN
-      CONTINUE;
-    END IF;
+    IF item.variant_id IS NULL THEN CONTINUE; END IF;
 
     UPDATE product_variants
        SET available_quantity = available_quantity + item.quantity,
-           quantity_on_hand = COALESCE(quantity_on_hand, 0) + item.quantity,
            updated_at = now()
      WHERE id = item.variant_id;
-
     IF NOT FOUND THEN RAISE EXCEPTION 'RETURN_VARIANT_NOT_FOUND'; END IF;
 
     INSERT INTO inventory_movements(
-      variant_id, order_id, movement_type, quantity,
-      quantity_before, quantity_after, actor_user_id, reason, metadata
+      variant_id, product_id, order_id, movement_type, quantity,
+      reference, metadata
     )
-    SELECT item.variant_id, r.order_id, 'return', item.quantity,
-           GREATEST(0, pv.available_quantity - item.quantity), pv.available_quantity,
-           p_actor_user_id, 'Returned item restocked',
-           jsonb_build_object('return_request_id', r.id)
-      FROM product_variants pv
-     WHERE pv.id = item.variant_id;
-
+    VALUES (
+      item.variant_id, item.product_id, r.order_id, 'return', item.quantity,
+      'return:' || r.id::text,
+      jsonb_build_object('return_request_id', r.id, 'actor_user_id', p_actor_user_id)
+    );
     changed := changed + 1;
   END LOOP;
 
