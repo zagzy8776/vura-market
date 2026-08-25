@@ -66,7 +66,40 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (typeof body.status !== 'string' || !refundStatuses.has(body.status)) return json(res, 400, { error: 'Invalid refund status.' });
       const existing = await sql`SELECT * FROM refunds WHERE id=${body.refundId} LIMIT 1`;
       if (!existing[0]) return json(res, 404, { error: 'Refund not found.' });
-      const rows = await sql`UPDATE refunds SET status=${body.status}, approved_by=CASE WHEN ${body.status} IN ('approved','processing','completed') THEN ${admin.id} ELSE approved_by END, processed_at=CASE WHEN ${body.status}='completed' THEN now() ELSE processed_at END WHERE id=${body.refundId} RETURNING *`;
+
+      if (body.status === 'completed') {
+        const payment = await sql`
+          SELECT id FROM payment_transactions
+          WHERE order_id=${existing[0].order_id}
+            AND status IN ('confirmed','partially_refunded')
+          ORDER BY confirmed_at DESC NULLS LAST, created_at DESC
+          LIMIT 1
+        `;
+        if (!payment[0]) return json(res, 409, { error: 'Refund cannot complete until a confirmed payment transaction is linked.' });
+
+        const rows = await sql`
+          UPDATE refunds
+             SET status='completed', payment_transaction_id=${payment[0].id}, approved_by=${admin.id}, processed_at=now()
+           WHERE id=${body.refundId} AND status <> 'completed'
+           RETURNING *
+        `;
+        if (!rows[0]) {
+          const current = await sql`SELECT * FROM refunds WHERE id=${body.refundId} LIMIT 1`;
+          return json(res, 200, { refund: current[0], idempotent: true });
+        }
+        await sql`SELECT post_refund_ledger(${body.refundId}, ${admin.id})`;
+        await recordAudit({ actorUserId: admin.id, action: 'refund.status_update', entityType: 'refund', entityId: body.refundId, beforeData: existing[0], afterData: rows[0] });
+        await recordOrderEvent({ actorUserId: admin.id, orderId: rows[0].order_id, eventType: 'refund_status_changed', metadata: { refundId: body.refundId, status: 'completed', ledgerPosted: true } });
+        return json(res, 200, { refund: rows[0], ledgerPosted: true });
+      }
+
+      const rows = await sql`
+        UPDATE refunds
+           SET status=${body.status},
+               approved_by=CASE WHEN ${body.status} IN ('approved','processing') THEN ${admin.id} ELSE approved_by END
+         WHERE id=${body.refundId}
+         RETURNING *
+      `;
       await recordAudit({ actorUserId: admin.id, action: 'refund.status_update', entityType: 'refund', entityId: body.refundId, beforeData: existing[0], afterData: rows[0] });
       await recordOrderEvent({ actorUserId: admin.id, orderId: rows[0].order_id, eventType: 'refund_status_changed', metadata: { refundId: body.refundId, status: body.status } });
       return json(res, 200, { refund: rows[0] });
@@ -86,6 +119,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   } catch (error: any) {
     const message = String(error?.message || '');
     if (message.includes('duplicate key')) return json(res, 409, { error: 'This operation already exists.' });
+    if (message.includes('REFUND_NOT_COMPLETED') || message.includes('REFUND_PAYMENT_NOT_LINKED')) return json(res, 409, { error: 'Refund ledger precondition failed.' });
     return json(res, 500, { error: 'Refund operation could not be completed.' });
   }
 }
