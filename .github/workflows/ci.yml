@@ -16,7 +16,9 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
+      - run: npm run db:validate-migrations
       - run: npm run typecheck
+      - run: npm run typecheck:api
       - run: npm run lint
       - run: npm run test:run
       - run: npm run build

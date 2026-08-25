@@ -24,8 +24,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return json(res, 200, { orders: rows });
     }
     if (req.method !== 'POST') return json(res, 405, { error: 'Method not allowed' });
-    const { productId, quantity, email, name, phone, address, city } = req.body || {};
-    if (typeof productId !== 'string' || !Number.isInteger(quantity) || quantity < 1 || quantity > 10 || [name, phone, address, city].some((value) => typeof value !== 'string' || value.trim().length < 2)) {
+
+    const { productId, variantId, quantity, email, name, phone, address, city } = req.body || {};
+    if (typeof productId !== 'string' || (variantId !== undefined && variantId !== null && typeof variantId !== 'string') || !Number.isInteger(quantity) || quantity < 1 || quantity > 10 || [name, phone, address, city].some((value) => typeof value !== 'string' || value.trim().length < 2)) {
       return json(res, 400, { error: 'Please check your delivery details.' });
     }
 
@@ -48,22 +49,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    const rows = await sql`INSERT INTO orders (buyer_id, product_id, quantity, unit_price_kobo, total_kobo, delivery_name, delivery_phone, delivery_address, delivery_city, payment_method) SELECT ${buyer!.id}, id, ${quantity}, price_kobo, price_kobo * ${quantity}, ${name.trim()}, ${phone.trim()}, ${address.trim()}, ${city.trim()}, 'bank_transfer' FROM products WHERE id = ${productId} AND is_active = true AND stock_status = 'available' RETURNING id, order_number, total_kobo, payment_method, payment_status`;
-    if (!rows[0]) return json(res, 409, { error: 'That product is no longer available.' });
-
-    if (!rows[0].order_number) {
-      const numbered = await sql`UPDATE orders SET order_number = 'VURA-' || UPPER(SUBSTRING(REPLACE(id::text, '-', '') FROM 1 FOR 10)) WHERE id = ${rows[0].id} RETURNING order_number`;
-      rows[0].order_number = numbered[0]?.order_number || `VURA-${String(rows[0].id).replaceAll('-', '').slice(0, 10).toUpperCase()}`;
+    // The database function creates the order and, when a variant is supplied,
+    // reserves its inventory in the same transaction. A failed reservation
+    // therefore cannot leave behind an orphaned order.
+    let rows: any[];
+    try {
+      rows = await sql`SELECT * FROM create_order_with_inventory(${buyer!.id}, ${productId}, ${variantId ?? null}, ${quantity}, ${name.trim()}, ${phone.trim()}, ${address.trim()}, ${city.trim()})`;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '';
+      if (/insufficient inventory|no longer available|variant is required|invalid product variant|inventory/i.test(message)) {
+        return json(res, 409, { error: message || 'That product is no longer available.' });
+      }
+      throw error;
     }
+    if (!rows[0]) return json(res, 409, { error: 'That product is no longer available.' });
 
     const settings = await sql`SELECT key, value FROM platform_settings WHERE key IN ('payout_account_number', 'payout_account_name', 'payout_bank_name')`;
     const paymentDetails = Object.fromEntries(settings.map((row) => [row.key, row.value]));
     const productRows = await sql`SELECT name FROM products WHERE id = ${productId} LIMIT 1`;
     const productName = String(productRows[0]?.name || 'your product');
 
-    // New guests get a session so they can submit the transfer reference on
-    // the same flow, plus a one-time claim token so they can set a password
-    // and keep their account. Returning users do not need a claim.
     if (isNewGuest) {
       await createSession(req, res, buyer!.id);
       const issued = await issueClaimToken(buyer!.id);

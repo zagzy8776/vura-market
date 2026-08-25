@@ -5,6 +5,7 @@ export async function createNotification(userId: string, type: string, title: st
   await sql`
     INSERT INTO notifications (user_id, order_id, type, title, body)
     VALUES (${userId}, ${orderId || null}, ${type}, ${title}, ${body})
+    ON CONFLICT (user_id, order_id, type) WHERE order_id IS NOT NULL DO NOTHING
   `;
 }
 
