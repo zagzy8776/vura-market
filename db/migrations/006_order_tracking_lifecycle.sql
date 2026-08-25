@@ -40,4 +40,33 @@ BEGIN
 END;
 $$;
 
+CREATE OR REPLACE FUNCTION release_expired_inventory_reservations()
+RETURNS integer
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  released integer;
+BEGIN
+  WITH expired AS (
+    UPDATE inventory_reservations
+       SET status = 'released', released_at = now()
+     WHERE status = 'active'
+       AND expires_at <= now()
+     RETURNING variant_id, quantity
+  ), totals AS (
+    SELECT variant_id, SUM(quantity)::integer AS quantity
+      FROM expired
+     GROUP BY variant_id
+  )
+  UPDATE product_variants v
+     SET reserved_quantity = GREATEST(0, v.reserved_quantity - totals.quantity),
+         updated_at = now()
+    FROM totals
+   WHERE v.id = totals.variant_id;
+
+  GET DIAGNOSTICS released = ROW_COUNT;
+  RETURN released;
+END;
+$$;
+
 COMMIT;
