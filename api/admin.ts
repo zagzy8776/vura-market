@@ -1,14 +1,18 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { sql, json } from './_lib/db.js';
-import { requireAdmin } from './_lib/auth.js';
+import { requireAdmin, requireAdminPermission } from './_lib/auth.js';
 import { recordAudit, recordOrderEvent } from './_lib/audit.js';
 import { simpleOrderEmail } from './_lib/email.js';
 import { notifyUser } from './_lib/notifications.js';
+import { applySecurityHeaders, rejectUnsupportedMethod } from './_lib/http.js';
 
 const orderStatuses = new Set(['awaiting_payment','payment_verification','confirmed','sourcing','purchased','out_for_delivery','delivered','cancelled']);
 const sourcingStatuses = new Set(['awaiting_confirmation','confirmed','sourcing','purchased','out_for_delivery','delivered','cancelled']);
 const paymentStatuses = new Set(['unpaid','pending_verification','paid','rejected']);
 const stockStatuses = new Set(['available','low_stock','out_of_stock','unavailable']);
+const fulfillmentStatuses = new Set(['pending','preparing','dispatched','in_transit','delivered','failed','cancelled']);
+const refundStatuses = new Set(['requested','approved','processing','completed','rejected','failed']);
+const rmaStatuses = new Set(['requested','approved','return_in_transit','received','inspecting','refunded','replaced','rejected','cancelled']);
 
 type Method = 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE';
 type Dispatcher = (req: VercelRequest, res: VercelResponse, adminId: string) => Promise<void> | void;
@@ -21,6 +25,9 @@ const handlers: Record<string, Partial<Record<Method, Dispatcher>>> = {
   suppliers: { GET: suppliers, POST: suppliers, PATCH: suppliers },
   customers: { GET: (_req, res) => customers(res) },
   notifications: { GET: (_req, res) => notifications(res) },
+  delivery: { GET: delivery, POST: delivery, PATCH: delivery },
+  finance: { GET: finance },
+  refunds: { GET: refunds, POST: refunds, PATCH: refunds },
 };
 
 function resource(req: VercelRequest) {
@@ -30,6 +37,7 @@ function resource(req: VercelRequest) {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  applySecurityHeaders(res);
   const admin = await requireAdmin(req, res);
   if (!admin) return;
   const r = resource(req);
@@ -40,7 +48,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!fn) return json(res, 405, { error: 'Method not allowed for this admin resource.' });
   try {
     await fn(req, res, admin.id);
-  } catch {
+  } catch (error: any) {
+    const code = String(error?.message || '');
+    if (code.includes('ORDER_NOT_FOUND') || code.includes('FULFILLMENT_NOT_FOUND')) return json(res, 404, { error: 'Resource not found.' });
+    if (code.includes('INVALID')) return json(res, 400, { error: 'Invalid operation parameters.' });
     return json(res, 500, { error: 'The admin operation could not be completed.' });
   }
 }
@@ -159,9 +170,6 @@ async function orders(req: VercelRequest,res: VercelResponse,adminId:string) {
   const nextStatus=status||(paymentStatus==='paid'?'confirmed':paymentStatus==='rejected'?'awaiting_payment':existing[0].status);
   const nextSourcing=sourcingStatus||existing[0].sourcing_status;
 
-  // Inventory transitions happen before the order state is committed. The
-  // database functions are transactional, so a failed conversion/release
-  // aborts the request rather than leaving payment and stock out of sync.
   if (nextPayment === 'paid' && existing[0].payment_status !== 'paid') {
     await sql`SELECT commit_order_inventory(${orderId}::uuid, ${adminId}::uuid)`;
   } else if ((nextPayment === 'rejected' || nextStatus === 'cancelled') && existing[0].status !== 'cancelled') {
@@ -183,4 +191,142 @@ async function orders(req: VercelRequest,res: VercelResponse,adminId:string) {
     await notifyUser({userId:existing[0].buyer_id,email:existing[0].buyer_email,firstName:existing[0].buyer_name,orderId:updated[0].id,eventType:`order.status.${nextStatus}`,title:nextPayment==='paid'?'Payment verified':'Order updated',body:message,subject:email.subject,text:email.text,html:email.html});
   }
   return json(res,200,{order:updated[0]});
+}
+
+// DELIVERY OPERATIONS
+async function delivery(req: VercelRequest, res: VercelResponse, adminId: string) {
+  const admin = await requireAdminPermission(req, res, req.method === 'GET' ? 'orders.read' : 'orders.write');
+  if (!admin) return;
+
+  const text = (value: unknown, max = 500) => typeof value === 'string' ? value.trim().slice(0, max) : '';
+
+  if (req.method === 'GET') {
+    const orderId = typeof req.query.orderId === 'string' ? req.query.orderId : null;
+    const rows = orderId
+      ? await sql`SELECT f.*, s.name AS supplier_name FROM order_fulfillments f LEFT JOIN suppliers s ON s.id=f.supplier_id WHERE f.order_id=${orderId} ORDER BY f.created_at DESC`
+      : await sql`SELECT f.*, s.name AS supplier_name, o.order_number FROM order_fulfillments f LEFT JOIN suppliers s ON s.id=f.supplier_id JOIN orders o ON o.id=f.order_id ORDER BY f.created_at DESC LIMIT 500`;
+    const ids = rows.map((r: any) => r.id);
+    const events = ids.length ? await sql`SELECT * FROM delivery_events WHERE fulfillment_id = ANY(${ids}) ORDER BY created_at ASC` : [];
+    return json(res, 200, { fulfillments: rows, events });
+  }
+
+  if (req.method !== 'POST' && req.method !== 'PATCH') return rejectUnsupportedMethod(res, ['GET', 'POST', 'PATCH']);
+  const body = req.body && typeof req.body === 'object' ? req.body as Record<string, unknown> : {};
+
+  if (req.method === 'POST') {
+    const orderId = text(body.orderId, 100);
+    const address = text(body.deliveryAddress, 1000);
+    if (!orderId) return json(res, 400, { error: 'Order is required.' });
+    if (!address) return json(res, 400, { error: 'Delivery address is required.' });
+    const rows = await sql`SELECT id, supplier_id, delivery_address, delivery_city FROM orders WHERE id=${orderId} LIMIT 1`;
+    if (!rows[0]) return json(res, 404, { error: 'Order not found.' });
+    const supplierId = text(body.supplierId, 100);
+    const fulfillment = await sql`SELECT create_fulfillment(${orderId}, ${supplierId || rows[0].supplier_id || null}, ${text(body.courierName) || null}, ${text(body.trackingNumber) || null}, ${address}, ${text(body.deliveryCity, 200) || rows[0].delivery_city || null}) AS id`;
+    const id = fulfillment[0].id;
+    await recordAudit({ actorUserId: admin.id, action: 'fulfillment.create', entityType: 'fulfillment', entityId: id, afterData: { orderId, supplierId: supplierId || rows[0].supplier_id, courierName: text(body.courierName), trackingNumber: text(body.trackingNumber) } });
+    await recordOrderEvent({ actorUserId: admin.id, orderId, eventType: 'fulfillment_created', toStatus: 'pending', metadata: { fulfillmentId: id } });
+    return json(res, 201, { fulfillmentId: id });
+  }
+
+  const fulfillmentId = text(body.fulfillmentId, 100);
+  const status = text(body.status, 50);
+  if (!fulfillmentId) return json(res, 400, { error: 'Fulfillment is required.' });
+  if (!fulfillmentStatuses.has(status)) return json(res, 400, { error: 'Invalid fulfillment status.' });
+  const existing = await sql`SELECT id, order_id, status, tracking_number, courier_name FROM order_fulfillments WHERE id=${fulfillmentId} LIMIT 1`;
+  if (!existing[0]) return json(res, 404, { error: 'Fulfillment not found.' });
+  const event = await sql`SELECT update_fulfillment_status(${fulfillmentId}, ${status}, ${text(body.message) || `Fulfillment status changed to ${status}.`}, ${text(body.location, 200) || null}, 'admin', ${text(body.externalEventId, 200) || null}) AS id`;
+  if (body.trackingNumber !== undefined || body.courierName !== undefined) {
+    const tracking = text(body.trackingNumber, 200);
+    const courier = text(body.courierName, 200);
+    await sql`UPDATE order_fulfillments SET tracking_number=COALESCE(${tracking || null},tracking_number), courier_name=COALESCE(${courier || null},courier_name), updated_at=now() WHERE id=${fulfillmentId}`;
+  }
+  await recordAudit({ actorUserId: admin.id, action: 'fulfillment.status_update', entityType: 'fulfillment', entityId: fulfillmentId, beforeData: existing[0], afterData: { status, eventId: event[0]?.id || null } });
+  await recordOrderEvent({ actorUserId: admin.id, orderId: existing[0].order_id, eventType: 'fulfillment_status_changed', toStatus: status, metadata: { fulfillmentId } });
+  return json(res, 200, { fulfillmentId, eventId: event[0]?.id || null });
+}
+
+// FINANCE OPERATIONS
+async function finance(req: VercelRequest, res: VercelResponse, adminId: string) {
+  const admin = await requireAdminPermission(req, res, 'finance.read');
+  if (!admin) return;
+  if (req.method !== 'GET') return json(res, 405, { error: 'Method not allowed.' });
+  const [summary, monthly, payments, sourcing] = await Promise.all([
+    sql`SELECT COUNT(*) FILTER (WHERE payment_status='paid')::int AS paid_orders, COUNT(*) FILTER (WHERE payment_status='pending_verification')::int AS pending_orders, COUNT(*) FILTER (WHERE payment_status='rejected')::int AS rejected_orders, COALESCE(SUM(total_kobo) FILTER (WHERE payment_status='paid'),0)::bigint AS revenue_kobo, COALESCE(SUM(purchase_cost_kobo) FILTER (WHERE payment_status='paid'),0)::bigint AS purchase_cost_kobo, COALESCE(SUM(delivery_fee_kobo) FILTER (WHERE payment_status='paid'),0)::bigint AS delivery_cost_kobo, COALESCE(SUM(other_cost_kobo) FILTER (WHERE payment_status='paid'),0)::bigint AS other_cost_kobo, COALESCE(SUM(actual_profit_kobo) FILTER (WHERE payment_status='paid'),0)::bigint AS profit_kobo FROM orders`,
+    sql`SELECT to_char(date_trunc('month', created_at),'YYYY-MM') AS month, COUNT(*)::int AS orders, COALESCE(SUM(total_kobo) FILTER (WHERE payment_status='paid'),0)::bigint AS revenue_kobo, COALESCE(SUM(purchase_cost_kobo) FILTER (WHERE payment_status='paid'),0)::bigint AS purchase_cost_kobo, COALESCE(SUM(delivery_fee_kobo) FILTER (WHERE payment_status='paid'),0)::bigint AS delivery_cost_kobo, COALESCE(SUM(other_cost_kobo) FILTER (WHERE payment_status='paid'),0)::bigint AS other_cost_kobo, COALESCE(SUM(actual_profit_kobo) FILTER (WHERE payment_status='paid'),0)::bigint AS profit_kobo FROM orders WHERE created_at >= date_trunc('month', now()) - interval '11 months' GROUP BY 1 ORDER BY 1 DESC`,
+    sql`SELECT payment_status, COUNT(*)::int AS orders, COALESCE(SUM(total_kobo),0)::bigint AS amount_kobo FROM orders GROUP BY payment_status ORDER BY payment_status`,
+    sql`SELECT sourcing_status, COUNT(*)::int AS orders, COALESCE(SUM(total_kobo) FILTER (WHERE payment_status='paid'),0)::bigint AS paid_value_kobo FROM orders GROUP BY sourcing_status ORDER BY sourcing_status`,
+  ]);
+  return json(res, 200, { summary: summary[0], monthly, payments, sourcing });
+}
+
+// REFUND & RMA OPERATIONS
+async function refunds(req: VercelRequest, res: VercelResponse, adminId: string) {
+  const permission = req.method === 'GET' ? 'finance.read' : 'refunds.create';
+  const admin = await requireAdminPermission(req, res, permission);
+  if (!admin) return;
+
+  if (req.method === 'GET') {
+    const orderId = typeof req.query.orderId === 'string' ? req.query.orderId : null;
+    const refunds = orderId
+      ? await sql`SELECT r.*, o.order_number FROM refunds r JOIN orders o ON o.id=r.order_id WHERE r.order_id=${orderId} ORDER BY r.created_at DESC`
+      : await sql`SELECT r.*, o.order_number FROM refunds r JOIN orders o ON o.id=r.order_id ORDER BY r.created_at DESC LIMIT 500`;
+    const returns = orderId
+      ? await sql`SELECT rr.*, o.order_number FROM return_requests rr JOIN orders o ON o.id=rr.order_id WHERE rr.order_id=${orderId} ORDER BY rr.created_at DESC`
+      : await sql`SELECT rr.*, o.order_number FROM return_requests rr JOIN orders o ON o.id=rr.order_id ORDER BY rr.created_at DESC LIMIT 500`;
+    return json(res, 200, { refunds, returns });
+  }
+
+  if (req.method !== 'POST' && req.method !== 'PATCH') return json(res, 405, { error: 'Method not allowed.' });
+  const body = req.body || {};
+
+  if (req.method === 'POST' && body.action === 'refund') {
+    if (typeof body.orderId !== 'string' || typeof body.amountKobo !== 'number' || !Number.isSafeInteger(body.amountKobo) || body.amountKobo <= 0) return json(res, 400, { error: 'Order and a positive whole-kobo refund amount are required.' });
+    const order = await sql`SELECT id, order_number, total_kobo FROM orders WHERE id=${body.orderId} LIMIT 1`;
+    if (!order[0]) return json(res, 404, { error: 'Order not found.' });
+    const already = await sql`SELECT COALESCE(SUM(amount_kobo),0)::bigint AS amount FROM refunds WHERE order_id=${body.orderId} AND status IN ('requested','approved','processing','completed')`;
+    const remaining = Number(order[0].total_kobo) - Number(already[0]?.amount || 0);
+    if (body.amountKobo > remaining) return json(res, 409, { error: `Refund exceeds the remaining refundable amount (${remaining} kobo).` });
+    const key = typeof body.idempotencyKey === 'string' && body.idempotencyKey.trim() ? body.idempotencyKey.trim() : `refund:${body.orderId}:${body.amountKobo}:${body.reason || 'unspecified'}`;
+    const rows = await sql`INSERT INTO refunds(order_id,amount_kobo,reason,status,idempotency_key,requested_by) VALUES(${body.orderId},${body.amountKobo},${typeof body.reason === 'string' && body.reason.trim() ? body.reason.trim() : 'Customer refund'},'requested',${key},${admin.id}) ON CONFLICT(idempotency_key) DO NOTHING RETURNING id, order_id, amount_kobo, status, idempotency_key, created_at`;
+    if (!rows[0]) {
+      const existing = await sql`SELECT id, order_id, amount_kobo, status, idempotency_key, created_at FROM refunds WHERE idempotency_key=${key} LIMIT 1`;
+      return json(res, 200, { refund: existing[0], idempotent: true });
+    }
+    await recordAudit({ actorUserId: admin.id, action: 'refund.requested', entityType: 'refund', entityId: rows[0].id, afterData: rows[0] });
+    await recordOrderEvent({ actorUserId: admin.id, orderId: body.orderId, eventType: 'refund_requested', metadata: { refundId: rows[0].id, amountKobo: body.amountKobo } });
+    return json(res, 201, { refund: rows[0] });
+  }
+
+  if (req.method === 'POST' && body.action === 'rma') {
+    if (typeof body.orderId !== 'string' || typeof body.reason !== 'string' || !body.reason.trim()) return json(res, 400, { error: 'Order and return reason are required.' });
+    const rma = `RMA-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2,7).toUpperCase()}`;
+    const rows = await sql`INSERT INTO return_requests(rma_number,order_id,fulfillment_id,reason,customer_note,status) VALUES(${rma},${body.orderId},${typeof body.fulfillmentId === 'string' ? body.fulfillmentId : null},${body.reason.trim()},${typeof body.customerNote === 'string' ? body.customerNote.trim() : ''},'requested') RETURNING *`;
+    await recordAudit({ actorUserId: admin.id, action: 'rma.created', entityType: 'rma', entityId: rows[0].id, afterData: rows[0] });
+    await recordOrderEvent({ actorUserId: admin.id, orderId: body.orderId, eventType: 'rma_created', metadata: { rmaId: rows[0].id, rmaNumber: rma } });
+    return json(res, 201, { rma: rows[0] });
+  }
+
+  if (req.method === 'PATCH' && body.action === 'refund_approve') {
+    if (typeof body.refundId !== 'string') return json(res, 400, { error: 'Refund is required.' });
+    const existing = await sql`SELECT id, order_id, amount_kobo, status FROM refunds WHERE id=${body.refundId} LIMIT 1`;
+    if (!existing[0]) return json(res, 404, { error: 'Refund not found.' });
+    if (existing[0].status !== 'requested') return json(res, 409, { error: `Refund cannot be approved from ${existing[0].status} status.` });
+    const updated = await sql`UPDATE refunds SET status='approved', approved_at=now(), approved_by=${admin.id}, updated_at=now() WHERE id=${body.refundId} RETURNING *`;
+    await recordAudit({ actorUserId: admin.id, action: 'refund.approved', entityType: 'refund', entityId: body.refundId, beforeData: existing[0], afterData: updated[0] });
+    await recordOrderEvent({ actorUserId: admin.id, orderId: existing[0].order_id, eventType: 'refund_approved', metadata: { refundId: body.refundId, amountKobo: existing[0].amount_kobo } });
+    return json(res, 200, { refund: updated[0] });
+  }
+
+  if (req.method === 'PATCH' && body.action === 'rma_approve') {
+    if (typeof body.rmaId !== 'string') return json(res, 400, { error: 'RMA is required.' });
+    const existing = await sql`SELECT id, order_id, status FROM return_requests WHERE id=${body.rmaId} LIMIT 1`;
+    if (!existing[0]) return json(res, 404, { error: 'RMA not found.' });
+    if (existing[0].status !== 'requested') return json(res, 409, { error: `RMA cannot be approved from ${existing[0].status} status.` });
+    const updated = await sql`UPDATE return_requests SET status='approved', approved_at=now(), approved_by=${admin.id}, updated_at=now() WHERE id=${body.rmaId} RETURNING *`;
+    await recordAudit({ actorUserId: admin.id, action: 'rma.approved', entityType: 'rma', entityId: body.rmaId, beforeData: existing[0], afterData: updated[0] });
+    await recordOrderEvent({ actorUserId: admin.id, orderId: existing[0].order_id, eventType: 'rma_approved', metadata: { rmaId: body.rmaId } });
+    return json(res, 200, { rma: updated[0] });
+  }
+
+  return json(res, 400, { error: 'Invalid refund operation.' });
 }
