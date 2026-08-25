@@ -27,15 +27,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const body = req.body || {};
 
     if (req.method === 'POST' && body.action === 'refund') {
-      if (typeof body.orderId !== 'string' || typeof body.amountKobo !== 'number' || !Number.isSafeInteger(body.amountKobo) || body.amountKobo <= 0) {
-        return json(res, 400, { error: 'Order and a positive whole-kobo refund amount are required.' });
-      }
+      if (typeof body.orderId !== 'string' || typeof body.amountKobo !== 'number' || !Number.isSafeInteger(body.amountKobo) || body.amountKobo <= 0) return json(res, 400, { error: 'Order and a positive whole-kobo refund amount are required.' });
       const order = await sql`SELECT id, order_number, total_kobo FROM orders WHERE id=${body.orderId} LIMIT 1`;
       if (!order[0]) return json(res, 404, { error: 'Order not found.' });
       const already = await sql`SELECT COALESCE(SUM(amount_kobo),0)::bigint AS amount FROM refunds WHERE order_id=${body.orderId} AND status IN ('requested','approved','processing','completed')`;
       const remaining = Number(order[0].total_kobo) - Number(already[0]?.amount || 0);
       if (body.amountKobo > remaining) return json(res, 409, { error: `Refund exceeds the remaining refundable amount (${remaining} kobo).` });
-
       const key = typeof body.idempotencyKey === 'string' && body.idempotencyKey.trim() ? body.idempotencyKey.trim() : `refund:${body.orderId}:${body.amountKobo}:${body.reason || 'unspecified'}`;
       const rows = await sql`
         INSERT INTO refunds(order_id,amount_kobo,reason,status,idempotency_key,requested_by)
@@ -65,16 +62,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return json(res, 201, { returnRequest: rows[0] });
     }
 
-    if (req.method === 'PATCH') {
-      if (typeof body.returnRequestId !== 'string' || typeof body.status !== 'string' || !rmaStatuses.has(body.status)) return json(res, 400, { error: 'Return request and valid status are required.' });
-      const existing = await sql`SELECT * FROM return_requests WHERE id=${body.returnRequestId} LIMIT 1`;
-      if (!existing[0]) return json(res, 404, { error: 'Return request not found.' });
-      const rows = await sql`UPDATE return_requests SET status=${body.status}, return_tracking_number=COALESCE(${body.returnTrackingNumber || null},return_tracking_number), inspection_result=COALESCE(${body.inspectionResult || null},inspection_result), updated_at=now() WHERE id=${body.returnRequestId} RETURNING *`;
-      await recordAudit({ actorUserId: admin.id, action: 'rma.status_update', entityType: 'return_request', entityId: body.returnRequestId, beforeData: existing[0], afterData: rows[0] });
-      await recordOrderEvent({ actorUserId: admin.id, orderId: rows[0].order_id, eventType: 'return_status_changed', metadata: { returnRequestId: body.returnRequestId, status: body.status } });
-      return json(res, 200, { returnRequest: rows[0] });
-    }
-
     if (req.method === 'PATCH' && typeof body.refundId === 'string') {
       if (typeof body.status !== 'string' || !refundStatuses.has(body.status)) return json(res, 400, { error: 'Invalid refund status.' });
       const existing = await sql`SELECT * FROM refunds WHERE id=${body.refundId} LIMIT 1`;
@@ -83,6 +70,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       await recordAudit({ actorUserId: admin.id, action: 'refund.status_update', entityType: 'refund', entityId: body.refundId, beforeData: existing[0], afterData: rows[0] });
       await recordOrderEvent({ actorUserId: admin.id, orderId: rows[0].order_id, eventType: 'refund_status_changed', metadata: { refundId: body.refundId, status: body.status } });
       return json(res, 200, { refund: rows[0] });
+    }
+
+    if (req.method === 'PATCH' && typeof body.returnRequestId === 'string') {
+      if (typeof body.status !== 'string' || !rmaStatuses.has(body.status)) return json(res, 400, { error: 'Return request and valid status are required.' });
+      const existing = await sql`SELECT * FROM return_requests WHERE id=${body.returnRequestId} LIMIT 1`;
+      if (!existing[0]) return json(res, 404, { error: 'Return request not found.' });
+      const rows = await sql`UPDATE return_requests SET status=${body.status}, return_tracking_number=COALESCE(${body.returnTrackingNumber || null},return_tracking_number), inspection_result=COALESCE(${body.inspectionResult || null},inspection_result), updated_at=now() WHERE id=${body.returnRequestId} RETURNING *`;
+      await recordAudit({ actorUserId: admin.id, action: 'rma.status_update', entityType: 'return_request', entityId: body.returnRequestId, beforeData: existing[0], afterData: rows[0] });
+      await recordOrderEvent({ actorUserId: admin.id, orderId: rows[0].order_id, eventType: 'return_status_changed', metadata: { returnRequestId: body.returnRequestId, status: body.status } });
+      return json(res, 200, { returnRequest: rows[0] });
     }
 
     return json(res, 400, { error: 'Unsupported refund operation.' });
