@@ -158,6 +158,16 @@ async function orders(req: VercelRequest,res: VercelResponse,adminId:string) {
   const nextPayment=paymentStatus||existing[0].payment_status;
   const nextStatus=status||(paymentStatus==='paid'?'confirmed':paymentStatus==='rejected'?'awaiting_payment':existing[0].status);
   const nextSourcing=sourcingStatus||existing[0].sourcing_status;
+
+  // Inventory transitions happen before the order state is committed. The
+  // database functions are transactional, so a failed conversion/release
+  // aborts the request rather than leaving payment and stock out of sync.
+  if (nextPayment === 'paid' && existing[0].payment_status !== 'paid') {
+    await sql`SELECT commit_order_inventory(${orderId}::uuid, ${adminId}::uuid)`;
+  } else if ((nextPayment === 'rejected' || nextStatus === 'cancelled') && existing[0].status !== 'cancelled') {
+    await sql`SELECT release_order_inventory(${orderId}::uuid, ${nextPayment === 'rejected' ? 'Payment rejected' : 'Order cancelled'}, ${adminId}::uuid)`;
+  }
+
   const updated=await sql`UPDATE orders SET status=${nextStatus},payment_status=${nextPayment},sourcing_status=${nextSourcing},supplier_id=COALESCE(${supplierId||null},supplier_id),purchase_cost_kobo=COALESCE(${purchase},purchase_cost_kobo),delivery_fee_kobo=${delivery},other_cost_kobo=${other},actual_profit_kobo=COALESCE(${actualProfit},actual_profit_kobo),purchased_at=CASE WHEN ${purchase} IS NOT NULL THEN COALESCE(purchased_at,now()) ELSE purchased_at END,paid_at=CASE WHEN ${nextPayment}='paid' THEN COALESCE(paid_at,now()) ELSE paid_at END,payment_verified_at=CASE WHEN ${nextPayment} IN ('paid','rejected') THEN now() ELSE payment_verified_at END,updated_at=now() WHERE id=${orderId} RETURNING id,order_number,status,payment_status,sourcing_status,actual_profit_kobo`;
   const stateChanged=existing[0].payment_status!==nextPayment||existing[0].status!==nextStatus||existing[0].sourcing_status!==nextSourcing;
   const costsChanged=Number(existing[0].purchase_cost_kobo||0)!==Number((purchase??existing[0].purchase_cost_kobo)||0)||Number(existing[0].delivery_fee_kobo||0)!==delivery||Number(existing[0].other_cost_kobo||0)!==other||(supplierId&&supplierId!==existing[0].supplier_id);
