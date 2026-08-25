@@ -16,9 +16,14 @@ function escapeHtml(value: string) {
 }
 
 export async function sendTransactionalEmail(event: EmailEvent) {
-  const existing = event.orderId ? await sql`SELECT id FROM email_deliveries WHERE order_id = ${event.orderId} AND event_type = ${event.eventType} AND recipient = ${event.recipient} LIMIT 1` : [];
-  if (existing[0]) return { sent: false, duplicate: true };
-  const delivery = await sql`INSERT INTO email_deliveries (user_id, order_id, event_type, recipient, status) VALUES (${event.userId || null}, ${event.orderId || null}, ${event.eventType}, ${event.recipient}, 'queued') RETURNING id`;
+  const delivery = await sql`
+    INSERT INTO email_deliveries (user_id, order_id, event_type, recipient, status)
+    VALUES (${event.userId || null}, ${event.orderId || null}, ${event.eventType}, ${event.recipient}, 'queued')
+    ON CONFLICT (order_id, event_type, recipient) WHERE order_id IS NOT NULL DO NOTHING
+    RETURNING id
+  `;
+  if (!delivery[0]) return { sent: false, duplicate: true };
+
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.RESEND_FROM_EMAIL;
   if (!apiKey || !from) {
@@ -52,11 +57,9 @@ export function orderEmail(
   const bankName = escapeHtml(order.bankName);
   const claimUrl = options?.claimUrl ? escapeHtml(options.claimUrl) : '';
   const claimBlock = claimUrl
-    ? `<p style="margin:24px 0 0;font-size:14px;line-height:22px;color:#77778a">We also created a Vura account so you can track this order. Set your password to keep using it for future purchases:</p><p style="margin:12px 0 0"><a href="${claimUrl}" style="display:inline-block;padding:12px 22px;background:#5b2cff;color:#ffffff;border-radius:999px;font-size:14px;font-weight:700;text-decoration:none">Set my password</a></p><p style="margin:12px 0 0;font-size:12px;line-height:18px;color:#aaaab4;color:#aaaab4">This link expires in 72 hours and can only be used once.</p>`
+    ? `<p style="margin:24px 0 0;font-size:14px;line-height:22px;color:#77778a">We also created a Vura account so you can track this order. Set your password to keep using it for future purchases:</p><p style="margin:12px 0 0"><a href="${claimUrl}" style="display:inline-block;padding:12px 22px;background:#5b2cff;color:#ffffff;border-radius:999px;font-size:14px;font-weight:700;text-decoration:none">Set my password</a></p><p style="margin:12px 0 0;font-size:12px;line-height:18px;color:#aaaab4">This link expires in 72 hours and can only be used once.</p>`
     : `<p style="margin:24px 0 0;font-size:14px;line-height:22px;color:#77778a">After transferring, open Vura → My Orders and submit your transfer reference. We will verify it before sourcing the product.</p>`;
-  const textTail = claimUrl
-    ? ` We also created a Vura account so you can track this order. Set your password at ${claimUrl} (this link expires in 72 hours and can only be used once).`
-    : '';
+  const textTail = claimUrl ? ` We also created a Vura account so you can track this order. Set your password at ${claimUrl} (this link expires in 72 hours and can only be used once).` : '';
   return {
     subject: `Vura order ${order.orderNumber} received`,
     text: `Hi ${firstName || 'there'}, your Vura order ${order.orderNumber} for ${order.productName} has been received. Total: ${amount}. Please transfer to ${order.accountName}, ${order.bankName}, account ${order.accountNumber}. Then confirm your transfer in My Orders.${textTail}`,
