@@ -14,7 +14,8 @@
     "test:run": "vitest run",
     "integration": "tsx scripts/integration-test.ts",
     "db:migrate": "tsx scripts/migrate.ts",
-    "db:validate-migrations": "tsx scripts/validate-migrations.ts"
+    "db:validate-migrations": "tsx scripts/validate-migrations.ts",
+    "db:verify": "tsx scripts/verify-schema.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",
