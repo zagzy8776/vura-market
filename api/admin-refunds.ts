@@ -109,7 +109,36 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (typeof body.status !== 'string' || !rmaStatuses.has(body.status)) return json(res, 400, { error: 'Return request and valid status are required.' });
       const existing = await sql`SELECT * FROM return_requests WHERE id=${body.returnRequestId} LIMIT 1`;
       if (!existing[0]) return json(res, 404, { error: 'Return request not found.' });
-      const rows = await sql`UPDATE return_requests SET status=${body.status}, return_tracking_number=COALESCE(${body.returnTrackingNumber || null},return_tracking_number), inspection_result=COALESCE(${body.inspectionResult || null},inspection_result), updated_at=now() WHERE id=${body.returnRequestId} RETURNING *`;
+
+      if (body.status === 'refunded') {
+        const rows = await sql`
+          UPDATE return_requests
+             SET status='refunded',
+                 return_tracking_number=COALESCE(${body.returnTrackingNumber || null},return_tracking_number),
+                 inspection_result=COALESCE(${body.inspectionResult || null},inspection_result),
+                 updated_at=now()
+           WHERE id=${body.returnRequestId} AND status <> 'refunded'
+           RETURNING *
+        `;
+        if (!rows[0]) {
+          const current = await sql`SELECT * FROM return_requests WHERE id=${body.returnRequestId} LIMIT 1`;
+          return json(res, 200, { returnRequest: current[0], idempotent: true });
+        }
+        const restocked = await sql`SELECT reconcile_return_inventory(${body.returnRequestId}, ${admin.id}) AS count`;
+        await recordAudit({ actorUserId: admin.id, action: 'rma.status_update', entityType: 'return_request', entityId: body.returnRequestId, beforeData: existing[0], afterData: rows[0] });
+        await recordOrderEvent({ actorUserId: admin.id, orderId: rows[0].order_id, eventType: 'return_status_changed', metadata: { returnRequestId: body.returnRequestId, status: 'refunded', inventoryRestocked: Number(restocked[0]?.count || 0) } });
+        return json(res, 200, { returnRequest: rows[0], inventoryRestocked: Number(restocked[0]?.count || 0) });
+      }
+
+      const rows = await sql`
+        UPDATE return_requests
+           SET status=${body.status},
+               return_tracking_number=COALESCE(${body.returnTrackingNumber || null},return_tracking_number),
+               inspection_result=COALESCE(${body.inspectionResult || null},inspection_result),
+               updated_at=now()
+         WHERE id=${body.returnRequestId}
+         RETURNING *
+      `;
       await recordAudit({ actorUserId: admin.id, action: 'rma.status_update', entityType: 'return_request', entityId: body.returnRequestId, beforeData: existing[0], afterData: rows[0] });
       await recordOrderEvent({ actorUserId: admin.id, orderId: rows[0].order_id, eventType: 'return_status_changed', metadata: { returnRequestId: body.returnRequestId, status: body.status } });
       return json(res, 200, { returnRequest: rows[0] });
@@ -120,6 +149,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const message = String(error?.message || '');
     if (message.includes('duplicate key')) return json(res, 409, { error: 'This operation already exists.' });
     if (message.includes('REFUND_NOT_COMPLETED') || message.includes('REFUND_PAYMENT_NOT_LINKED')) return json(res, 409, { error: 'Refund ledger precondition failed.' });
+    if (message.includes('RETURN_NOT_REFUNDED') || message.includes('RETURN_VARIANT_NOT_FOUND')) return json(res, 409, { error: 'Return inventory reconciliation failed.' });
     return json(res, 500, { error: 'Refund operation could not be completed.' });
   }
 }
