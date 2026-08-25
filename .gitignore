@@ -27,3 +27,7 @@ dist-ssr
 *.db
 .beads-credential-key
 .beads/proxieddb/
+.beads/issues.jsonl
+
+# CodeAm local infrastructure (not part of the repo)
+.codeam/

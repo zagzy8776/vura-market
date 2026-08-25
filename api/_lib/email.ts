@@ -38,7 +38,11 @@ export async function sendTransactionalEmail(event: EmailEvent) {
   }
 }
 
-export function orderEmail(order: { orderNumber: string; productName: string; totalKobo: number; accountNumber: string; accountName: string; bankName: string }, firstName: string) {
+export function orderEmail(
+  order: { orderNumber: string; productName: string; totalKobo: number; accountNumber: string; accountName: string; bankName: string },
+  firstName: string,
+  options?: { claimUrl?: string },
+) {
   const amount = `₦${(Number(order.totalKobo) / 100).toLocaleString('en-NG')}`;
   const name = escapeHtml(firstName || 'there');
   const product = escapeHtml(order.productName);
@@ -46,7 +50,18 @@ export function orderEmail(order: { orderNumber: string; productName: string; to
   const accountNumber = escapeHtml(order.accountNumber);
   const accountName = escapeHtml(order.accountName);
   const bankName = escapeHtml(order.bankName);
-  return { subject: `Vura order ${order.orderNumber} received`, text: `Hi ${firstName || 'there'}, your Vura order ${order.orderNumber} for ${order.productName} has been received. Total: ${amount}. Please transfer to ${order.accountName}, ${order.bankName}, account ${order.accountNumber}. Then confirm your transfer in My Orders.`, html: `<!doctype html><html><body style="margin:0;background:#f7f7fb;font-family:Arial,Helvetica,sans-serif;color:#151527"><table width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td align="center" style="padding:32px 16px"><table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;background:#ffffff;border-radius:24px"><tr><td style="padding:32px"><p style="margin:0;font-size:28px;line-height:34px;font-weight:700;color:#5b2cff">vura.</p><p style="margin:24px 0 8px;font-size:16px;line-height:24px;color:#151527">Hi ${name},</p><p style="margin:0;font-size:16px;line-height:24px;color:#151527">We received your order <strong>${number}</strong> for <strong>${product}</strong>.</p><p style="margin:24px 0 8px;font-size:13px;line-height:20px;color:#77778a">TOTAL</p><p style="margin:0;font-size:30px;line-height:36px;font-weight:700;color:#151527">${amount}</p><p style="margin:24px 0 8px;font-size:13px;line-height:20px;color:#77778a">PAY BY BANK TRANSFER</p><p style="margin:0;font-size:15px;line-height:24px;color:#151527"><strong>${accountName}</strong><br>${bankName}<br>Account: <strong>${accountNumber}</strong></p><p style="margin:24px 0 0;font-size:14px;line-height:22px;color:#77778a">After transferring, open Vura → My Orders and submit your transfer reference. We will verify it before sourcing the product.</p></td></tr></table></td></tr></table></body></html>` };
+  const claimUrl = options?.claimUrl ? escapeHtml(options.claimUrl) : '';
+  const claimBlock = claimUrl
+    ? `<p style="margin:24px 0 0;font-size:14px;line-height:22px;color:#77778a">We also created a Vura account so you can track this order. Set your password to keep using it for future purchases:</p><p style="margin:12px 0 0"><a href="${claimUrl}" style="display:inline-block;padding:12px 22px;background:#5b2cff;color:#ffffff;border-radius:999px;font-size:14px;font-weight:700;text-decoration:none">Set my password</a></p><p style="margin:12px 0 0;font-size:12px;line-height:18px;color:#aaaab4;color:#aaaab4">This link expires in 72 hours and can only be used once.</p>`
+    : `<p style="margin:24px 0 0;font-size:14px;line-height:22px;color:#77778a">After transferring, open Vura → My Orders and submit your transfer reference. We will verify it before sourcing the product.</p>`;
+  const textTail = claimUrl
+    ? ` We also created a Vura account so you can track this order. Set your password at ${claimUrl} (this link expires in 72 hours and can only be used once).`
+    : '';
+  return {
+    subject: `Vura order ${order.orderNumber} received`,
+    text: `Hi ${firstName || 'there'}, your Vura order ${order.orderNumber} for ${order.productName} has been received. Total: ${amount}. Please transfer to ${order.accountName}, ${order.bankName}, account ${order.accountNumber}. Then confirm your transfer in My Orders.${textTail}`,
+    html: `<!doctype html><html><body style="margin:0;background:#f7f7fb;font-family:Arial,Helvetica,sans-serif;color:#151527"><table width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td align="center" style="padding:32px 16px"><table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;background:#ffffff;border-radius:24px"><tr><td style="padding:32px"><p style="margin:0;font-size:28px;line-height:34px;font-weight:700;color:#5b2cff">vura.</p><p style="margin:24px 0 8px;font-size:16px;line-height:24px;color:#151527">Hi ${name},</p><p style="margin:0;font-size:16px;line-height:24px;color:#151527">We received your order <strong>${number}</strong> for <strong>${product}</strong>.</p><p style="margin:24px 0 8px;font-size:13px;line-height:20px;color:#77778a">TOTAL</p><p style="margin:0;font-size:30px;line-height:36px;font-weight:700;color:#151527">${amount}</p><p style="margin:24px 0 8px;font-size:13px;line-height:20px;color:#77778a">PAY BY BANK TRANSFER</p><p style="margin:0;font-size:15px;line-height:24px;color:#151527"><strong>${accountName}</strong><br>${bankName}<br>Account: <strong>${accountNumber}</strong></p>${claimBlock}</td></tr></table></td></tr></table></body></html>`,
+  };
 }
 
 export function simpleOrderEmail(subject: string, firstName: string, orderNumber: string, message: string) {

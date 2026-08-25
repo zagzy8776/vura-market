@@ -9,30 +9,41 @@ const orderStatuses = new Set(['awaiting_payment','payment_verification','confir
 const sourcingStatuses = new Set(['awaiting_confirmation','confirmed','sourcing','purchased','out_for_delivery','delivered','cancelled']);
 const paymentStatuses = new Set(['unpaid','pending_verification','paid','rejected']);
 
+type Method = 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE';
+type Dispatcher = (req: VercelRequest, res: VercelResponse, adminId: string) => Promise<void> | void;
+
+const handlers: Record<string, Partial<Record<Method, Dispatcher>>> = {
+  overview: { GET: (_req, res) => overview(res) },
+  orders: { GET: orders, PATCH: orders },
+  products: { GET: products, PATCH: products },
+  suppliers: { GET: suppliers, POST: suppliers, PATCH: suppliers },
+  customers: { GET: (_req, res) => customers(res) },
+  notifications: { GET: (_req, res) => notifications(res) },
+};
+
 function resource(req: VercelRequest) {
   const value = req.query.resource;
-  return Array.isArray(value) ? value[0] : value || 'overview';
+  if (Array.isArray(value)) return value[0];
+  return value || '';
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const admin = await requireAdmin(req, res);
   if (!admin) return;
   const r = resource(req);
+  const methods = handlers[r];
+  if (!methods) return json(res, 404, { error: 'Admin resource not found.' });
+  const method = (req.method || 'GET') as Method;
+  const fn = methods[method];
+  if (!fn) return json(res, 405, { error: 'Method not allowed for this admin resource.' });
   try {
-    if (r === 'overview' && req.method === 'GET') return overview(res);
-    if (r === 'orders') return orders(req, res, admin.id);
-    if (r === 'products') return products(req, res, admin.id);
-    if (r === 'suppliers') return suppliers(req, res, admin.id);
-    if (r === 'customers' && req.method === 'GET') return customers(res);
-    if (r === 'notifications' && req.method === 'GET') return notifications(res);
-    return json(res, 404, { error: 'Admin resource not found.' });
+    await fn(req, res, admin.id);
   } catch {
     return json(res, 500, { error: 'The admin operation could not be completed.' });
   }
 }
 
 async function overview(res: VercelResponse) {
-  if (arguments.length === 0) return;
   const [products, orders, revenue, profit, customersRows, notificationsRows, audit, orderEvents] = await Promise.all([
     sql`SELECT COUNT(*)::int AS count FROM products WHERE is_active = true`,
     sql`SELECT COUNT(*)::int AS count FROM orders WHERE created_at >= date_trunc('month', now())`,

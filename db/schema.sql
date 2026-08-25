@@ -136,6 +136,39 @@ CREATE TABLE IF NOT EXISTS email_deliveries (
   CONSTRAINT email_deliveries_status_check CHECK (status IN ('queued', 'sent', 'failed'))
 );
 
+CREATE TABLE IF NOT EXISTS audit_log (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  actor_user_id uuid REFERENCES users(id) ON DELETE SET NULL,
+  action text NOT NULL,
+  entity_type text NOT NULL,
+  entity_id text,
+  before_data jsonb,
+  after_data jsonb,
+  metadata jsonb,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS order_events (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  order_id uuid NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+  actor_user_id uuid REFERENCES users(id) ON DELETE SET NULL,
+  event_type text NOT NULL,
+  from_status text,
+  to_status text,
+  note text,
+  metadata jsonb,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS account_claim_tokens (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  token_hash text NOT NULL UNIQUE,
+  expires_at timestamptz NOT NULL,
+  used_at timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
 INSERT INTO categories (name, slug, icon) VALUES
   ('Phones', 'phones', 'Smartphone'), ('Laptops', 'laptops', 'Laptop'),
   ('Audio', 'audio', 'Headphones'), ('Gaming', 'gaming', 'Gamepad2'),
@@ -165,3 +198,10 @@ CREATE INDEX IF NOT EXISTS suppliers_name_idx ON suppliers(name);
 CREATE INDEX IF NOT EXISTS notifications_user_created_idx ON notifications(user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS notifications_unread_idx ON notifications(user_id, read_at, created_at DESC);
 CREATE INDEX IF NOT EXISTS email_deliveries_order_event_idx ON email_deliveries(order_id, event_type, created_at DESC);
+CREATE INDEX IF NOT EXISTS audit_log_created_idx ON audit_log(created_at DESC);
+CREATE INDEX IF NOT EXISTS audit_log_entity_idx ON audit_log(entity_type, entity_id);
+CREATE INDEX IF NOT EXISTS audit_log_actor_idx ON audit_log(actor_user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS order_events_order_idx ON order_events(order_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS order_events_created_idx ON order_events(created_at DESC);
+CREATE INDEX IF NOT EXISTS order_events_type_idx ON order_events(event_type, created_at DESC);
+CREATE INDEX IF NOT EXISTS account_claim_tokens_user_idx ON account_claim_tokens(user_id, created_at DESC);

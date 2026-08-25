@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import type { AppUser } from '@/types';
 
-export type AppUser = { id: string; name: string; email: string; role: 'customer' | 'admin' };
+export type { AppUser };
 type AuthContextValue = { user: AppUser | null; loading: boolean; signIn: (email: string, password: string) => Promise<{ error: Error | null }>; signUp: (email: string, password: string, name: string) => Promise<{ error: Error | null }>; signOut: () => Promise<void> };
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 

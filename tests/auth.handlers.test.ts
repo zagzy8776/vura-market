@@ -5,12 +5,22 @@ import authHandler from '../api/auth/[action]';
 // Mock the datastore so the handlers run without a live database.
 vi.mock('../api/_lib/db', () => {
   const json = (res: unknown, status: number, body: unknown) => {
-    const r = res as any;
+    const r = res as { setHeader: (k: string, v: string) => void; status: (n: number) => { json: (b: unknown) => void } };
     r.setHeader('Cache-Control', 'no-store');
     r.status(status).json(body);
   };
   return { sql: vi.fn(), json };
 });
+
+// Mock auth helpers — we don't want claim tests to actually issue sessions or
+// depend on session-cookie parsing here.
+vi.mock('../api/_lib/auth', () => ({
+  createSession: vi.fn(),
+  destroySession: vi.fn(),
+  getSessionUser: vi.fn(),
+  issueClaimToken: vi.fn(),
+  consumeClaimToken: vi.fn(),
+}));
 
 // Imported after the mock is registered so it is the mocked version.
 import { sql } from '../api/_lib/db';
@@ -23,7 +33,7 @@ type TestRes = {
 };
 
 function makeRes(): TestRes {
-  const res: TestRes = { setHeader: () => {}, status: () => ({ json: () => {} }) } as TestRes;
+  const res: TestRes = { setHeader: () => undefined, status: () => ({ json: () => undefined }) };
   res.status = (code: number) => ({
     json: (body: unknown) => {
       res._code = code;
@@ -39,7 +49,7 @@ function makeReq(method: string, action: string, body: unknown) {
     body,
     headers: {},
     socket: { remoteAddress: '127.0.0.1' },
-  } as any;
+  } as unknown as Parameters<typeof authHandler>[0];
 }
 
 const mockedSql = () => vi.mocked(sql);
@@ -154,3 +164,53 @@ describe('POST /api/auth/signup', () => {
   });
 });
 
+describe('POST /api/auth/claim', () => {
+  it('rejects non-POST methods with 405', async () => {
+    const res = makeRes();
+    await authHandler(makeReq('GET', 'claim', undefined), res);
+    expect(res._code).toBe(405);
+  });
+
+  it('returns 400 when the token or password is missing/short', async () => {
+    const res = makeRes();
+    await authHandler(makeReq('POST', 'claim', { token: 'a'.repeat(24), password: '123' }), res);
+    expect(res._code).toBe(400);
+  });
+
+  it('returns 400 when the token has been used or expired', async () => {
+    const { consumeClaimToken } = await import('../api/_lib/auth');
+    vi.mocked(consumeClaimToken).mockResolvedValueOnce(null);
+    const res = makeRes();
+    await authHandler(makeReq('POST', 'claim', { token: 'a'.repeat(24), password: 'newPassword123' }), res);
+    expect(res._code).toBe(400);
+    expect(JSON.stringify(res._body)).toMatch(/expired|used/i);
+  });
+
+  it('hashes the new password, issues a session, and returns the public user', async () => {
+    const { consumeClaimToken, createSession } = await import('../api/_lib/auth');
+    vi.mocked(consumeClaimToken).mockResolvedValueOnce('u-new');
+    mockedSql().mockResolvedValueOnce([{ id: 'u-new', name: 'Ada', email: 'ada@example.com', role: 'customer' }]);
+    const res = makeRes();
+    await authHandler(makeReq('POST', 'claim', { token: 'a'.repeat(24), password: 'newPassword123' }), res);
+    expect(res._code).toBe(200);
+    expect(res._body).toEqual({ user: { id: 'u-new', name: 'Ada', email: 'ada@example.com', role: 'customer' } });
+    expect(vi.mocked(createSession)).toHaveBeenCalled();
+    // The UPDATE statement must include bcrypt-hashed password (not the raw value).
+    const updateCall = mockedSql().mock.calls[0];
+    const params = updateCall.slice(1) as unknown[];
+    const passwordHash = params[0] as string;
+    expect(passwordHash).not.toBe('newPassword123');
+    expect(passwordHash).toMatch(/^\$2[aby]\$/);
+    // The raw token must never appear in the response.
+    expect(JSON.stringify(res._body)).not.toContain('a'.repeat(24));
+  });
+
+  it('returns 404 when the user row cannot be found after the token was consumed', async () => {
+    const { consumeClaimToken } = await import('../api/_lib/auth');
+    vi.mocked(consumeClaimToken).mockResolvedValueOnce('u-ghost');
+    mockedSql().mockResolvedValueOnce([]);
+    const res = makeRes();
+    await authHandler(makeReq('POST', 'claim', { token: 'a'.repeat(24), password: 'newPassword123' }), res);
+    expect(res._code).toBe(404);
+  });
+});

@@ -1,10 +1,19 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { sql, json } from '../_lib/db.js';
-import { getSessionUser } from '../_lib/auth.js';
+import { createSession, getSessionUser, issueClaimToken } from '../_lib/auth.js';
 import { orderEmail, simpleOrderEmail } from '../_lib/email.js';
 import { notifyAdmins, notifyUser } from '../_lib/notifications.js';
 import { hash } from 'bcryptjs';
 import { randomBytes } from 'node:crypto';
+
+function originFromRequest(req: VercelRequest) {
+  const configured = process.env.VURA_PUBLIC_BASE_URL?.replace(/\/$/, '');
+  if (configured) return configured;
+  const proto = (req.headers['x-forwarded-proto'] as string | undefined) || 'https';
+  const host = req.headers['x-forwarded-host'] || req.headers['host'];
+  if (!host) return '';
+  return `${proto}://${host}`;
+}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const sessionUser = await getSessionUser(req);
@@ -20,19 +29,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return json(res, 400, { error: 'Please check your delivery details.' });
     }
 
-    let buyer = sessionUser;
+    let buyer: { id: string; name: string; email: string } | null = sessionUser;
+    let claimToken: string | null = null;
+    let isNewGuest = false;
     if (!buyer) {
       if (typeof email !== 'string' || !/^\S+@\S+\.\S+$/.test(email.trim())) {
         return json(res, 400, { error: 'Please enter a valid email address.' });
       }
-      const existing = await sql`SELECT id, name, email FROM users WHERE email = ${email.toLowerCase().trim()} LIMIT 1`;
+      const existing = await sql`SELECT id, name, email FROM users WHERE email = ${email.toLowerCase().trim()} LIMIT 1` as Array<{ id: string; name: string; email: string }>;
       if (existing[0]) {
-        buyer = existing[0] as any;
+        buyer = existing[0];
       } else {
         const dummyPassword = randomBytes(16).toString('hex');
         const passwordHash = await hash(dummyPassword, 12);
-        const guestRows = await sql`INSERT INTO users (name, email, password_hash, role) VALUES (${name.trim()}, ${email.toLowerCase().trim()}, ${passwordHash}, 'customer') RETURNING id, name, email`;
-        buyer = guestRows[0] as any;
+        const guestRows = await sql`INSERT INTO users (name, email, password_hash, role) VALUES (${name.trim()}, ${email.toLowerCase().trim()}, ${passwordHash}, 'customer') RETURNING id, name, email` as Array<{ id: string; name: string; email: string }>;
+        buyer = guestRows[0];
+        isNewGuest = true;
       }
     }
 
@@ -48,7 +60,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const paymentDetails = Object.fromEntries(settings.map((row) => [row.key, row.value]));
     const productRows = await sql`SELECT name FROM products WHERE id = ${productId} LIMIT 1`;
     const productName = String(productRows[0]?.name || 'your product');
-    const emailData = orderEmail({ orderNumber: rows[0].order_number, productName, totalKobo: Number(rows[0].total_kobo), accountNumber: paymentDetails.payout_account_number || '', accountName: paymentDetails.payout_account_name || '', bankName: paymentDetails.payout_bank_name || '' }, buyer!.name);
+
+    // New guests get a session so they can submit the transfer reference on
+    // the same flow, plus a one-time claim token so they can set a password
+    // and keep their account. Returning users do not need a claim.
+    if (isNewGuest) {
+      await createSession(req, res, buyer!.id);
+      const issued = await issueClaimToken(buyer!.id);
+      claimToken = issued.rawToken;
+    }
+
+    const claimUrl = claimToken ? `${originFromRequest(req)}/account/claim?token=${encodeURIComponent(claimToken)}` : undefined;
+    const emailData = orderEmail({ orderNumber: rows[0].order_number, productName, totalKobo: Number(rows[0].total_kobo), accountNumber: paymentDetails.payout_account_number || '', accountName: paymentDetails.payout_account_name || '', bankName: paymentDetails.payout_bank_name || '' }, buyer!.name, { claimUrl });
     const customerMessage = `Your order ${rows[0].order_number} is ready for bank-transfer payment. We are waiting for your transfer confirmation.`;
     const adminEmail = simpleOrderEmail(`New Vura order ${rows[0].order_number}`, 'Vura admin', rows[0].order_number, `A new order for ${productName} was created for ${(Number(rows[0].total_kobo) / 100).toLocaleString('en-NG', { maximumFractionDigits: 0 })} NGN. Payment is awaiting confirmation.`);
 

@@ -64,9 +64,73 @@ export type Supplier = {
   created_at?: string;
 };
 
+export type Customer = {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  created_at: string;
+  order_count: number;
+  total_spend_kobo: number;
+};
+
+export type Notification = {
+  id: string;
+  user_id: string;
+  order_id?: string | null;
+  type: string;
+  title: string;
+  body: string;
+  read_at?: string | null;
+  created_at: string;
+  user_email?: string;
+  order_number?: string;
+};
+
+export type Audit = {
+  id: string;
+  action: string;
+  entity_type: string;
+  entity_id?: string | null;
+  before_data?: unknown;
+  after_data?: unknown;
+  metadata?: unknown;
+  created_at: string;
+  actor_user_id?: string | null;
+  actor_name?: string | null;
+  actor_email?: string | null;
+};
+
+export type OrderEvent = {
+  id: string;
+  order_id: string;
+  event_type: string;
+  from_status?: string | null;
+  to_status?: string | null;
+  note?: string | null;
+  metadata?: unknown;
+  created_at: string;
+  actor_user_id?: string | null;
+  actor_name?: string | null;
+  order_number?: string;
+};
+
+export type Overview = {
+  liveProducts: number;
+  monthlyOrders: number;
+  monthlyRevenueKobo: number;
+  monthlyProfitKobo: number;
+  customers?: Customer[];
+  notifications?: Notification[];
+  audit?: Audit[];
+  orderEvents?: OrderEvent[];
+};
+
 export type View = 'home' | 'catalog' | 'deals' | 'product' | 'orders' | 'account' | 'studio';
 export type AuthMode = 'signin' | 'signup';
-export type StudioTab = 'overview' | 'orders' | 'products' | 'suppliers' | 'settings';
+
+// Tabs that the live Studio actually loads data for.
+export type StudioTab = 'overview' | 'orders' | 'payments' | 'products' | 'sourcing' | 'suppliers' | 'customers' | 'notifications' | 'audit';
 
 export type AppUser = {
   id: string;

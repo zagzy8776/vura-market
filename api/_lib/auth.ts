@@ -71,3 +71,30 @@ export async function destroySession(req: VercelRequest, res: VercelResponse) {
   if (token) await sql`DELETE FROM sessions WHERE token_hash = ${hashToken(token)}`;
   setCookie(res, '', 0);
 }
+
+const CLAIM_TOKEN_TTL_HOURS = 72;
+
+// Issue a one-time account-claim token. Returns the raw token (to be put in
+// a single email) and the row we inserted. Only the SHA-256 hash is stored.
+export async function issueClaimToken(userId: string) {
+  const rawToken = randomBytes(32).toString('base64url');
+  const tokenHash = hashToken(rawToken);
+  const expiresAt = new Date(Date.now() + CLAIM_TOKEN_TTL_HOURS * 60 * 60 * 1000);
+  await sql`INSERT INTO account_claim_tokens (user_id, token_hash, expires_at) VALUES (${userId}, ${tokenHash}, ${expiresAt.toISOString()})`;
+  return { rawToken, tokenHash, expiresAt };
+}
+
+// Atomically claim a token: returns the user row on first use, null on
+// expired/reused/unknown. The UPDATE … WHERE used_at IS NULL acts as a
+// lock — a second call returns 0 rows.
+export async function consumeClaimToken(rawToken: string) {
+  if (typeof rawToken !== 'string' || rawToken.length < 16) return null;
+  const tokenHash = hashToken(rawToken);
+  const rows = await sql`
+    UPDATE account_claim_tokens
+    SET used_at = now()
+    WHERE token_hash = ${tokenHash} AND used_at IS NULL AND expires_at > now()
+    RETURNING user_id
+  `;
+  return rows[0]?.user_id || null;
+}

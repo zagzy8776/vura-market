@@ -1,11 +1,14 @@
 import type { Plugin, ViteDevServer } from 'vite';
 import { loadEnv } from 'vite';
 
+const ADMIN_HANDLER = '/api/admin.ts';
+
 const routes: Record<string, string> = {
   '/api/auth/login': '/api/auth/[action].ts',
   '/api/auth/signup': '/api/auth/[action].ts',
   '/api/auth/logout': '/api/auth/[action].ts',
   '/api/auth/me': '/api/auth/[action].ts',
+  '/api/auth/claim': '/api/auth/[action].ts',
   '/api/categories': '/api/categories/index.ts',
   '/api/products': '/api/products/index.ts',
   '/api/orders': '/api/orders/index.ts',
@@ -13,13 +16,13 @@ const routes: Record<string, string> = {
   '/api/payment-info': '/api/payment-info.ts',
   '/api/notifications': '/api/notifications.ts',
   '/api/health': '/api/health.ts',
-  '/api/admin/overview': '/api/admin/overview.ts',
-  '/api/admin/orders': '/api/admin/orders.ts',
-  '/api/admin/products': '/api/admin/products.ts',
-  '/api/admin/suppliers': '/api/admin/suppliers.ts',
-  '/api/admin/customers': '/api/admin/customers.ts',
-  '/api/admin/notifications': '/api/admin/notifications.ts',
 };
+
+function resolveAdminHandler(pathname: string): { handler: string; resource?: string } {
+  if (pathname === '/api/admin' || pathname === '/api/admin/') return { handler: ADMIN_HANDLER };
+  if (pathname.startsWith('/api/admin/')) return { handler: ADMIN_HANDLER, resource: pathname.slice('/api/admin/'.length) };
+  return { handler: '' };
+}
 
 export function apiRoutesPlugin(): Plugin {
   return {
@@ -35,7 +38,15 @@ export function apiRoutesPlugin(): Plugin {
         if (!req.url?.startsWith('/api/')) return next();
 
         const url = new URL(req.url, 'http://localhost');
-        const handlerPath = routes[url.pathname];
+        let handlerPath = routes[url.pathname];
+        let adminResource: string | undefined;
+        if (!handlerPath) {
+          const admin = resolveAdminHandler(url.pathname);
+          if (admin.handler) {
+            handlerPath = admin.handler;
+            adminResource = admin.resource;
+          }
+        }
         if (!handlerPath) {
           res.statusCode = 404;
           res.setHeader('Content-Type', 'application/json');
@@ -61,7 +72,8 @@ export function apiRoutesPlugin(): Plugin {
           if (url.pathname.startsWith('/api/auth/')) {
             query.action = url.pathname.slice('/api/auth/'.length);
           }
-          (req as any).query = query;
+          if (adminResource) query.resource = adminResource;
+          (req as unknown as Record<string, unknown>).query = query;
 
           const resAdapter = {
             setHeader: (key: string, value: string) => res.setHeader(key, value),

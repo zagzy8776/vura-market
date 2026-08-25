@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { compare, hash } from 'bcryptjs';
 import { sql, json } from '../_lib/db.js';
-import { createSession, destroySession, getSessionUser } from '../_lib/auth.js';
+import { createSession, destroySession, getSessionUser, consumeClaimToken } from '../_lib/auth.js';
 import { sendTransactionalEmail } from '../_lib/email.js';
 import { createNotification } from '../_lib/notifications.js';
 
@@ -131,6 +131,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return json(res, 200, { user });
     } catch {
       return json(res, 500, { error: 'We could not load your session.' });
+    }
+  }
+
+  if (action === 'claim') {
+    if (req.method !== 'POST') return json(res, 405, { error: 'Method not allowed' });
+    const { token, password } = req.body || {};
+    if (typeof token !== 'string' || token.length < 16 || typeof password !== 'string' || password.length < 8) {
+      return json(res, 400, { error: 'Open the link from your email and choose a password of at least 8 characters.' });
+    }
+    try {
+      const userId = await consumeClaimToken(token);
+      if (!userId) return json(res, 400, { error: 'This claim link has expired or already been used.' });
+      const passwordHash = await hash(password, 12);
+      const rows = await sql`UPDATE users SET password_hash = ${passwordHash}, updated_at = now() WHERE id = ${userId} RETURNING id, name, email, role`;
+      if (!rows[0]) return json(res, 404, { error: 'Account not found.' });
+      await createSession(req, res, rows[0].id);
+      return json(res, 200, { user: rows[0] });
+    } catch {
+      return json(res, 500, { error: 'We could not claim that account right now.' });
     }
   }
 

@@ -48,18 +48,7 @@ button { cursor: pointer; }
 }
 
 /* Keep the existing component markup while making the purple Vura identity canonical. */
-[class~="bg-[#e75c43]"] { background-color: var(--vura-purple) !important; }
-[class~="text-[#e75c43]"] { color: var(--vura-purple) !important; }
-[class~="border-[#e75c43]"] { border-color: var(--vura-purple) !important; }
-[class~="focus:border-[#e75c43]"]:focus { border-color: var(--vura-purple) !important; }
-[class~="shadow-[#e75c43]/20"] { --tw-shadow-color: rgb(91 44 255 / .20) !important; }
-[class~="bg-[#18241f]"] { background-color: var(--vura-ink) !important; }
-[class~="text-[#18241f]"] { color: var(--vura-ink) !important; }
-[class~="bg-[#f6f7f4]"] { background-color: #f7f7fb !important; }
-[class~="text-[#728078]"], [class~="text-[#708078]"], [class~="text-[#77847b]"], [class~="text-[#617069]"], [class~="text-[#5e6d64]"], [class~="text-[#839088]"] { color: var(--vura-muted) !important; }
-[class~="bg-[#f3f4ef]"] { background-color: #f3f1ff !important; }
-[class~="border-[#e5e7e0]"], [class~="border-[#e1e4dc]"] { border-color: var(--vura-border) !important; }
-[class~="bg-[#fafbf8]"] { background-color: #faf9ff !important; }
+/* (Dead color mappings removed — see tailwind.config.js for canonical tokens.) */
 
 /* Purple controls, focus states and accessibility */
 button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible {
