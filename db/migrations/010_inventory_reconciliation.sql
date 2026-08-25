@@ -1,17 +1,10 @@
 BEGIN;
 
--- Canonical inventory compatibility layer. The production core uses
--- available_quantity/reserved_quantity; the hardening migration used
--- quantity_on_hand/quantity_reserved. Keep one canonical representation for
--- new return/reconciliation logic and expose the legacy names as views/helpers.
+-- Canonical inventory model: product_variants.available_quantity and
+-- product_variants.reserved_quantity, as defined by 001_production_core.sql.
+-- This migration deliberately does not introduce a second inventory schema.
 ALTER TABLE product_variants
-  ADD COLUMN IF NOT EXISTS available_quantity integer NOT NULL DEFAULT 0,
-  ADD COLUMN IF NOT EXISTS reserved_quantity integer NOT NULL DEFAULT 0;
-
-UPDATE product_variants
-SET available_quantity = COALESCE(NULLIF(available_quantity, 0), quantity_on_hand, 0),
-    reserved_quantity = COALESCE(NULLIF(reserved_quantity, 0), quantity_reserved, 0)
-WHERE TRUE;
+  DROP CONSTRAINT IF EXISTS product_variants_inventory_nonnegative;
 
 ALTER TABLE product_variants
   ADD CONSTRAINT product_variants_inventory_nonnegative
@@ -32,37 +25,38 @@ BEGIN
   SELECT * INTO r FROM return_requests WHERE id = p_return_request_id FOR UPDATE;
   IF NOT FOUND THEN RAISE EXCEPTION 'RETURN_NOT_FOUND'; END IF;
   IF r.status <> 'refunded' THEN RAISE EXCEPTION 'RETURN_NOT_REFUNDED'; END IF;
+  IF r.inventory_restocked_at IS NOT NULL THEN RETURN 0; END IF;
 
   FOR item IN
     SELECT ri.product_id, ri.variant_id, ri.quantity
       FROM return_items ri
      WHERE ri.return_request_id = r.id
   LOOP
-    IF item.variant_id IS NULL THEN
-      CONTINUE;
-    END IF;
+    IF item.variant_id IS NULL THEN CONTINUE; END IF;
 
     UPDATE product_variants
        SET available_quantity = available_quantity + item.quantity,
-           quantity_on_hand = COALESCE(quantity_on_hand, 0) + item.quantity,
            updated_at = now()
      WHERE id = item.variant_id;
-
     IF NOT FOUND THEN RAISE EXCEPTION 'RETURN_VARIANT_NOT_FOUND'; END IF;
 
     INSERT INTO inventory_movements(
-      variant_id, order_id, movement_type, quantity,
-      quantity_before, quantity_after, actor_user_id, reason, metadata
+      variant_id, product_id, order_id, movement_type, quantity,
+      reference, metadata
     )
-    SELECT item.variant_id, r.order_id, 'return', item.quantity,
-           GREATEST(0, pv.available_quantity - item.quantity), pv.available_quantity,
-           p_actor_user_id, 'Returned item restocked',
-           jsonb_build_object('return_request_id', r.id)
-      FROM product_variants pv
-     WHERE pv.id = item.variant_id;
-
+    VALUES (
+      item.variant_id, item.product_id, r.order_id, 'return', item.quantity,
+      'return:' || r.id::text,
+      jsonb_build_object('return_request_id', r.id, 'actor_user_id', p_actor_user_id)
+    );
     changed := changed + 1;
   END LOOP;
+
+  UPDATE return_requests
+     SET inventory_restocked_at = now(),
+         inventory_restock_count = changed,
+         updated_at = now()
+   WHERE id = r.id;
 
   RETURN changed;
 END;
