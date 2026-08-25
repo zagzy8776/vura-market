@@ -34,12 +34,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const remaining = Number(order[0].total_kobo) - Number(already[0]?.amount || 0);
       if (body.amountKobo > remaining) return json(res, 409, { error: `Refund exceeds the remaining refundable amount (${remaining} kobo).` });
       const key = typeof body.idempotencyKey === 'string' && body.idempotencyKey.trim() ? body.idempotencyKey.trim() : `refund:${body.orderId}:${body.amountKobo}:${body.reason || 'unspecified'}`;
-      const rows = await sql`
-        INSERT INTO refunds(order_id,amount_kobo,reason,status,idempotency_key,requested_by)
-        VALUES(${body.orderId},${body.amountKobo},${typeof body.reason === 'string' && body.reason.trim() ? body.reason.trim() : 'Customer refund'},'requested',${key},${admin.id})
-        ON CONFLICT(idempotency_key) DO NOTHING
-        RETURNING id, order_id, amount_kobo, status, idempotency_key, created_at
-      `;
+      const rows = await sql`INSERT INTO refunds(order_id,amount_kobo,reason,status,idempotency_key,requested_by) VALUES(${body.orderId},${body.amountKobo},${typeof body.reason === 'string' && body.reason.trim() ? body.reason.trim() : 'Customer refund'},'requested',${key},${admin.id}) ON CONFLICT(idempotency_key) DO NOTHING RETURNING id, order_id, amount_kobo, status, idempotency_key, created_at`;
       if (!rows[0]) {
         const existing = await sql`SELECT id, order_id, amount_kobo, status, idempotency_key, created_at FROM refunds WHERE idempotency_key=${key} LIMIT 1`;
         return json(res, 200, { refund: existing[0], idempotent: true });
@@ -52,11 +47,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method === 'POST' && body.action === 'rma') {
       if (typeof body.orderId !== 'string' || typeof body.reason !== 'string' || !body.reason.trim()) return json(res, 400, { error: 'Order and return reason are required.' });
       const rma = `RMA-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2,7).toUpperCase()}`;
-      const rows = await sql`
-        INSERT INTO return_requests(rma_number,order_id,fulfillment_id,reason,customer_note,status)
-        VALUES(${rma},${body.orderId},${typeof body.fulfillmentId === 'string' ? body.fulfillmentId : null},${body.reason.trim()},${typeof body.customerNote === 'string' ? body.customerNote.trim() : ''},'requested')
-        RETURNING *
-      `;
+      const rows = await sql`INSERT INTO return_requests(rma_number,order_id,fulfillment_id,reason,customer_note,status) VALUES(${rma},${body.orderId},${typeof body.fulfillmentId === 'string' ? body.fulfillmentId : null},${body.reason.trim()},${typeof body.customerNote === 'string' ? body.customerNote.trim() : ''},'requested') RETURNING *`;
       await recordAudit({ actorUserId: admin.id, action: 'rma.created', entityType: 'return_request', entityId: rows[0].id, afterData: rows[0] });
       await recordOrderEvent({ actorUserId: admin.id, orderId: body.orderId, eventType: 'return_requested', metadata: { returnRequestId: rows[0].id, rmaNumber: rma } });
       return json(res, 201, { returnRequest: rows[0] });
@@ -66,23 +57,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (typeof body.status !== 'string' || !refundStatuses.has(body.status)) return json(res, 400, { error: 'Invalid refund status.' });
       const existing = await sql`SELECT * FROM refunds WHERE id=${body.refundId} LIMIT 1`;
       if (!existing[0]) return json(res, 404, { error: 'Refund not found.' });
-
       if (body.status === 'completed') {
-        const payment = await sql`
-          SELECT id FROM payment_transactions
-          WHERE order_id=${existing[0].order_id}
-            AND status IN ('confirmed','partially_refunded')
-          ORDER BY confirmed_at DESC NULLS LAST, created_at DESC
-          LIMIT 1
-        `;
+        const payment = await sql`SELECT id FROM payment_transactions WHERE order_id=${existing[0].order_id} AND status IN ('confirmed','partially_refunded') ORDER BY confirmed_at DESC NULLS LAST, created_at DESC LIMIT 1`;
         if (!payment[0]) return json(res, 409, { error: 'Refund cannot complete until a confirmed payment transaction is linked.' });
-
-        const rows = await sql`
-          UPDATE refunds
-             SET status='completed', payment_transaction_id=${payment[0].id}, approved_by=${admin.id}, processed_at=now()
-           WHERE id=${body.refundId} AND status <> 'completed'
-           RETURNING *
-        `;
+        const rows = await sql`UPDATE refunds SET status='completed', payment_transaction_id=${payment[0].id}, approved_by=${admin.id}, processed_at=now() WHERE id=${body.refundId} AND status <> 'completed' RETURNING *`;
         if (!rows[0]) {
           const current = await sql`SELECT * FROM refunds WHERE id=${body.refundId} LIMIT 1`;
           return json(res, 200, { refund: current[0], idempotent: true });
@@ -92,14 +70,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         await recordOrderEvent({ actorUserId: admin.id, orderId: rows[0].order_id, eventType: 'refund_status_changed', metadata: { refundId: body.refundId, status: 'completed', ledgerPosted: true } });
         return json(res, 200, { refund: rows[0], ledgerPosted: true });
       }
-
-      const rows = await sql`
-        UPDATE refunds
-           SET status=${body.status},
-               approved_by=CASE WHEN ${body.status} IN ('approved','processing') THEN ${admin.id} ELSE approved_by END
-         WHERE id=${body.refundId}
-         RETURNING *
-      `;
+      const rows = await sql`UPDATE refunds SET status=${body.status}, approved_by=CASE WHEN ${body.status} IN ('approved','processing') THEN ${admin.id} ELSE approved_by END WHERE id=${body.refundId} RETURNING *`;
       await recordAudit({ actorUserId: admin.id, action: 'refund.status_update', entityType: 'refund', entityId: body.refundId, beforeData: existing[0], afterData: rows[0] });
       await recordOrderEvent({ actorUserId: admin.id, orderId: rows[0].order_id, eventType: 'refund_status_changed', metadata: { refundId: body.refundId, status: body.status } });
       return json(res, 200, { refund: rows[0] });
@@ -109,36 +80,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (typeof body.status !== 'string' || !rmaStatuses.has(body.status)) return json(res, 400, { error: 'Return request and valid status are required.' });
       const existing = await sql`SELECT * FROM return_requests WHERE id=${body.returnRequestId} LIMIT 1`;
       if (!existing[0]) return json(res, 404, { error: 'Return request not found.' });
-
       if (body.status === 'refunded') {
-        const rows = await sql`
-          UPDATE return_requests
-             SET status='refunded',
-                 return_tracking_number=COALESCE(${body.returnTrackingNumber || null},return_tracking_number),
-                 inspection_result=COALESCE(${body.inspectionResult || null},inspection_result),
-                 updated_at=now()
-           WHERE id=${body.returnRequestId} AND status <> 'refunded'
-           RETURNING *
-        `;
-        if (!rows[0]) {
-          const current = await sql`SELECT * FROM return_requests WHERE id=${body.returnRequestId} LIMIT 1`;
-          return json(res, 200, { returnRequest: current[0], idempotent: true });
-        }
-        const restocked = await sql`SELECT reconcile_return_inventory(${body.returnRequestId}, ${admin.id}) AS count`;
+        const restocked = await sql`SELECT complete_return_and_restock(${body.returnRequestId}, ${admin.id}, ${body.returnTrackingNumber || null}, ${body.inspectionResult || null}) AS count`;
+        const rows = await sql`SELECT * FROM return_requests WHERE id=${body.returnRequestId} LIMIT 1`;
         await recordAudit({ actorUserId: admin.id, action: 'rma.status_update', entityType: 'return_request', entityId: body.returnRequestId, beforeData: existing[0], afterData: rows[0] });
         await recordOrderEvent({ actorUserId: admin.id, orderId: rows[0].order_id, eventType: 'return_status_changed', metadata: { returnRequestId: body.returnRequestId, status: 'refunded', inventoryRestocked: Number(restocked[0]?.count || 0) } });
         return json(res, 200, { returnRequest: rows[0], inventoryRestocked: Number(restocked[0]?.count || 0) });
       }
-
-      const rows = await sql`
-        UPDATE return_requests
-           SET status=${body.status},
-               return_tracking_number=COALESCE(${body.returnTrackingNumber || null},return_tracking_number),
-               inspection_result=COALESCE(${body.inspectionResult || null},inspection_result),
-               updated_at=now()
-         WHERE id=${body.returnRequestId}
-         RETURNING *
-      `;
+      const rows = await sql`UPDATE return_requests SET status=${body.status}, return_tracking_number=COALESCE(${body.returnTrackingNumber || null},return_tracking_number), inspection_result=COALESCE(${body.inspectionResult || null},inspection_result), updated_at=now() WHERE id=${body.returnRequestId} RETURNING *`;
       await recordAudit({ actorUserId: admin.id, action: 'rma.status_update', entityType: 'return_request', entityId: body.returnRequestId, beforeData: existing[0], afterData: rows[0] });
       await recordOrderEvent({ actorUserId: admin.id, orderId: rows[0].order_id, eventType: 'return_status_changed', metadata: { returnRequestId: body.returnRequestId, status: body.status } });
       return json(res, 200, { returnRequest: rows[0] });
@@ -149,7 +98,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const message = String(error?.message || '');
     if (message.includes('duplicate key')) return json(res, 409, { error: 'This operation already exists.' });
     if (message.includes('REFUND_NOT_COMPLETED') || message.includes('REFUND_PAYMENT_NOT_LINKED')) return json(res, 409, { error: 'Refund ledger precondition failed.' });
-    if (message.includes('RETURN_NOT_REFUNDED') || message.includes('RETURN_VARIANT_NOT_FOUND')) return json(res, 409, { error: 'Return inventory reconciliation failed.' });
+    if (message.includes('RETURN_NOT_FOUND') || message.includes('RETURN_NOT_REFUNDED') || message.includes('RETURN_VARIANT_NOT_FOUND')) return json(res, 409, { error: 'Return inventory reconciliation failed.' });
     return json(res, 500, { error: 'Refund operation could not be completed.' });
   }
 }
