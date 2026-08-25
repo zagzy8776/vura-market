@@ -1,9 +1,9 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { sql, json } from './_lib/db.js';
-import { requireAdmin } from './_lib/auth.js';
+import { requireAdminPermission } from './_lib/auth.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  const admin = await requireAdmin(req, res);
+  const admin = await requireAdminPermission(req, res, 'finance.read');
   if (!admin) return;
   if (req.method !== 'GET') return json(res, 405, { error: 'Method not allowed.' });
   try {
