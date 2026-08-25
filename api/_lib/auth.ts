@@ -65,6 +65,17 @@ export async function requireAdmin(req: VercelRequest, res: VercelResponse) {
   return user;
 }
 
+export async function requireAdminPermission(req: VercelRequest, res: VercelResponse, permission: string) {
+  const user = await requireAdmin(req, res);
+  if (!user) return null;
+  const rows = await sql`SELECT has_admin_permission(${user.id}, ${permission}) AS allowed`;
+  if (!rows[0]?.allowed) {
+    res.status(403).json({ error: 'You do not have permission to perform this action.' });
+    return null;
+  }
+  return user;
+}
+
 export async function destroySession(req: VercelRequest, res: VercelResponse) {
   setNoStore(res);
   const token = parseCookies(req)[COOKIE_NAME];
@@ -74,8 +85,6 @@ export async function destroySession(req: VercelRequest, res: VercelResponse) {
 
 const CLAIM_TOKEN_TTL_HOURS = 72;
 
-// Issue a one-time account-claim token. Returns the raw token (to be put in
-// a single email) and the row we inserted. Only the SHA-256 hash is stored.
 export async function issueClaimToken(userId: string) {
   const rawToken = randomBytes(32).toString('base64url');
   const tokenHash = hashToken(rawToken);
@@ -84,9 +93,6 @@ export async function issueClaimToken(userId: string) {
   return { rawToken, tokenHash, expiresAt };
 }
 
-// Atomically claim a token: returns the user row on first use, null on
-// expired/reused/unknown. The UPDATE … WHERE used_at IS NULL acts as a
-// lock — a second call returns 0 rows.
 export async function consumeClaimToken(rawToken: string) {
   if (typeof rawToken !== 'string' || rawToken.length < 16) return null;
   const tokenHash = hashToken(rawToken);
