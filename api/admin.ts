@@ -8,6 +8,7 @@ import { notifyUser } from './_lib/notifications.js';
 const orderStatuses = new Set(['awaiting_payment','payment_verification','confirmed','sourcing','purchased','out_for_delivery','delivered','cancelled']);
 const sourcingStatuses = new Set(['awaiting_confirmation','confirmed','sourcing','purchased','out_for_delivery','delivered','cancelled']);
 const paymentStatuses = new Set(['unpaid','pending_verification','paid','rejected']);
+const stockStatuses = new Set(['available','low_stock','out_of_stock','unavailable']);
 
 type Method = 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE';
 type Dispatcher = (req: VercelRequest, res: VercelResponse, adminId: string) => Promise<void> | void;
@@ -15,7 +16,8 @@ type Dispatcher = (req: VercelRequest, res: VercelResponse, adminId: string) => 
 const handlers: Record<string, Partial<Record<Method, Dispatcher>>> = {
   overview: { GET: (_req, res) => overview(res) },
   orders: { GET: orders, PATCH: orders },
-  products: { GET: products, PATCH: products },
+  products: { GET: products, POST: products, PATCH: products },
+  categories: { GET: (_req, res) => categories(res) },
   suppliers: { GET: suppliers, POST: suppliers, PATCH: suppliers },
   customers: { GET: (_req, res) => customers(res) },
   notifications: { GET: (_req, res) => notifications(res) },
@@ -67,17 +69,46 @@ async function notifications(res: VercelResponse) {
   return json(res,200,{notifications:rows});
 }
 
+async function categories(res: VercelResponse) {
+  const rows = await sql`SELECT id,name,slug,icon FROM categories ORDER BY name ASC`;
+  return json(res,200,{categories:rows});
+}
+
 async function products(req: VercelRequest,res: VercelResponse,adminId:string) {
   if (req.method==='GET') {
     const rows=await sql`SELECT p.id,p.name,p.brand,p.price_kobo,p.condition_label,p.storage,p.color,p.stock_status,p.is_active,p.source_price_kobo,p.source_location,p.expected_cost_kobo,p.verified_at,s.name AS supplier_name,c.name AS category,ARRAY_AGG(pi.image_url ORDER BY pi.sort_order) FILTER (WHERE pi.image_url IS NOT NULL) AS images FROM products p LEFT JOIN suppliers s ON s.id=p.supplier_id LEFT JOIN categories c ON c.id=p.category_id LEFT JOIN product_images pi ON pi.product_id=p.id GROUP BY p.id,s.name,c.name ORDER BY p.created_at DESC LIMIT 500`;
     return json(res,200,{products:rows});
   }
+  if(req.method==='POST') {
+    const body=req.body||{};
+    const name=typeof body.name==='string'?body.name.trim():'';
+    const brand=typeof body.brand==='string'?body.brand.trim():'';
+    const description=typeof body.description==='string'?body.description.trim():'';
+    const price=Number(body.priceKobo);
+    const sourcePrice=body.sourcePriceKobo==null||body.sourcePriceKobo===''?null:Number(body.sourcePriceKobo);
+    const condition=typeof body.conditionLabel==='string'&&body.conditionLabel.trim()?body.conditionLabel.trim():'New';
+    const stock=typeof body.stockStatus==='string'?body.stockStatus:'available';
+    if(name.length<2||brand.length<1) return json(res,400,{error:'Product name and brand are required.'});
+    if(!Number.isFinite(price)||price<=0) return json(res,400,{error:'Product price must be greater than zero.'});
+    if(sourcePrice!==null&&(!Number.isFinite(sourcePrice)||sourcePrice<0)) return json(res,400,{error:'Source price is invalid.'});
+    if(!stockStatuses.has(stock)) return json(res,400,{error:'Invalid stock status.'});
+    if(body.categoryId!=null&&typeof body.categoryId!=='string') return json(res,400,{error:'Category is invalid.'});
+    if(body.supplierId!=null&&typeof body.supplierId!=='string') return json(res,400,{error:'Supplier is invalid.'});
+    const rows=await sql`INSERT INTO products(seller_id,category_id,supplier_id,name,brand,description,price_kobo,condition_label,storage,color,stock_status,source_price_kobo,source_location,expected_cost_kobo,is_active,verified_at) VALUES(${adminId},${body.categoryId||null},${body.supplierId||null},${name},${brand},${description},${Math.round(price)},${condition},${body.storage||null},${body.color||null},${stock},${sourcePrice===null?null:Math.round(sourcePrice)},${body.sourceLocation||null},${sourcePrice===null?null:Math.round(sourcePrice)},true,now()) RETURNING id,name,brand,description,price_kobo,condition_label,storage,color,stock_status,is_active,source_price_kobo,source_location,expected_cost_kobo,category_id,supplier_id,verified_at`;
+    await recordAudit({actorUserId:adminId,action:'product.create',entityType:'product',entityId:rows[0].id,afterData:rows[0]});
+    return json(res,201,{product:rows[0]});
+  }
   if(req.method!=='PATCH') return json(res,405,{error:'Method not allowed'});
   const {productId,stockStatus,isActive,priceKobo,sourcePriceKobo,supplierId,sourceLocation}=req.body||{};
   if(typeof productId!=='string') return json(res,400,{error:'Product is required.'});
+  if(stockStatus!=null&&(!stockStatuses.has(stockStatus))) return json(res,400,{error:'Invalid stock status.'});
   const before=await sql`SELECT id,name,price_kobo,source_price_kobo,stock_status,is_active,supplier_id,source_location FROM products WHERE id=${productId} LIMIT 1`;
   if(!before[0]) return json(res,404,{error:'Product not found.'});
-  const rows=await sql`UPDATE products SET stock_status=COALESCE(${typeof stockStatus==='string'?stockStatus:null},stock_status),is_active=COALESCE(${typeof isActive==='boolean'?isActive:null},is_active),price_kobo=COALESCE(${Number.isFinite(Number(priceKobo))?Math.round(Number(priceKobo)):null},price_kobo),source_price_kobo=COALESCE(${Number.isFinite(Number(sourcePriceKobo))?Math.round(Number(sourcePriceKobo)):null},source_price_kobo),expected_cost_kobo=COALESCE(${Number.isFinite(Number(sourcePriceKobo))?Math.round(Number(sourcePriceKobo)):null},expected_cost_kobo),supplier_id=COALESCE(${supplierId||null},supplier_id),source_location=COALESCE(${sourceLocation||null},source_location),verified_at=now(),updated_at=now() WHERE id=${productId} RETURNING id,name,price_kobo,source_price_kobo,stock_status,is_active,supplier_id,source_location`;
+  const numericPrice=priceKobo==null||priceKobo===''?null:Number(priceKobo);
+  const numericSource=sourcePriceKobo==null||sourcePriceKobo===''?null:Number(sourcePriceKobo);
+  if(numericPrice!==null&&(!Number.isFinite(numericPrice)||numericPrice<=0)) return json(res,400,{error:'Product price is invalid.'});
+  if(numericSource!==null&&(!Number.isFinite(numericSource)||numericSource<0)) return json(res,400,{error:'Source price is invalid.'});
+  const rows=await sql`UPDATE products SET stock_status=COALESCE(${typeof stockStatus==='string'?stockStatus:null},stock_status),is_active=COALESCE(${typeof isActive==='boolean'?isActive:null},is_active),price_kobo=COALESCE(${numericPrice===null?null:Math.round(numericPrice)},price_kobo),source_price_kobo=COALESCE(${numericSource===null?null:Math.round(numericSource)},source_price_kobo),expected_cost_kobo=COALESCE(${numericSource===null?null:Math.round(numericSource)},expected_cost_kobo),supplier_id=COALESCE(${supplierId||null},supplier_id),source_location=COALESCE(${sourceLocation||null},source_location),verified_at=now(),updated_at=now() WHERE id=${productId} RETURNING id,name,price_kobo,source_price_kobo,stock_status,is_active,supplier_id,source_location`;
   await recordAudit({actorUserId:adminId,action:'product.update',entityType:'product',entityId:productId,beforeData:before[0],afterData:rows[0]});
   return json(res,200,{product:rows[0]});
 }
