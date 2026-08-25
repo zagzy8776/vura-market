@@ -1,0 +1,32 @@
+import type { ReactNode } from 'react';
+import { useMemo, useState } from 'react';
+import { ChevronRight, Package, Pencil, Plus, RefreshCw, Search, Store, UserRound } from 'lucide-react';
+import { money } from '@/lib/money';
+import OrderActionPanel from './OrderActionPanel';
+
+type Any = Record<string, any>;
+
+async function api<T>(url: string, init?: RequestInit): Promise<T> { const r = await fetch(url, { credentials: 'include', ...init }); const b = await r.json().catch(() => ({})); if (!r.ok) throw new Error(b?.error || `Request failed (${r.status})`); return b as T; }
+
+export function OperationalOrders({ orders, suppliers, onRefresh }: { orders: Any[]; suppliers: Any[]; onRefresh: () => void }) {
+  const [selected, setSelected] = useState<Any | null>(null);
+  const [q, setQ] = useState('');
+  const rows = useMemo(() => orders.filter(o => `${o.order_number} ${o.delivery_name} ${o.product_name} ${o.buyer_email}`.toLowerCase().includes(q.toLowerCase())), [orders, q]);
+  return <section>
+    <Toolbar title="Orders" action={<div className="flex gap-2"><input value={q} onChange={e => setQ(e.target.value)} placeholder="Search orders…" className="rounded-xl border border-white/10 bg-white/[.035] px-3 py-2 text-sm outline-none"/><button onClick={onRefresh} className="grid h-10 w-10 place-items-center rounded-xl border border-white/10"><RefreshCw size={16}/></button></div>}/>
+    <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/[.02]"><table className="w-full text-left text-sm"><thead className="border-b border-white/10 text-xs text-white/35"><tr>{['Order','Customer','Product','Payment','Sourcing','Total',''].map(h => <th key={h} className="px-4 py-3">{h}</th>)}</tr></thead><tbody>{rows.map(o => <tr key={o.id} onClick={() => setSelected(o)} className="cursor-pointer border-b border-white/5 hover:bg-white/[.035]"><td className="px-4 py-4 font-bold">{o.order_number}</td><td className="px-4 py-4">{o.delivery_name}<small className="block text-white/35">{o.delivery_phone}</small></td><td className="px-4 py-4">{o.product_name}<small className="block text-white/35">Qty {o.quantity}</small></td><td className="px-4 py-4"><Status value={o.payment_status}/></td><td className="px-4 py-4"><Status value={o.sourcing_status || o.status}/></td><td className="px-4 py-4 font-bold">{money(o.total_kobo)}</td><td className="px-4"><ChevronRight size={16} className="text-white/25"/></td></tr>)}</tbody></table>{!rows.length && <div className="p-8 text-center text-sm text-white/35">No orders match your search.</div>}</div>
+    <OrderActionPanel order={selected} suppliers={suppliers} onClose={() => setSelected(null)} onSaved={() => { setSelected(null); onRefresh(); }}/>
+  </section>;
+}
+
+export function OperationalProducts({ products, onRefresh }: { products: Any[]; onRefresh: () => void }) {
+  const [q, setQ] = useState(''); const [saving, setSaving] = useState('');
+  const rows = useMemo(() => products.filter(p => `${p.name} ${p.brand} ${p.category} ${p.supplier_name}`.toLowerCase().includes(q.toLowerCase())), [products, q]);
+  const toggle = async (p: Any) => { setSaving(p.id); try { await api('/api/admin/products', { method: 'PATCH', headers: { 'Content-Type':'application/json' }, body: JSON.stringify({ productId:p.id, isActive:!p.is_active }) }); onRefresh(); } finally { setSaving(''); } };
+  return <section><Toolbar title="Products" action={<div className="flex gap-2"><input value={q} onChange={e => setQ(e.target.value)} placeholder="Search products…" className="rounded-xl border border-white/10 bg-white/[.035] px-3 py-2 text-sm outline-none"/><button className="flex items-center gap-2 rounded-xl bg-vura-500 px-4 py-2 text-sm font-bold"><Plus size={15}/> Add product</button></div>}/><div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{rows.map(p => <article key={p.id} className="overflow-hidden rounded-2xl border border-white/10 bg-white/[.02]"><div className="aspect-[4/3] bg-white/5">{p.images?.[0] ? <img src={p.images[0]} alt={p.name} className="h-full w-full object-cover"/> : <div className="grid h-full place-items-center text-white/25"><Package size={30}/></div>}</div><div className="p-4"><div className="font-bold">{p.name}</div><div className="text-xs text-white/35">{p.brand || '—'} · {p.category || 'Uncategorised'}</div><div className="mt-3 flex items-center justify-between"><b>{money(p.price_kobo)}</b><Status value={p.stock_status}/></div><button disabled={saving===p.id} onClick={() => void toggle(p)} className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg border border-white/10 py-2 text-xs font-bold"><Pencil size={13}/>{saving===p.id?'Saving…':p.is_active?'Deactivate':'Activate'}</button></div></article>)}</div></section>;
+}
+
+export function OperationalSuppliers({ suppliers, onRefresh }: { suppliers: Any[]; onRefresh: () => void }) { return <section><Toolbar title="Suppliers" action={<button className="flex items-center gap-2 rounded-xl bg-vura-500 px-4 py-2 text-sm font-bold"><Plus size={15}/> Add supplier</button>}/><div className="overflow-hidden rounded-2xl border border-white/10 bg-white/[.02]"><table className="w-full text-left text-sm"><thead className="border-b border-white/10 text-xs text-white/35"><tr>{['Supplier','Location','Phone','Reliability',''].map(h=><th className="px-4 py-3" key={h}>{h}</th>)}</tr></thead><tbody>{suppliers.map(s=><tr key={s.id} className="border-b border-white/5"><td className="px-4 py-4 font-bold">{s.name}</td><td className="px-4">{s.location||'—'}</td><td className="px-4">{s.phone||'—'}</td><td className="px-4">{s.reliability_score==null?'—':`${s.reliability_score}/5`}</td><td className="px-4"><button onClick={onRefresh} className="text-white/45 hover:text-white"><Pencil size={15}/></button></td></tr>)}</tbody></table></div></section>; }
+
+function Toolbar({ title, action }: { title: string; action?: ReactNode }) { return <div className="mb-5 flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-2xl font-black tracking-tight">{title}</h2><p className="mt-1 text-sm text-white/35">Real operational data. Changes are server-authorized and audited.</p></div>{action}</div>; }
+function Status({ value }: { value: string }) { return <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] font-bold capitalize text-white/65">{String(value||'—').replaceAll('_',' ')}</span>; }
