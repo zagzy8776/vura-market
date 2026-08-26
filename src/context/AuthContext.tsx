@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { AppUser } from '@/types';
+import { linkOneSignalUser, unlinkOneSignalUser } from '@/lib/onesignal';
 
 export type { AppUser };
 type AuthContextValue = { user: AppUser | null; loading: boolean; signIn: (email: string, password: string) => Promise<{ error: Error | null }>; signUp: (email: string, password: string, name: string) => Promise<{ error: Error | null }>; signOut: () => Promise<void> };
@@ -17,7 +18,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     fetch('/api/auth/me', { credentials: 'include' })
       .then(readUser)
-      .then(({ result }) => setUser(result.user || null))
+      .then(({ result }) => {
+        const u = result.user || null;
+        setUser(u);
+        void linkOneSignalUser(u?.id);
+      })
       .catch(() => setUser(null))
       .finally(() => setLoading(false));
   }, []);
@@ -31,6 +36,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const { result } = await readUser(response);
         if (!response.ok || !result.user) return { error: new Error(result.error || 'Unable to sign in') };
         setUser(result.user);
+        void linkOneSignalUser(result.user.id);
         return { error: null };
       } catch {
         return { error: new Error('Unable to sign in') };
@@ -42,13 +48,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const { result } = await readUser(response);
         if (!response.ok || !result.user) return { error: new Error(result.error || 'Unable to create account') };
         setUser(result.user);
+        void linkOneSignalUser(result.user.id);
         return { error: null };
       } catch {
         return { error: new Error('Unable to create account') };
       }
     },
     async signOut() {
-      try { await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }); } finally { setUser(null); }
+      try { await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }); } finally { void unlinkOneSignalUser(); setUser(null); }
     },
   }), [loading, user]);
 

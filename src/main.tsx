@@ -4,7 +4,10 @@ import App from './App.tsx';
 import AdminApp from '@/pages/studio/AdminApp';
 import AccountClaimPage from '@/pages/AccountClaim';
 import { AuthProvider } from '@/context/AuthContext';
+import { initOneSignal } from '@/lib/onesignal';
 import './index.css';
+
+void initOneSignal();
 
 const path = window.location.pathname;
 const isStudio = path.startsWith('/studio');
