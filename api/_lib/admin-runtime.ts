@@ -109,6 +109,116 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const rows = await sql`SELECT o.id,o.order_number,o.quantity,o.total_kobo,o.status,o.payment_status,o.transfer_reference,o.payment_submitted_at,o.payment_verified_at,o.sourcing_status,o.delivery_name,o.delivery_phone,o.delivery_address,o.delivery_city,o.purchase_cost_kobo,o.delivery_fee_kobo,o.other_cost_kobo,o.actual_profit_kobo,o.created_at,p.name AS product_name,p.brand,s.name AS supplier_name,u.email AS buyer_email FROM orders o JOIN products p ON p.id=o.product_id LEFT JOIN suppliers s ON s.id=o.supplier_id JOIN users u ON u.id=o.buyer_id ORDER BY o.created_at DESC LIMIT 200`;
       return json(res, 200, { orders: rows });
     }
+    if (r === 'orders' && method === 'PATCH') {
+      const ok = await requireAdminPermission(req, res, 'orders.read');
+      if (!ok) return;
+      const body = req.body || {};
+      const orderId = typeof body.orderId === 'string' ? body.orderId : '';
+      if (!orderId) return json(res, 400, { error: 'Order id is required.' });
+
+      const existing = await sql`
+        SELECT o.id, o.order_number, o.status, o.payment_status, o.sourcing_status, o.buyer_id,
+               u.email AS buyer_email, u.name AS buyer_name
+        FROM orders o
+        JOIN users u ON u.id = o.buyer_id
+        WHERE o.id = ${orderId}
+        LIMIT 1
+      `;
+      if (!existing[0]) return json(res, 404, { error: 'Order not found.' });
+      const prev = existing[0];
+
+      const status = typeof body.status === 'string' ? body.status : prev.status;
+      const paymentStatus = typeof body.paymentStatus === 'string' ? body.paymentStatus : prev.payment_status;
+      const sourcingStatus = typeof body.sourcingStatus === 'string' ? body.sourcingStatus : prev.sourcing_status;
+      const supplierId = body.supplierId === null || body.supplierId === '' ? null : (typeof body.supplierId === 'string' ? body.supplierId : undefined);
+      const purchaseCostKobo = body.purchaseCostKobo === null ? null : (body.purchaseCostKobo === undefined ? undefined : Number(body.purchaseCostKobo));
+      const deliveryFeeKobo = body.deliveryFeeKobo === undefined ? undefined : Number(body.deliveryFeeKobo);
+      const otherCostKobo = body.otherCostKobo === undefined ? undefined : Number(body.otherCostKobo);
+
+      const totalRow = await sql`SELECT total_kobo FROM orders WHERE id = ${orderId} LIMIT 1`;
+      const totalKobo = Number(totalRow[0]?.total_kobo || 0);
+      const pc = purchaseCostKobo === undefined ? undefined : purchaseCostKobo;
+      const df = deliveryFeeKobo === undefined ? undefined : deliveryFeeKobo;
+      const oc = otherCostKobo === undefined ? undefined : otherCostKobo;
+      let profit: number | undefined;
+      if (pc !== undefined || df !== undefined || oc !== undefined) {
+        const cur = await sql`SELECT purchase_cost_kobo, delivery_fee_kobo, other_cost_kobo FROM orders WHERE id = ${orderId}`;
+        const p = pc !== undefined ? Number(pc || 0) : Number(cur[0]?.purchase_cost_kobo || 0);
+        const d = df !== undefined ? Number(df || 0) : Number(cur[0]?.delivery_fee_kobo || 0);
+        const oth = oc !== undefined ? Number(oc || 0) : Number(cur[0]?.other_cost_kobo || 0);
+        profit = totalKobo - p - d - oth;
+      }
+
+      await sql`
+        UPDATE orders SET
+          status = ${status},
+          payment_status = ${paymentStatus},
+          sourcing_status = ${sourcingStatus},
+          purchase_cost_kobo = COALESCE(${pc === undefined ? null : pc}, purchase_cost_kobo),
+          delivery_fee_kobo = COALESCE(${df === undefined ? null : df}, delivery_fee_kobo),
+          other_cost_kobo = COALESCE(${oc === undefined ? null : oc}, other_cost_kobo),
+          actual_profit_kobo = COALESCE(${profit === undefined ? null : profit}, actual_profit_kobo),
+          payment_verified_at = CASE
+            WHEN ${paymentStatus} = 'paid' AND COALESCE(payment_status, '') <> 'paid' THEN now()
+            ELSE payment_verified_at
+          END,
+          updated_at = now()
+        WHERE id = ${orderId}
+      `;
+
+      if (typeof supplierId === 'string') {
+        await sql`UPDATE orders SET supplier_id = ${supplierId}, updated_at = now() WHERE id = ${orderId}`;
+      } else if (body.supplierId === null || body.supplierId === '') {
+        await sql`UPDATE orders SET supplier_id = null, updated_at = now() WHERE id = ${orderId}`;
+      }
+
+      try {
+        const { notifyCustomerOrderChange } = await import('./notifications.js');
+        await notifyCustomerOrderChange({
+          userId: String(prev.buyer_id),
+          email: String(prev.buyer_email),
+          firstName: String(prev.buyer_name || 'Customer'),
+          orderId: String(prev.id),
+          orderNumber: String(prev.order_number),
+          prevStatus: prev.status,
+          nextStatus: status,
+          prevPayment: prev.payment_status,
+          nextPayment: paymentStatus,
+        });
+      } catch {
+        // notification failure must not block save
+      }
+
+      await recordAudit({
+        actorUserId: admin.id,
+        action: 'order.update',
+        entityType: 'order',
+        entityId: orderId,
+        metadata: { status, paymentStatus, sourcingStatus },
+      });
+
+      return json(res, 200, { ok: true });
+    }
+    if (r === 'promo' && method === 'POST') {
+      const ok = await requireAdminPermission(req, res, 'dashboard.read');
+      if (!ok) return;
+      const title = typeof req.body?.title === 'string' ? req.body.title.trim() : '';
+      const bodyText = typeof req.body?.body === 'string' ? req.body.body.trim() : '';
+      const url = typeof req.body?.url === 'string' ? req.body.url.trim() : '';
+      if (title.length < 3 || bodyText.length < 3) {
+        return json(res, 400, { error: 'Title and message are required (min 3 characters).' });
+      }
+      const { notifyPromoToCustomers } = await import('./notifications.js');
+      const result = await notifyPromoToCustomers({ title, body: bodyText, url: url || undefined });
+      await recordAudit({
+        actorUserId: admin.id,
+        action: 'promo.send',
+        entityType: 'promo',
+        entityId: 'promo',
+        metadata: { title, sent: result.sent },
+      });
+      return json(res, 200, { ok: true, sent: result.sent });
+    }
     if (r === 'notifications' && method === 'GET') {
       const ok = await requireAdminPermission(req, res, 'notifications.read');
       if (!ok) return;
