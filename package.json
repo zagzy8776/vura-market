@@ -15,7 +15,12 @@
     "integration": "tsx scripts/integration-test.ts",
     "db:migrate": "tsx scripts/migrate.ts",
     "db:validate-migrations": "tsx scripts/validate-migrations.ts",
-    "db:verify": "tsx scripts/verify-schema.ts"
+    "db:verify": "tsx scripts/verify-schema.ts",
+    "db:check-migrations": "tsx scripts/check-migrations-status.ts",
+    "db:migration-readiness": "tsx scripts/verify-migration-readiness.ts",
+    "db:migration-analysis": "tsx scripts/detailed-migration-analysis.ts",
+    "db:fix-v13": "tsx scripts/fix-v13-mismatch.ts",
+    "db:fix-migrations": "tsx scripts/fix-migration-versions.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",
