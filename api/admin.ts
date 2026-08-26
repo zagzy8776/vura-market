@@ -1,1 +1,1 @@
-PLACEHOLDER_WILL_FAIL_IF_THIS_SHIPS
+export { default } from './_lib/admin-runtime.js';
