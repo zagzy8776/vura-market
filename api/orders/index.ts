@@ -42,7 +42,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return json(res, 400, { error: 'Delivery name, phone and address are required.' });
     }
 
-    let buyer = sessionUser;
+    type Buyer = { id: string; email: string; name: string; role: string };
+    let buyer: Buyer | null = sessionUser
+      ? { id: sessionUser.id, email: sessionUser.email, name: sessionUser.name, role: sessionUser.role }
+      : null;
     let isNewGuest = false;
     let claimToken: string | undefined;
 
@@ -50,13 +53,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (!guestEmail || guestEmail.length < 5) return json(res, 400, { error: 'Email is required for guest checkout.' });
       const existing = await sql`SELECT id, email, name, role FROM users WHERE email = ${guestEmail} LIMIT 1`;
       if (existing[0]) {
-        buyer = existing[0];
+        buyer = existing[0] as Buyer;
       } else {
         isNewGuest = true;
         const tempPassword = randomBytes(16).toString('hex');
         const passwordHash = await hash(tempPassword, 10);
         const created = await sql`INSERT INTO users (email, name, password_hash, role) VALUES (${guestEmail}, ${guestName || 'Customer'}, ${passwordHash}, 'customer') RETURNING id, email, name, role`;
-        buyer = created[0];
+        buyer = created[0] as Buyer;
       }
     }
 
