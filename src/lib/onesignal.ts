@@ -64,11 +64,11 @@ function loadScript(): Promise<void> {
 
 async function reportSubscription(kind: 'welcome' | 'subscribed') {
   try {
-    await fetch('/api/push-subscribe', {
+    await fetch('/api/notifications', {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ kind }),
+      body: JSON.stringify({ action: 'push-subscribe', kind }),
     });
   } catch {
     // ignore
