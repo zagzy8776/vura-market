@@ -62,7 +62,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const [toFulfill] = await sql`SELECT COUNT(*)::int AS count FROM orders WHERE payment_status = 'paid' AND COALESCE(status, '') NOT IN ('delivered', 'cancelled')`;
       const [lowStock] = await sql`SELECT COUNT(*)::int AS count FROM products WHERE is_active = true AND stock_status IN ('low_stock', 'out_of_stock')`;
       const recentOrders = await sql`SELECT o.id, o.order_number, o.total_kobo, o.status, o.payment_status, o.created_at, o.delivery_name, p.name AS product_name FROM orders o JOIN products p ON p.id = o.product_id ORDER BY o.created_at DESC LIMIT 8`;
-      const customers = await sql`SELECT u.id, u.name, u.email, COUNT(o.id)::int AS order_count, COALESCE(SUM(o.total_kobo) FILTER (WHERE o.payment_status = 'paid'), 0)::bigint AS total_spend_kobo FROM users u LEFT JOIN orders o ON o.buyer_id = u.id WHERE u.role = 'customer' GROUP BY u.id, u.name, u.email ORDER BY total_spend_kobo DESC NULLS LAST, u.created_at DESC LIMIT 200`;
+      const customers = await sql`
+        SELECT u.id, u.name, u.email,
+          COUNT(o.id)::int AS order_count,
+          COALESCE(SUM(o.total_kobo) FILTER (WHERE o.payment_status = 'paid'), 0)::bigint AS total_spend_kobo,
+          (ARRAY_AGG(o.delivery_phone ORDER BY o.created_at DESC) FILTER (WHERE o.delivery_phone IS NOT NULL AND o.delivery_phone <> ''))[1] AS phone,
+          (ARRAY_AGG(o.order_number ORDER BY o.created_at DESC) FILTER (WHERE o.order_number IS NOT NULL))[1] AS last_order_number
+        FROM users u
+        LEFT JOIN orders o ON o.buyer_id = u.id
+        WHERE u.role = 'customer'
+        GROUP BY u.id, u.name, u.email
+        ORDER BY total_spend_kobo DESC NULLS LAST, u.created_at DESC
+        LIMIT 200
+      `;
       const audit = await sql`SELECT a.id, a.action, a.entity_type, a.entity_id, a.created_at, u.name AS actor_name, u.email AS actor_email FROM audit_log a LEFT JOIN users u ON u.id = a.actor_user_id ORDER BY a.created_at DESC LIMIT 100`;
       const orderEvents = await sql`SELECT e.id, e.event_type, e.order_id, e.created_at, u.name AS actor_name, o.order_number FROM order_events e LEFT JOIN users u ON u.id = e.actor_user_id LEFT JOIN orders o ON o.id = e.order_id ORDER BY e.created_at DESC LIMIT 100`;
       return json(res, 200, { liveProducts: live?.count || 0, monthlyOrders: monthStats?.orders || 0, monthlyRevenueKobo: Number(monthStats?.revenue || 0), monthlyProfitKobo: Number(monthStats?.profit || 0), attention: { pendingPayment: pendingPayment?.count || 0, toFulfill: toFulfill?.count || 0, lowStock: lowStock?.count || 0 }, recentOrders, customers, notifications: [], audit, orderEvents });
