@@ -5,8 +5,8 @@ import type { Customer, Notification, Order, Overview, Product, ResourceState, S
 import { OperationalOrders, OperationalProducts, OperationalSuppliers } from './StudioOperationalTables';
 import AdminOverview from './AdminOverview';
 
-async function request<T>(url: string): Promise<{ data: T; requestId?: string }> {
-  const r = await fetch(url, { credentials: 'include' });
+async function request<T>(url: string, init?: RequestInit): Promise<{ data: T; requestId?: string }> {
+  const r = await fetch(url, { credentials: 'include', ...init });
   const b = await r.json().catch(() => ({}));
   if (!r.ok) {
     const err = new Error(b?.error || `Request failed (${r.status})`);
@@ -24,7 +24,6 @@ export default function ProductionStudioOps({ tab, onTabChange }: { tab: StudioT
   const [suppliers, setSuppliers] = useState<ResourceState<Supplier[]>>({ state: 'idle' });
   const [notifications, setNotifications] = useState<ResourceState<Notification[]>>({ state: 'idle' });
 
-  // Stable refs — must be useRef so loaders always see current state
   const overviewRef = useRef(overview);
   const ordersRef = useRef(orders);
   const productsRef = useRef(products);
@@ -36,7 +35,6 @@ export default function ProductionStudioOps({ tab, onTabChange }: { tab: StudioT
   suppliersRef.current = suppliers;
   notificationsRef.current = notifications;
 
-  // Once we have successfully loaded products once, never unmount the products UI for a refresh
   const productsEverLoaded = useRef(false);
   if (products.state === 'success') productsEverLoaded.current = true;
 
@@ -65,7 +63,6 @@ export default function ProductionStudioOps({ tab, onTabChange }: { tab: StudioT
   };
 
   const loadProducts = async (opts?: { silent?: boolean }) => {
-    // Never flip to loading if we already showed the products page — protects open Add/Edit modal
     const alreadyShown = productsRef.current.state === 'success' || productsEverLoaded.current;
     const silent = opts?.silent || alreadyShown;
     if (!silent) setProducts({ state: 'loading' });
@@ -104,17 +101,9 @@ export default function ProductionStudioOps({ tab, onTabChange }: { tab: StudioT
   };
 
   const loadAll = async (opts?: { silent?: boolean }) => {
-    await Promise.all([
-      loadOverview(opts),
-      loadOrders(opts),
-      loadProducts(opts),
-      loadSuppliers(opts),
-      loadNotifications(opts),
-    ]);
+    await Promise.all([loadOverview(opts), loadOrders(opts), loadProducts(opts), loadSuppliers(opts), loadNotifications(opts)]);
   };
 
-  // Load once on mount. No auto-refresh — it was wiping open product forms on mobile.
-  // User can tap the refresh button when they want fresh data.
   useEffect(() => {
     void loadAll();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -306,12 +295,64 @@ function Customers({ customers }: { customers: Customer[] }) {
 }
 
 function Notifications({ state }: { state: ResourceState<Notification[]> }) {
+  const [title, setTitle] = useState('');
+  const [body, setBody] = useState('');
+  const [sending, setSending] = useState(false);
+  const [promoMsg, setPromoMsg] = useState('');
+
+  const sendPromo = async () => {
+    setSending(true);
+    setPromoMsg('');
+    try {
+      const res = await request<{ ok?: boolean; sent?: number }>('/api/admin/promo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, body }),
+      });
+      setPromoMsg(`Sent to ${res.data?.sent ?? 0} customers.`);
+      setTitle('');
+      setBody('');
+    } catch (e) {
+      setPromoMsg(e instanceof Error ? e.message : 'Could not send promo.');
+    } finally {
+      setSending(false);
+    }
+  };
+
   if (state.state === 'loading') return <Loading />;
   if (state.state === 'error') return <ErrorState error={state.error} requestId={state.requestId} />;
   if (state.state !== 'success') return <Empty text="No notifications." />;
   return (
     <>
-      <Header title="Notifications" subtitle="System and customer notification records." />
+      <Header title="Notifications" subtitle="Customer alerts, order updates, and promos." />
+      <Card className="mt-6 p-5">
+        <b>Send promo / coupon push</b>
+        <p className="mt-1 text-sm text-white/45">Pushes to customers who enabled notifications (and logs inbox rows).</p>
+        <input
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="Title — e.g. Weekend phone deals"
+          className="mt-4 w-full rounded-xl border border-white/10 bg-[#111522] px-3 py-2.5 text-sm outline-none focus:border-vura-500"
+        />
+        <textarea
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+          placeholder="Message — e.g. Use code VURA10 for 10% off selected phones."
+          rows={3}
+          className="mt-3 w-full rounded-xl border border-white/10 bg-[#111522] px-3 py-2.5 text-sm outline-none focus:border-vura-500"
+        />
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            disabled={sending || title.trim().length < 3 || body.trim().length < 3}
+            onClick={() => void sendPromo()}
+            className="rounded-xl bg-vura-500 px-4 py-2.5 text-sm font-bold disabled:opacity-50"
+          >
+            {sending ? 'Sending…' : 'Send to customers'}
+          </button>
+          {promoMsg && <span className="text-sm text-white/50">{promoMsg}</span>}
+        </div>
+      </Card>
       <div className="mt-6 space-y-3">
         {state.data.map((x) => (
           <Card key={x.id} className="p-4">
@@ -326,6 +367,7 @@ function Notifications({ state }: { state: ResourceState<Notification[]> }) {
             </small>
           </Card>
         ))}
+        {!state.data.length && <Empty text="No notification records yet." />}
       </div>
     </>
   );
