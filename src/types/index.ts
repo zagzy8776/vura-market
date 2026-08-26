@@ -138,3 +138,10 @@ export type AppUser = {
   email: string;
   role: 'customer' | 'admin';
 };
+
+// Resource loading state for independent resource loading
+export type ResourceState<T> = 
+  | { state: 'idle' }
+  | { state: 'loading' }
+  | { state: 'success'; data: T }
+  | { state: 'error'; error: string; requestId?: string };
