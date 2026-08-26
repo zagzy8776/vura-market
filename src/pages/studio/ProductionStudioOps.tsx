@@ -4,6 +4,7 @@ import { money } from '@/lib/money';
 import type { Customer, Notification, Order, Overview, Product, ResourceState, StudioTab, Supplier } from '@/types';
 import { OperationalOrders, OperationalProducts, OperationalSuppliers } from './StudioOperationalTables';
 import AdminOverview from './AdminOverview';
+import { PaymentsBoard, InventoryBoard, SourcingBoard, FulfillmentBoard } from './StudioBoards';
 
 async function request<T>(url: string, init?: RequestInit): Promise<{ data: T; requestId?: string }> {
   const r = await fetch(url, { credentials: 'include', ...init });
@@ -159,7 +160,7 @@ export default function ProductionStudioOps({ tab, onTabChange }: { tab: StudioT
               ) : (
                 <OperationalOrders orders={orders.state === 'success' ? orders.data : []} suppliers={suppliersData} onRefresh={() => loadOrders({ silent: true })} />
               ))}
-            {tab === 'payments' && <Payments state={orders} />}
+            {tab === 'payments' && <PaymentsBoard state={orders} onRefresh={() => loadOrders({ silent: true })} />}
             {tab === 'products' &&
               (products.state === 'loading' && !showProductsUi ? (
                 <Loading />
@@ -168,7 +169,7 @@ export default function ProductionStudioOps({ tab, onTabChange }: { tab: StudioT
               ) : (
                 <OperationalProducts products={productsList} suppliers={suppliersData} onRefresh={() => loadProducts({ silent: true })} />
               ))}
-            {tab === 'sourcing' && <Sourcing state={orders} />}
+            {tab === 'sourcing' && <SourcingBoard state={orders} onRefresh={() => loadOrders({ silent: true })} />}
             {tab === 'suppliers' &&
               (suppliers.state === 'loading' && !showSuppliersUi ? (
                 <Loading />
@@ -177,88 +178,21 @@ export default function ProductionStudioOps({ tab, onTabChange }: { tab: StudioT
               ) : (
                 <OperationalSuppliers suppliers={suppliers.state === 'success' ? suppliers.data : []} onRefresh={() => loadSuppliers({ silent: true })} />
               ))}
+            {tab === 'inventory' &&
+              (products.state === 'loading' && !showProductsUi ? (
+                <Loading />
+              ) : (
+                <InventoryBoard products={productsList} onRefresh={() => loadProducts({ silent: true })} />
+              ))}
+            {tab === 'delivery' && <FulfillmentBoard state={orders} onRefresh={() => loadOrders({ silent: true })} />}
             {tab === 'customers' && <Customers customers={customersData} />}
             {tab === 'notifications' && <Notifications state={notifications} />}
             {tab === 'audit' && <AuditView state={overview} />}
-            {(tab === 'health' || tab === 'inventory' || tab === 'delivery' || tab === 'analytics' || tab === 'settings') && <ComingSoon tab={tab} />}
+            {(tab === 'health' || tab === 'analytics' || tab === 'settings' || tab === 'finance') && <ComingSoon tab={tab} />}
           </div>
         </section>
       </div>
     </main>
-  );
-}
-
-function Payments({ state }: { state: ResourceState<Order[]> }) {
-  if (state.state === 'loading') return <Loading />;
-  if (state.state === 'error') return <ErrorState error={state.error} requestId={state.requestId} />;
-  if (state.state !== 'success') return <Empty text="No payment data." />;
-  const list = state.data;
-  const pending = list.filter((x) => x.payment_status === 'pending_verification');
-  const paid = list.filter((x) => x.payment_status === 'paid');
-  return (
-    <>
-      <Header title="Payments" subtitle="Payment verification and paid-order visibility." />
-      <div className="mt-6 grid gap-4 md:grid-cols-3">
-        <Stat label="Pending verification" value={String(pending.length)} />
-        <Stat label="Paid orders" value={String(paid.length)} />
-        <Stat label="Paid volume" value={money(paid.reduce((n, x) => n + Number(x.total_kobo), 0))} />
-      </div>
-      <Card className="mt-6 p-5">
-        <b>Verification queue</b>
-        <div className="mt-4 space-y-2">
-          {pending.map((x) => (
-            <div key={x.id} className="flex justify-between border-b border-white/5 py-3">
-              <span>
-                <b>{x.order_number}</b>
-                <small className="block text-white/35">{x.delivery_name}</small>
-              </span>
-              <b>{money(x.total_kobo)}</b>
-            </div>
-          ))}
-          {!pending.length && <Empty text="No payments awaiting verification." />}
-        </div>
-      </Card>
-    </>
-  );
-}
-
-function Sourcing({ state }: { state: ResourceState<Order[]> }) {
-  if (state.state === 'loading') return <Loading />;
-  if (state.state === 'error') return <ErrorState error={state.error} requestId={state.requestId} />;
-  if (state.state !== 'success') return <Empty text="No sourcing data." />;
-  const rows = state.data.filter((x) => x.payment_status === 'paid' && !['delivered', 'cancelled'].includes(x.status));
-  return (
-    <>
-      <Header title="Sourcing & delivery" subtitle="Paid orders awaiting purchasing, dispatch or delivery completion." />
-      <Card className="mt-6 overflow-x-auto">
-        <table className="w-full min-w-[800px] text-sm">
-          <thead>
-            <tr>
-              {['Order', 'Customer', 'Product', 'Supplier', 'Status', 'Total'].map((x) => (
-                <th key={x} className="border-b border-white/10 px-4 py-3 text-left text-xs text-white/35">
-                  {x}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((x) => (
-              <tr key={x.id} className="border-b border-white/5">
-                <td className="px-4 py-3 font-bold">{x.order_number}</td>
-                <td className="px-4">{x.delivery_name}</td>
-                <td className="px-4">{x.product_name}</td>
-                <td className="px-4">{x.supplier_name || 'Unassigned'}</td>
-                <td className="px-4">
-                  <Pill value={x.sourcing_status || x.status} />
-                </td>
-                <td className="px-4 font-bold">{money(x.total_kobo)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {!rows.length && <Empty text="No sourcing work queued." />}
-      </Card>
-    </>
   );
 }
 
@@ -288,7 +222,7 @@ function Customers({ customers }: { customers: Customer[] }) {
             ))}
           </tbody>
         </table>
-        {!customers.length && <Empty text="No customers found." />}
+        {!customers.length && <div className="py-12 text-center text-sm text-white/30">No customers found.</div>}
       </Card>
     </>
   );
@@ -328,26 +262,10 @@ function Notifications({ state }: { state: ResourceState<Notification[]> }) {
       <Card className="mt-6 p-5">
         <b>Send promo / coupon push</b>
         <p className="mt-1 text-sm text-white/45">Pushes to customers who enabled notifications (and logs inbox rows).</p>
-        <input
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="Title — e.g. Weekend phone deals"
-          className="mt-4 w-full rounded-xl border border-white/10 bg-[#111522] px-3 py-2.5 text-sm outline-none focus:border-vura-500"
-        />
-        <textarea
-          value={body}
-          onChange={(e) => setBody(e.target.value)}
-          placeholder="Message — e.g. Use code VURA10 for 10% off selected phones."
-          rows={3}
-          className="mt-3 w-full rounded-xl border border-white/10 bg-[#111522] px-3 py-2.5 text-sm outline-none focus:border-vura-500"
-        />
+        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title — e.g. Weekend phone deals" className="mt-4 w-full rounded-xl border border-white/10 bg-[#111522] px-3 py-2.5 text-sm outline-none focus:border-vura-500" />
+        <textarea value={body} onChange={(e) => setBody(e.target.value)} placeholder="Message — e.g. Use code VURA10 for 10% off selected phones." rows={3} className="mt-3 w-full rounded-xl border border-white/10 bg-[#111522] px-3 py-2.5 text-sm outline-none focus:border-vura-500" />
         <div className="mt-3 flex flex-wrap items-center gap-3">
-          <button
-            type="button"
-            disabled={sending || title.trim().length < 3 || body.trim().length < 3}
-            onClick={() => void sendPromo()}
-            className="rounded-xl bg-vura-500 px-4 py-2.5 text-sm font-bold disabled:opacity-50"
-          >
+          <button type="button" disabled={sending || title.trim().length < 3 || body.trim().length < 3} onClick={() => void sendPromo()} className="rounded-xl bg-vura-500 px-4 py-2.5 text-sm font-bold disabled:opacity-50">
             {sending ? 'Sending…' : 'Send to customers'}
           </button>
           {promoMsg && <span className="text-sm text-white/50">{promoMsg}</span>}
@@ -436,33 +354,20 @@ function ErrorState({ error, requestId, onRetry }: { error: string; requestId?: 
     </div>
   );
 }
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <Card className="p-5">
-      <div className="text-[11px] font-bold uppercase tracking-wider text-white/30">{label}</div>
-      <div className="mt-3 text-2xl font-black">{value}</div>
-    </Card>
-  );
-}
-function Pill({ value }: { value: string }) {
-  return <span className="rounded-full bg-white/5 px-2.5 py-1 text-[11px] font-bold capitalize">{String(value || '—').replaceAll('_', ' ')}</span>;
-}
 function ComingSoon({ tab }: { tab: StudioTab }) {
-  const labels = {
+  const labels: Record<string, string> = {
     health: 'Health & Alerts',
-    inventory: 'Inventory Management',
-    delivery: 'Fulfillment & Delivery',
     analytics: 'Analytics Dashboard',
     settings: 'Settings & Admin Panel',
+    finance: 'Finance',
   };
   return (
     <div>
-      <Header title={labels[tab as keyof typeof labels] || 'Coming Soon'} subtitle="This feature is currently in development." />
+      <Header title={labels[tab] || 'Coming Soon'} subtitle="This feature is currently in development." />
       <div className="mt-12 grid min-h-[50vh] place-items-center rounded-2xl border border-white/10 bg-white/[.025]">
         <div className="text-center">
           <Package className="mx-auto mb-4 text-white/30" size={32} />
           <p className="text-white/50">Feature under development</p>
-          <p className="mt-2 text-sm text-white/30">Check back soon</p>
         </div>
       </div>
     </div>
