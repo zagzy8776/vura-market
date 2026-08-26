@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Package, RefreshCw, Search } from 'lucide-react';
 import { money } from '@/lib/money';
 import type { Customer, Notification, Order, Overview, Product, ResourceState, StudioTab, Supplier } from '@/types';
@@ -16,35 +16,6 @@ async function request<T>(url: string): Promise<{ data: T; requestId?: string }>
   return { data: b as T, requestId: r.headers.get('X-Request-ID') || undefined };
 }
 
-/**
- * Load a resource.
- * - First load / hard retry: show loading UI
- * - Background refresh (interval): keep current UI + form state, just swap data when done
- */
-function makeLoader<T>(
-  setState: (s: ResourceState<T>) => void,
-  getState: () => ResourceState<T>,
-  fetchFn: () => Promise<T>,
-  errorLabel: string,
-) {
-  return async (opts?: { silent?: boolean }) => {
-    const silent = opts?.silent && getState().state === 'success';
-    if (!silent) setState({ state: 'loading' });
-    try {
-      const data = await fetchFn();
-      setState({ state: 'success', data });
-    } catch (e) {
-      // On silent refresh failure, keep existing success data instead of wiping the form
-      if (silent && getState().state === 'success') return;
-      setState({
-        state: 'error',
-        error: e instanceof Error ? e.message : errorLabel,
-        requestId: (e as any).requestId,
-      });
-    }
-  };
-}
-
 export default function ProductionStudioOps({ tab, onTabChange }: { tab: StudioTab; onTabChange: (tab: StudioTab) => void }) {
   const [q, setQ] = useState('');
   const [overview, setOverview] = useState<ResourceState<Overview>>({ state: 'idle' });
@@ -53,18 +24,84 @@ export default function ProductionStudioOps({ tab, onTabChange }: { tab: StudioT
   const [suppliers, setSuppliers] = useState<ResourceState<Supplier[]>>({ state: 'idle' });
   const [notifications, setNotifications] = useState<ResourceState<Notification[]>>({ state: 'idle' });
 
-  // refs so silent loaders always read latest state without stale closures
-  const overviewRef = { current: overview }; overviewRef.current = overview;
-  const ordersRef = { current: orders }; ordersRef.current = orders;
-  const productsRef = { current: products }; productsRef.current = products;
-  const suppliersRef = { current: suppliers }; suppliersRef.current = suppliers;
-  const notificationsRef = { current: notifications }; notificationsRef.current = notifications;
+  // Stable refs — must be useRef so the interval always sees current state
+  const overviewRef = useRef(overview);
+  const ordersRef = useRef(orders);
+  const productsRef = useRef(products);
+  const suppliersRef = useRef(suppliers);
+  const notificationsRef = useRef(notifications);
+  overviewRef.current = overview;
+  ordersRef.current = orders;
+  productsRef.current = products;
+  suppliersRef.current = suppliers;
+  notificationsRef.current = notifications;
 
-  const loadOverview = makeLoader(setOverview, () => overviewRef.current, async () => (await request<Overview>('/api/admin/overview')).data, 'Failed to load overview');
-  const loadOrders = makeLoader(setOrders, () => ordersRef.current, async () => (await request<{ orders: Order[] }>('/api/admin/orders')).data.orders || [], 'Failed to load orders');
-  const loadProducts = makeLoader(setProducts, () => productsRef.current, async () => (await request<{ products: Product[] }>('/api/admin/products')).data.products || [], 'Failed to load products');
-  const loadSuppliers = makeLoader(setSuppliers, () => suppliersRef.current, async () => (await request<{ suppliers: Supplier[] }>('/api/admin/suppliers')).data.suppliers || [], 'Failed to load suppliers');
-  const loadNotifications = makeLoader(setNotifications, () => notificationsRef.current, async () => (await request<{ notifications: Notification[] }>('/api/admin/notifications')).data.notifications || [], 'Failed to load notifications');
+  // Once we have successfully loaded products once, never unmount the products UI for a refresh
+  const productsEverLoaded = useRef(false);
+  if (products.state === 'success') productsEverLoaded.current = true;
+
+  const loadOverview = async (opts?: { silent?: boolean }) => {
+    const silent = opts?.silent && overviewRef.current.state === 'success';
+    if (!silent) setOverview({ state: 'loading' });
+    try {
+      const { data } = await request<Overview>('/api/admin/overview');
+      setOverview({ state: 'success', data });
+    } catch (e) {
+      if (silent) return;
+      setOverview({ state: 'error', error: e instanceof Error ? e.message : 'Failed to load overview', requestId: (e as any).requestId });
+    }
+  };
+
+  const loadOrders = async (opts?: { silent?: boolean }) => {
+    const silent = opts?.silent && ordersRef.current.state === 'success';
+    if (!silent) setOrders({ state: 'loading' });
+    try {
+      const { data } = await request<{ orders: Order[] }>('/api/admin/orders');
+      setOrders({ state: 'success', data: data.orders || [] });
+    } catch (e) {
+      if (silent) return;
+      setOrders({ state: 'error', error: e instanceof Error ? e.message : 'Failed to load orders', requestId: (e as any).requestId });
+    }
+  };
+
+  const loadProducts = async (opts?: { silent?: boolean }) => {
+    // Never flip to loading if we already showed the products page — protects open Add/Edit modal
+    const alreadyShown = productsRef.current.state === 'success' || productsEverLoaded.current;
+    const silent = opts?.silent || alreadyShown;
+    if (!silent) setProducts({ state: 'loading' });
+    try {
+      const { data } = await request<{ products: Product[] }>('/api/admin/products');
+      setProducts({ state: 'success', data: data.products || [] });
+    } catch (e) {
+      if (silent && productsRef.current.state === 'success') return;
+      if (productsRef.current.state === 'success') return;
+      setProducts({ state: 'error', error: e instanceof Error ? e.message : 'Failed to load products', requestId: (e as any).requestId });
+    }
+  };
+
+  const loadSuppliers = async (opts?: { silent?: boolean }) => {
+    const silent = opts?.silent && suppliersRef.current.state === 'success';
+    if (!silent) setSuppliers({ state: 'loading' });
+    try {
+      const { data } = await request<{ suppliers: Supplier[] }>('/api/admin/suppliers');
+      setSuppliers({ state: 'success', data: data.suppliers || [] });
+    } catch (e) {
+      if (silent) return;
+      setSuppliers({ state: 'error', error: e instanceof Error ? e.message : 'Failed to load suppliers', requestId: (e as any).requestId });
+    }
+  };
+
+  const loadNotifications = async (opts?: { silent?: boolean }) => {
+    const silent = opts?.silent && notificationsRef.current.state === 'success';
+    if (!silent) setNotifications({ state: 'loading' });
+    try {
+      const { data } = await request<{ notifications: Notification[] }>('/api/admin/notifications');
+      setNotifications({ state: 'success', data: data.notifications || [] });
+    } catch (e) {
+      if (silent) return;
+      setNotifications({ state: 'error', error: e instanceof Error ? e.message : 'Failed to load notifications', requestId: (e as any).requestId });
+    }
+  };
 
   const loadAll = async (opts?: { silent?: boolean }) => {
     await Promise.all([
@@ -77,10 +114,10 @@ export default function ProductionStudioOps({ tab, onTabChange }: { tab: StudioT
   };
 
   useEffect(() => {
-    void loadAll(); // first load — show spinners
-    // background poll every 30s — silent so open product modal is never unmounted
-    const id = window.setInterval(() => void loadAll({ silent: true }), 30000);
+    void loadAll();
+    const id = window.setInterval(() => void loadAll({ silent: true }), 60000);
     return () => window.clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const suppliersData = useMemo(
@@ -98,6 +135,11 @@ export default function ProductionStudioOps({ tab, onTabChange }: { tab: StudioT
     suppliers.state === 'loading' ||
     notifications.state === 'loading';
 
+  const productsList = products.state === 'success' ? products.data : [];
+  const showProductsUi = products.state === 'success' || productsEverLoaded.current;
+  const showOrdersUi = orders.state === 'success' || orders.state === 'error';
+  const showSuppliersUi = suppliers.state === 'success' || suppliers.state === 'error';
+
   return (
     <main className="min-h-screen bg-[#080a12] text-white">
       <div className="mx-auto flex min-h-screen max-w-[1800px] flex-col">
@@ -113,7 +155,7 @@ export default function ProductionStudioOps({ tab, onTabChange }: { tab: StudioT
                   className="w-full rounded-xl border border-white/10 bg-white/[.035] py-3 pl-10 pr-4 text-sm outline-none focus:border-vura-400"
                 />
               </div>
-              <button onClick={() => void loadAll()} className="grid h-10 w-10 place-items-center rounded-xl border border-white/10" aria-label="Refresh">
+              <button onClick={() => void loadAll({ silent: true })} className="grid h-10 w-10 place-items-center rounded-xl border border-white/10" aria-label="Refresh">
                 <RefreshCw size={17} className={isLoading ? 'animate-spin' : ''} />
               </button>
             </div>
@@ -121,30 +163,30 @@ export default function ProductionStudioOps({ tab, onTabChange }: { tab: StudioT
           <div className="p-5 md:p-8">
             {tab === 'overview' && <AdminOverview state={overview} onNavigate={onTabChange} onRefresh={() => loadOverview()} />}
             {tab === 'orders' &&
-              (orders.state === 'loading' ? (
+              (orders.state === 'loading' && !showOrdersUi ? (
                 <Loading />
-              ) : orders.state === 'error' ? (
+              ) : orders.state === 'error' && !showOrdersUi ? (
                 <ErrorState error={orders.error} requestId={orders.requestId} onRetry={() => loadOrders()} />
               ) : (
-                <OperationalOrders orders={orders.state === 'success' ? orders.data : []} suppliers={suppliersData} onRefresh={() => loadOrders()} />
+                <OperationalOrders orders={orders.state === 'success' ? orders.data : []} suppliers={suppliersData} onRefresh={() => loadOrders({ silent: true })} />
               ))}
             {tab === 'payments' && <Payments state={orders} />}
             {tab === 'products' &&
-              (products.state === 'loading' ? (
+              (products.state === 'loading' && !showProductsUi ? (
                 <Loading />
-              ) : products.state === 'error' ? (
+              ) : products.state === 'error' && !showProductsUi ? (
                 <ErrorState error={products.error} requestId={products.requestId} onRetry={() => loadProducts()} />
               ) : (
-                <OperationalProducts products={products.state === 'success' ? products.data : []} suppliers={suppliersData} onRefresh={() => loadProducts()} />
+                <OperationalProducts products={productsList} suppliers={suppliersData} onRefresh={() => loadProducts({ silent: true })} />
               ))}
             {tab === 'sourcing' && <Sourcing state={orders} />}
             {tab === 'suppliers' &&
-              (suppliers.state === 'loading' ? (
+              (suppliers.state === 'loading' && !showSuppliersUi ? (
                 <Loading />
-              ) : suppliers.state === 'error' ? (
+              ) : suppliers.state === 'error' && !showSuppliersUi ? (
                 <ErrorState error={suppliers.error} requestId={suppliers.requestId} onRetry={() => loadSuppliers()} />
               ) : (
-                <OperationalSuppliers suppliers={suppliers.state === 'success' ? suppliers.data : []} onRefresh={() => loadSuppliers()} />
+                <OperationalSuppliers suppliers={suppliers.state === 'success' ? suppliers.data : []} onRefresh={() => loadSuppliers({ silent: true })} />
               ))}
             {tab === 'customers' && <Customers customers={customersData} />}
             {tab === 'notifications' && <Notifications state={notifications} />}
@@ -161,9 +203,9 @@ function Payments({ state }: { state: ResourceState<Order[]> }) {
   if (state.state === 'loading') return <Loading />;
   if (state.state === 'error') return <ErrorState error={state.error} requestId={state.requestId} />;
   if (state.state !== 'success') return <Empty text="No payment data." />;
-  const orders = state.data;
-  const pending = orders.filter((x) => x.payment_status === 'pending_verification');
-  const paid = orders.filter((x) => x.payment_status === 'paid');
+  const list = state.data;
+  const pending = list.filter((x) => x.payment_status === 'pending_verification');
+  const paid = list.filter((x) => x.payment_status === 'paid');
   return (
     <>
       <Header title="Payments" subtitle="Payment verification and paid-order visibility." />
