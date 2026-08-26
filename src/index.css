@@ -27,7 +27,27 @@ button { cursor: pointer; }
 ::selection { background: #ddd5ff; color: #151527; }
 .font-display { font-family: 'Space Grotesk', sans-serif; }
 
-/* VURA DESIGN SYSTEM */
+/* Storefront semantic tokens (light marketplace theme) */
+body.storefront,
+.storefront {
+  --sf-canvas: #f7f7fb;
+  --sf-surface: #ffffff;
+  --sf-elevated: #ffffff;
+  --sf-hi: #151527;
+  --sf-mid: #5f6678;
+  --sf-low: #8b93a5;
+  --sf-line: #e8e7f1;
+  --sf-soft: #f3f1ff;
+}
+
+.storefront .bg-canvas { background-color: var(--sf-canvas); }
+.storefront .bg-surface { background-color: var(--sf-surface); }
+.storefront .bg-elevated { background-color: var(--sf-elevated); }
+.storefront .text-hi { color: var(--sf-hi); }
+.storefront .text-mid { color: var(--sf-mid); }
+.storefront .text-low { color: var(--sf-low); }
+.storefront .border-line { border-color: var(--sf-line); }
+
 .glass-card {
   border: 1px solid rgba(255,255,255,.82);
   background: rgba(255,255,255,.78);
@@ -47,10 +67,6 @@ button { cursor: pointer; }
   box-shadow: 0 16px 38px rgba(50,38,100,.12);
 }
 
-/* Keep the existing component markup while making the purple Vura identity canonical. */
-/* (Dead color mappings removed — see tailwind.config.js for canonical tokens.) */
-
-/* Purple controls, focus states and accessibility */
 button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible {
   outline: 3px solid rgba(91,44,255,.24);
   outline-offset: 2px;
@@ -60,11 +76,9 @@ input:focus, textarea:focus, select:focus {
   box-shadow: 0 0 0 4px rgba(91,44,255,.08);
 }
 
-/* Product imagery */
 img { max-width: 100%; }
 img[src=""], img:not([src]) { opacity: 0; }
 
-/* Utility helpers used across storefront + studio */
 .line-clamp-2 {
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -78,7 +92,6 @@ img[src=""], img:not([src]) { opacity: 0; }
   overflow: hidden;
 }
 
-/* Subtle scrollbar for dark studio panels */
 .studio-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
 .studio-scroll::-webkit-scrollbar-thumb {
   background: rgba(255,255,255,.12);
@@ -86,25 +99,20 @@ img[src=""], img:not([src]) { opacity: 0; }
 }
 .studio-scroll::-webkit-scrollbar-track { background: transparent; }
 
-/* Reduce layout shift on image load in product cards */
 .aspect-product { aspect-ratio: 4 / 3; object-fit: cover; }
 
-/* Safe area for notched phones (iPhone) */
 @supports (padding: max(0px)) {
   .safe-bottom { padding-bottom: max(1rem, env(safe-area-inset-bottom)); }
   .safe-top { padding-top: max(0.5rem, env(safe-area-inset-top)); }
 }
 
-/* Prevent horizontal overflow on mobile studio tables */
 .overflow-x-auto { -webkit-overflow-scrolling: touch; }
 
-/* Make disabled controls obviously inactive */
 button:disabled, input:disabled, select:disabled, textarea:disabled {
   cursor: not-allowed;
   opacity: .55;
 }
 
-/* Never expose private admin/sourcing economics through presentation classes. */
 .vura-private-data { display: none; }
 
 @media (prefers-reduced-motion: reduce) {
@@ -115,12 +123,8 @@ button:disabled, input:disabled, select:disabled, textarea:disabled {
   }
 }
 
-/* iOS Safari: inputs under 16px trigger auto-zoom on focus and the page stays zoomed.
-   Force form controls to 16px on small screens so typing never zooms the layout. */
 @media (max-width: 1024px) {
-  input,
-  textarea,
-  select {
+  input, textarea, select {
     font-size: 16px !important;
   }
 }

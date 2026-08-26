@@ -178,3 +178,68 @@ export type StudioTab =
   | 'settings';
 
 export type View = 'home' | 'catalog' | 'deals' | 'product';
+
+export type CategoryPublic = {
+  id: string;
+  name: string;
+  slug: string;
+  icon?: string | null;
+  product_count?: number | null;
+  parent_id?: string | null;
+};
+
+export type StorefrontVariant = {
+  id: string;
+  sku?: string | null;
+  price_kobo?: number | null;
+  compare_at_price_kobo?: number | null;
+  available_quantity: number;
+  reserved_quantity: number;
+  attributes?: Record<string, string> | null;
+};
+
+export type StorefrontProduct = {
+  id: string;
+  name: string;
+  slug: string;
+  brand?: string | null;
+  description?: string | null;
+  price_kobo: number;
+  compare_at_price_kobo?: number | null;
+  condition_label?: string | null;
+  stock_status?: string | null;
+  images?: string[] | null;
+  category_name?: string | null;
+  category_slug?: string | null;
+  rating?: number | null;
+  review_count?: number | null;
+  variants?: StorefrontVariant[] | null;
+};
+
+export type CreatedOrder = {
+  id: string;
+  order_number: string;
+  total_kobo: number;
+  status: string;
+  payment_status: string;
+};
+
+export type DeliveryQuote = {
+  feeKobo: number;
+  zoneName: string;
+  etaMinDays: number;
+  etaMaxDays: number;
+  freeDeliveryThresholdKobo?: number | null;
+};
+
+export type NigeriaState = {
+  id: string;
+  name: string;
+  code: string;
+};
+
+export type NigeriaLga = {
+  id: string;
+  name: string;
+  state_id: string;
+};

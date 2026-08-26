@@ -58,7 +58,7 @@ function Shell() {
   const [categories, setCategories] = useState<CategoryPublic[]>([]);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-    useEffect(() => {
+  useEffect(() => {
     document.body.classList.add('storefront');
     setSiteJsonLd();
     storefrontApi.categories()
@@ -81,7 +81,7 @@ function Shell() {
   return (
     <div className="flex min-h-screen flex-col bg-canvas text-hi">
       <Header categories={categories} />
-      <div className="flex-1">
+      <div className="flex-1 pb-20 sm:pb-0">
         <Suspense fallback={<PageLoader />}>
           <RouteView categories={categories} />
         </Suspense>
@@ -97,9 +97,11 @@ function PageLoader() {
   return (
     <div className="mx-auto max-w-7xl px-4 py-16 md:px-6">
       <div className="grid gap-10 lg:grid-cols-[1.05fr_0.95fr]">
-        <div className="aspect-square animate-pulse rounded-3xl bg-white/[0.05]" />
+        <div className="aspect-square animate-pulse rounded-3xl bg-[#e8e7f1]" />
         <div className="space-y-4">
-          {[0, 1, 2].map((i) => <div key={i} className="h-12 animate-pulse rounded-xl bg-white/[0.05]" style={{ width: `${90 - i * 15}%` }} />)}
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="h-12 animate-pulse rounded-xl bg-[#e8e7f1]" style={{ width: `${90 - i * 15}%` }} />
+          ))}
         </div>
       </div>
     </div>

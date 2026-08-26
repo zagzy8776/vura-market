@@ -1,43 +1,56 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowRight, BadgeCheck, ChevronLeft, ChevronRight, Headset, Mail, PackageSearch, ShieldCheck, Truck } from 'lucide-react';
+import {
+  Baby,
+  Car,
+  Dumbbell,
+  Headphones,
+  Home as HomeIcon,
+  PackageSearch,
+  ShieldCheck,
+  Shirt,
+  ShoppingBasket,
+  Sparkles,
+  Star,
+  Truck,
+} from 'lucide-react';
 import { Link } from '../router';
 import { storefrontApi } from '../lib/api';
 import type { CategoryPublic, StorefrontProduct } from '@/types';
 import { ProductCard } from '../components/ProductCard';
-import { Button, ErrorState, ProductCardSkeleton, SectionHeading } from '../components/ui';
-import { optimizedImage } from '../lib/images';
+import { Button, ErrorState, ProductCardSkeleton } from '../components/ui';
 import { getRecentProductIds, track } from '../lib/analytics';
+import { money } from '@/lib/money';
+import { discountPercent } from '../lib/availability';
+import { optimizedImage } from '../lib/images';
 
-const heroSlides = [
-  {
-    eyebrow: 'Welcome to Vura',
-    title: 'Everything you need.',
-    highlight: 'One Vura.',
-    sub: 'Discover trending products, electronics, machinery, accessories and more — sourced for you and delivered across Nigeria.',
-    ctaTo: '/search',
-    ctaLabel: 'Shop Now',
-    secondaryTo: '/c/electronics',
-    secondaryLabel: 'Explore Categories',
-    art: 'from-vura-700/60 via-[#151032] to-[#0B0B12]',
-  },
-  {
-    eyebrow: 'Deals of the week',
-    title: 'Real prices.',
-    highlight: 'Zero guesswork.',
-    sub: 'Discounted phones, laptops and essentials with the previous price shown in full — what you see is what you pay.',
-    ctaTo: '/deals',
-    ctaLabel: 'Shop Deals',
-    secondaryTo: '/new',
-    secondaryLabel: 'New Arrivals',
-    art: 'from-fuchsia-800/40 via-[#1B1030] to-[#0B0B12]',
-  },
+const CATEGORY_ICONS: Record<string, typeof Headphones> = {
+  electronics: Headphones,
+  fashion: Shirt,
+  'home-living': HomeIcon,
+  home: HomeIcon,
+  'beauty-health': Sparkles,
+  beauty: Sparkles,
+  'sports-outdoors': Dumbbell,
+  sports: Dumbbell,
+  groceries: ShoppingBasket,
+  'baby-kids': Baby,
+  baby: Baby,
+  automotive: Car,
+};
+
+const FALLBACK_CATEGORIES = [
+  { name: 'Electronics', slug: 'electronics', icon: Headphones },
+  { name: 'Fashion', slug: 'fashion', icon: Shirt },
+  { name: 'Home & Living', slug: 'home-living', icon: HomeIcon },
+  { name: 'Beauty & Health', slug: 'beauty-health', icon: Sparkles },
+  { name: 'Sports & Outdoors', slug: 'sports-outdoors', icon: Dumbbell },
+  { name: 'Groceries', slug: 'groceries', icon: ShoppingBasket },
+  { name: 'Baby & Kids', slug: 'baby-kids', icon: Baby },
+  { name: 'Automotive', slug: 'automotive', icon: Car },
 ];
 
 export function HomePage({ categories }: { categories: CategoryPublic[] }) {
-  const [slide, setSlide] = useState(0);
-  const [trending, setTrending] = useState<StorefrontProduct[] | null>(null);
   const [deals, setDeals] = useState<StorefrontProduct[] | null>(null);
-  const [arrivals, setArrivals] = useState<StorefrontProduct[] | null>(null);
   const [recommended, setRecommended] = useState<StorefrontProduct[] | null>(null);
   const [failed, setFailed] = useState(false);
 
@@ -48,17 +61,14 @@ export function HomePage({ categories }: { categories: CategoryPublic[] }) {
   useEffect(() => {
     let cancelled = false;
     Promise.all([
-      storefrontApi.products({ sort: 'popular', perPage: 8 }),
-      storefrontApi.products({ deals: true, perPage: 8 }),
-      storefrontApi.products({ sort: 'newest', perPage: 8 }),
-      storefrontApi.products({ ids: getRecentProductIds().slice(0, 4), perPage: 4 }),
+      storefrontApi.products({ deals: true, perPage: 6 }),
+      storefrontApi.products({ ids: getRecentProductIds().slice(0, 6), perPage: 6 }),
+      storefrontApi.products({ sort: 'popular', perPage: 6 }),
     ])
-      .then(([t, d, a, rec]) => {
+      .then(([d, rec, popular]) => {
         if (cancelled) return;
-        setTrending(t.products);
         setDeals(d.products);
-        setArrivals(a.products);
-        setRecommended(rec.products.length ? rec.products : t.products.slice(0, 4));
+        setRecommended(rec.products.length ? rec.products : popular.products);
       })
       .catch(() => !cancelled && setFailed(true));
     return () => {
@@ -66,226 +76,247 @@ export function HomePage({ categories }: { categories: CategoryPublic[] }) {
     };
   }, []);
 
-  const activeSlide = heroSlides[slide];
-  const categoryCards = useMemo(() => categories.filter((c) => (c.product_count ?? 0) >= 0).slice(0, 14), [categories]);
+  const categoryCards = useMemo(() => {
+    if (categories.length) {
+      return categories.slice(0, 8).map((c) => ({
+        name: c.name,
+        slug: c.slug,
+        icon: CATEGORY_ICONS[c.slug] || CATEGORY_ICONS[c.slug.split('-')[0]] || PackageSearch,
+      }));
+    }
+    return FALLBACK_CATEGORIES;
+  }, [categories]);
 
-  if (failed && !trending) {
-    return <div className="mx-auto max-w-7xl px-4 py-16"><ErrorState onRetry={() => window.location.reload()} /></div>;
+  if (failed && !deals) {
+    return (
+      <div className="mx-auto max-w-7xl px-4 py-16">
+        <ErrorState onRetry={() => window.location.reload()} />
+      </div>
+    );
   }
 
   return (
-    <main id="main">
-      {/* Hero */}
-      <section aria-label="Featured" className={`relative overflow-hidden bg-gradient-to-br ${activeSlide.art}`}>
-        <div className="pointer-events-none absolute -right-24 -top-24 h-96 w-96 rounded-full bg-vura-500/25 blur-3xl" aria-hidden />
-        <div className="mx-auto grid max-w-7xl items-center gap-10 px-4 py-16 md:px-6 lg:grid-cols-[1.05fr_0.95fr] lg:py-24">
+    <main id="main" className="bg-[#f7f7fb]">
+      <section className="relative overflow-hidden bg-gradient-to-br from-[#f3f1ff] via-white to-[#f7f7fb]">
+        <div className="mx-auto grid max-w-7xl items-center gap-8 px-4 py-12 md:px-6 lg:grid-cols-[1.05fr_0.95fr] lg:py-16">
           <div>
-            <p className="text-sm font-bold uppercase tracking-[0.18em] text-vura-300">{activeSlide.eyebrow}</p>
-            <h1 className="mt-4 font-display text-5xl font-bold leading-[0.98] tracking-[-0.05em] text-hi sm:text-6xl lg:text-7xl">
-              {activeSlide.title}<br />
-              <span className="bg-gradient-to-r from-vura-300 to-vura-500 bg-clip-text text-transparent">{activeSlide.highlight}</span>
+            <h1 className="font-display text-4xl font-bold leading-[1.08] tracking-[-0.03em] text-[#151527] sm:text-5xl lg:text-[3.25rem]">
+              Everything you need,{' '}
+              <span className="text-vura-500">delivered to your door</span>
             </h1>
-            <p className="mt-6 max-w-xl text-lg leading-8 text-mid">{activeSlide.sub}</p>
-            <div className="mt-8 flex flex-wrap gap-3">
-              <Link to={activeSlide.ctaTo}>
-                <Button size="lg">Shop Now <ArrowRight size={17} /></Button>
-              </Link>
-              <Link to={activeSlide.secondaryTo}>
-                <Button size="lg" variant="secondary">{activeSlide.secondaryLabel}</Button>
-              </Link>
-            </div>
-            <div className="mt-10 flex flex-wrap gap-x-7 gap-y-3 text-sm font-semibold text-low" role="list">
-              <span className="flex items-center gap-2" role="listitem"><Truck size={16} className="text-vura-300" aria-hidden /> Nationwide delivery</span>
-              <span className="flex items-center gap-2" role="listitem"><ShieldCheck size={16} className="text-vura-300" aria-hidden /> Verified payments</span>
-              <span className="flex items-center gap-2" role="listitem"><BadgeCheck size={16} className="text-vura-300" aria-hidden /> Real stock, real prices</span>
-            </div>
-          </div>
-
-          <div className="relative hidden min-h-[380px] lg:block">
-            {deals?.slice(0, 3).map((p, i) => (
-              <Link
-                key={p.id}
-                to={`/product/${p.slug}`}
-                className={`absolute w-64 rounded-3xl border border-white/10 bg-surface/90 p-4 shadow-2xl shadow-black/50 backdrop-blur transition hover:-translate-y-1 ${i === 0 ? 'left-2 top-2 -rotate-3' : i === 1 ? 'right-0 top-16 rotate-2' : 'bottom-0 left-20 rotate-1'}`}
-              >
-                <div className="aspect-video overflow-hidden rounded-2xl bg-[#10101A]">
-                  {p.images?.[0]
-                    ? <img src={optimizedImage(p.images[0], 480)} alt="" width={256} height={144} loading="lazy" decoding="async" className="h-full w-full object-contain" />
-                    : <span className="grid h-full place-items-center text-low"><PackageSearch size={32} /></span>}
-                </div>
-                <p className="mt-3 truncate text-sm font-bold text-hi">{p.name}</p>
-                <p className="mt-1 flex items-baseline gap-2">
-                  <b className="font-display text-lg text-vura-300">{new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', maximumFractionDigits: 0 }).format(Number(p.price_kobo) / 100)}</b>
-                </p>
-              </Link>
-            ))}
-            {deals && deals.length === 0 && (
-              <div className="absolute inset-0 grid place-items-center rounded-3xl border border-white/10 bg-white/[0.02] text-center text-sm text-low">
-                Featured products appear here as soon as listings go live.
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 pb-6 md:px-6">
-          <div className="flex gap-1.5" role="tablist" aria-label="Hero slides">
-            {heroSlides.map((s, i) => (
-              <button key={s.title} role="tab" aria-selected={i === slide} aria-label={`Slide ${i + 1}`} onClick={() => setSlide(i)} className={`h-1.5 rounded-full transition-all ${i === slide ? 'w-8 bg-vura-400' : 'w-3 bg-white/20'}`} />
-            ))}
-          </div>
-          <div className="flex gap-2">
-            <button onClick={() => setSlide((s) => (s + heroSlides.length - 1) % heroSlides.length)} aria-label="Previous slide" className="grid h-9 w-9 place-items-center rounded-full border border-white/15 text-mid hover:text-hi"><ChevronLeft size={17} /></button>
-            <button onClick={() => setSlide((s) => (s + 1) % heroSlides.length)} aria-label="Next slide" className="grid h-9 w-9 place-items-center rounded-full border border-white/15 text-mid hover:text-hi"><ChevronRight size={17} /></button>
-          </div>
-        </div>
-      </section>
-
-      {/* Categories */}
-      <section aria-labelledby="categories-heading" className="mx-auto max-w-7xl px-4 py-14 md:px-6">
-        <SectionHeading eyebrow="Shop by category" title="Everything in one place" action={<Link to="/search" className="flex items-center gap-1 text-sm font-bold text-vura-300 hover:text-vura-200">View all <ArrowRight size={15} /></Link>} />
-        <h2 id="categories-heading" className="sr-only">Categories</h2>
-        <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-7">
-          {(categoryCards.length ? categoryCards : Array.from({ length: 7 }, () => null)).map((c, i) =>
-            c ? (
-              <Link key={c.id} to={`/c/${c.slug}`} className="group rounded-2xl border border-line bg-surface p-4 text-center transition hover:-translate-y-1 hover:border-vura-400/40">
-                <span className="mx-auto grid h-11 w-11 place-items-center rounded-xl bg-vura-500/12 font-display text-base font-bold text-vura-300 transition group-hover:bg-vura-500 group-hover:text-white">{c.name.charAt(0)}</span>
-                <p className="mt-2.5 truncate text-xs font-bold text-hi">{c.name}</p>
-              </Link>
-            ) : (
-              <div key={`cat-skel-${i}`} className="rounded-2xl border border-line bg-surface p-4"><span className="mx-auto block h-11 w-11 animate-pulse rounded-xl bg-white/[0.06]" /><span className="mx-auto mt-2.5 block h-3 w-3/4 animate-pulse rounded bg-white/[0.06]" /></div>
-            ),
-          )}
-        </div>
-      </section>
-
-      {/* Trending */}
-      <section aria-labelledby="trending-heading" className="border-y border-white/6 bg-white/[0.015] py-14">
-        <div className="mx-auto max-w-7xl px-4 md:px-6">
-          <SectionHeading eyebrow="Trending products" title="Popular right now" action={<Link to="/search?sort=popular" className="flex items-center gap-1 text-sm font-bold text-vura-300 hover:text-vura-200">View all <ArrowRight size={15} /></Link>} />
-          <h2 id="trending-heading" className="sr-only">Trending products</h2>
-          <ProductShelf products={trending} skeletonCount={8} />
-        </div>
-      </section>
-
-      {/* Deals */}
-      <section aria-labelledby="deals-heading" className="mx-auto max-w-7xl px-4 py-14 md:px-6">
-        <SectionHeading eyebrow="Deals" title="Good prices, no noise." action={<Link to="/deals" className="flex items-center gap-1 text-sm font-bold text-vura-300 hover:text-vura-200">All deals <ArrowRight size={15} /></Link>} />
-        <h2 id="deals-heading" className="sr-only">Current deals</h2>
-        <ProductShelf products={deals} skeletonCount={4} emptyText="No active deals right now — check back soon." />
-      </section>
-
-      {/* New arrivals */}
-      <section aria-labelledby="arrivals-heading" className="border-y border-white/6 bg-white/[0.015] py-14">
-        <div className="mx-auto max-w-7xl px-4 md:px-6">
-          <SectionHeading eyebrow="New arrivals" title="Fresh on Vura" action={<Link to="/new" className="flex items-center gap-1 text-sm font-bold text-vura-300 hover:text-vura-200">View all <ArrowRight size={15} /></Link>} />
-          <h2 id="arrivals-heading" className="sr-only">New arrivals</h2>
-          <ProductShelf products={arrivals} skeletonCount={8} emptyText="New products land here first." />
-        </div>
-      </section>
-
-      {/* Recommended */}
-      {recommended && recommended.length > 0 && (
-        <section aria-labelledby="rec-heading" className="mx-auto max-w-7xl px-4 py-14 md:px-6">
-          <SectionHeading eyebrow="For you" title="Recommended for you" />
-          <h2 id="rec-heading" className="sr-only">Recommended</h2>
-          <ProductShelf products={recommended} skeletonCount={0} />
-        </section>
-      )}
-
-      {/* Why Vura */}
-      <section aria-labelledby="why-heading" className="border-y border-white/6 bg-gradient-to-br from-[#120D2C] to-[#0B0B12] py-16">
-        <div className="mx-auto max-w-7xl px-4 md:px-6">
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-vura-300">Why Vura</p>
-          <h2 id="why-heading" className="mt-2 max-w-xl font-display text-3xl font-bold tracking-tight text-hi">We source. We package. We deliver.</h2>
-          <div className="mt-10 grid gap-5 sm:grid-cols-3">
-            {[
-              { icon: <PackageSearch size={22} />, title: 'Curated sourcing', body: 'Every listing is checked by our team before it goes live — no random drop-shipping.' },
-              { icon: <ShieldCheck size={22} />, title: 'Trust-first checkout', body: 'Pay by secure bank transfer with full order tracking from payment to doorstep.' },
-              { icon: <Headset size={22} />, title: 'Human support', body: 'Real people on WhatsApp when something needs sorting out.' },
-            ].map((item) => (
-              <div key={item.title} className="rounded-2xl border border-white/8 bg-surface/70 p-6 backdrop-blur">
-                <span className="grid h-11 w-11 place-items-center rounded-xl bg-vura-500/15 text-vura-300">{item.icon}</span>
-                <h3 className="mt-4 font-display text-lg font-bold text-hi">{item.title}</h3>
-                <p className="mt-2 text-sm leading-6 text-mid">{item.body}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Delivery / trust */}
-      <section aria-labelledby="delivery-heading" className="mx-auto max-w-7xl px-4 py-16 md:px-6">
-        <div className="grid items-center gap-8 rounded-3xl border border-vura-500/25 bg-vura-500/[0.06] p-8 md:grid-cols-[auto_1fr_auto] md:p-10">
-          <span className="grid h-16 w-16 place-items-center rounded-2xl bg-vura-500/15 text-vura-300"><Truck size={30} /></span>
-          <div>
-            <h2 id="delivery-heading" className="font-display text-2xl font-bold text-hi">Delivery across Nigeria</h2>
-            <p className="mt-2 max-w-xl text-sm leading-6 text-mid">
-              Lagos deliveries typically arrive in 2–3 days. Other states take 4–7 days. Exact cost and dates are calculated at checkout for your address.
+            <p className="mt-4 max-w-lg text-base leading-7 text-[#5f6678] sm:text-lg">
+              Shop from thousands of trusted sellers and get real value on everything you love.
             </p>
+            <div className="mt-7 flex flex-wrap gap-3">
+              <Link to="/search">
+                <Button size="lg">Shop Now</Button>
+              </Link>
+              <Link to="/deals">
+                <Button size="lg" variant="secondary">
+                  Explore Deals
+                </Button>
+              </Link>
+            </div>
+            <div className="mt-8 flex flex-wrap gap-x-6 gap-y-3 text-sm font-semibold text-[#5f6678]">
+              <span className="flex items-center gap-2">
+                <Truck size={16} className="text-vura-500" aria-hidden />
+                Fast Delivery Across Nigeria
+              </span>
+              <span className="flex items-center gap-2">
+                <ShieldCheck size={16} className="text-vura-500" aria-hidden />
+                Secure Payment 100% Protected
+              </span>
+              <span className="flex items-center gap-2">
+                <PackageSearch size={16} className="text-vura-500" aria-hidden />
+                Easy Returns 7-day Returns
+              </span>
+            </div>
           </div>
-          <Link to="/help#delivery"><Button variant="secondary">Delivery details</Button></Link>
+
+          <div className="relative hidden lg:block">
+            <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-vura-50 to-white p-6 shadow-xl shadow-vura-500/10">
+              <div className="flex items-center justify-center">
+                <div className="relative">
+                  <div className="absolute -right-4 -top-4 h-64 w-64 rounded-full bg-vura-200/40 blur-3xl" aria-hidden />
+                  <div className="relative flex items-end gap-4">
+                    <div className="rounded-2xl bg-vura-500 p-5 text-white shadow-2xl shadow-vura-500/30">
+                      <ShoppingBasket size={36} className="mb-2 opacity-90" />
+                      <p className="font-display text-lg font-bold leading-tight">VURA</p>
+                      <p className="text-xs font-semibold opacity-80">MARKET</p>
+                    </div>
+                    <div className="space-y-3">
+                      {(deals || []).slice(0, 2).map((p) => (
+                        <Link
+                          key={p.id}
+                          to={`/product/${p.slug}`}
+                          className="flex w-48 items-center gap-3 rounded-2xl border border-[#e8e7f1] bg-white p-3 shadow-md transition hover:-translate-y-0.5"
+                        >
+                          <div className="h-12 w-12 overflow-hidden rounded-lg bg-[#f3f1ff]">
+                            {p.images?.[0] ? (
+                              <img src={optimizedImage(p.images[0], 96)} alt="" className="h-full w-full object-contain" />
+                            ) : (
+                              <span className="grid h-full place-items-center text-[#8b93a5]">
+                                <PackageSearch size={18} />
+                              </span>
+                            )}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="truncate text-xs font-bold text-[#151527]">{p.name}</p>
+                            <p className="text-xs font-bold text-vura-500">{money(Number(p.price_kobo))}</p>
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
-      {/* Newsletter */}
-      <NewsletterBand />
+      <section className="mx-auto max-w-7xl px-4 py-12 md:px-6">
+        <div className="mb-6 flex items-end justify-between">
+          <h2 className="font-display text-xl font-bold text-[#151527] sm:text-2xl">Shop by Category</h2>
+          <Link to="/search" className="text-sm font-bold text-vura-500 hover:text-vura-600">
+            View all
+          </Link>
+        </div>
+        <div className="grid grid-cols-4 gap-3 sm:grid-cols-4 md:grid-cols-8">
+          {categoryCards.map((c) => {
+            const Icon = c.icon;
+            return (
+              <Link
+                key={c.slug}
+                to={`/c/${c.slug}`}
+                className="group flex flex-col items-center gap-2 rounded-2xl p-3 text-center transition hover:-translate-y-0.5"
+              >
+                <span className="grid h-14 w-14 place-items-center rounded-full bg-[#f3f1ff] text-vura-500 transition group-hover:bg-vura-500 group-hover:text-white sm:h-16 sm:w-16">
+                  <Icon size={24} aria-hidden />
+                </span>
+                <span className="text-[11px] font-bold leading-tight text-[#151527] sm:text-xs">{c.name}</span>
+              </Link>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-7xl px-4 py-6 md:px-6">
+        <div className="mb-6 flex items-end justify-between">
+          <h2 className="font-display text-xl font-bold text-[#151527] sm:text-2xl">Today&apos;s Best Deals</h2>
+          <Link to="/deals" className="text-sm font-bold text-vura-500 hover:text-vura-600">
+            View all deals
+          </Link>
+        </div>
+        <DealShelf products={deals} />
+      </section>
+
+      <section className="mx-auto max-w-7xl px-4 py-10 md:px-6">
+        <div className="mb-2 flex items-end justify-between">
+          <div>
+            <h2 className="font-display text-xl font-bold text-[#151527] sm:text-2xl">Recommended for You</h2>
+            <p className="mt-1 text-sm text-[#8b93a5]">Based on your recent activity</p>
+          </div>
+          <Link to="/search?sort=popular" className="text-sm font-bold text-vura-500 hover:text-vura-600">
+            View all
+          </Link>
+        </div>
+        <div className="mt-6 grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-6">
+          {!recommended
+            ? Array.from({ length: 6 }, (_, i) => <ProductCardSkeleton key={i} />)
+            : recommended.map((p, i) => <ProductCard key={p.id} product={p} priority={i < 2} />)}
+        </div>
+      </section>
     </main>
   );
 }
 
-function ProductShelf({ products, skeletonCount, emptyText }: { products: StorefrontProduct[] | null; skeletonCount: number; emptyText?: string }) {
+function DealShelf({ products }: { products: StorefrontProduct[] | null }) {
   if (!products) {
     return (
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4">
-        {Array.from({ length: skeletonCount }, (_, i) => <ProductCardSkeleton key={i} />)}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-6">
+        {Array.from({ length: 6 }, (_, i) => (
+          <ProductCardSkeleton key={i} />
+        ))}
       </div>
     );
   }
   if (!products.length) {
-    return <p className="rounded-2xl border border-dashed border-white/10 py-12 text-center text-sm text-low">{emptyText || 'Nothing here yet.'}</p>;
+    return (
+      <p className="rounded-2xl border border-dashed border-[#e8e7f1] bg-white py-12 text-center text-sm text-[#8b93a5]">
+        No active deals right now — check back soon.
+      </p>
+    );
   }
   return (
-    <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4">
-      {products.map((p, i) => <ProductCard key={p.id} product={p} priority={i < 2} />)}
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-6">
+      {products.map((p, i) => (
+        <DealCard key={p.id} product={p} priority={i < 2} />
+      ))}
     </div>
   );
 }
 
-function NewsletterBand() {
-  const [email, setEmail] = useState('');
-  const [done, setDone] = useState(false);
+function DealCard({ product, priority }: { product: StorefrontProduct; priority?: boolean }) {
+  const discount = discountPercent(
+    Number(product.price_kobo),
+    product.compare_at_price_kobo ? Number(product.compare_at_price_kobo) : null,
+  );
+  const image = product.images?.[0] ? optimizedImage(product.images[0], 400) : '';
+
   return (
-    <section aria-labelledby="newsletter-heading" className="border-t border-white/6 bg-white/[0.015] py-16">
-      <div className="mx-auto max-w-7xl px-4 text-center md:px-6">
-        <span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-vura-500/15 text-vura-300"><Mail size={26} /></span>
-        <h2 id="newsletter-heading" className="mt-5 font-display text-3xl font-bold tracking-tight text-hi">Get the deals before anyone else</h2>
-        <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-mid">Flash deals and new arrivals straight to your inbox. No spam, unsubscribe anytime.</p>
-        {done ? (
-          <p role="status" className="mt-6 text-sm font-bold text-emerald-400">You're on the list. Watch your inbox.</p>
+    <article className="group flex flex-col overflow-hidden rounded-2xl border border-[#e8e7f1] bg-white transition hover:border-vura-300 hover:shadow-lg hover:shadow-vura-500/10">
+      <Link to={`/product/${product.slug}`} className="relative block aspect-square bg-[#fafafa]">
+        {image ? (
+          <img
+            src={image}
+            alt={product.name}
+            loading={priority ? 'eager' : 'lazy'}
+            decoding="async"
+            className="h-full w-full object-contain p-3 transition duration-300 group-hover:scale-[1.03]"
+          />
         ) : (
-          <form
-            className="mx-auto mt-6 flex max-w-md gap-2"
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (!/^\S+@\S+\.\S+$/.test(email.trim())) return;
-              track('newsletter_intent', {});
-              setDone(true);
-            }}
-          >
-            <label htmlFor="newsletter-email" className="sr-only">Email address</label>
-            <input
-              id="newsletter-email"
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
-              className="h-12 flex-1 rounded-xl border border-white/10 bg-white/[0.05] px-4 text-sm text-hi placeholder:text-low outline-none focus:border-vura-500"
-            />
-            <Button size="lg" type="submit">Join</Button>
-          </form>
+          <span className="grid h-full place-items-center text-[#c5c9d4]">
+            <PackageSearch size={36} />
+          </span>
         )}
+        {discount != null && (
+          <span className="absolute left-2 top-2 rounded-md bg-red-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
+            -{discount}%
+          </span>
+        )}
+      </Link>
+      <div className="flex flex-1 flex-col gap-1.5 p-3">
+        <Link
+          to={`/product/${product.slug}`}
+          className="line-clamp-2 min-h-[36px] text-xs font-bold leading-snug text-[#151527] hover:text-vura-500"
+        >
+          {product.name}
+        </Link>
+        <div className="flex flex-wrap items-baseline gap-1.5">
+          <span className="font-display text-sm font-bold text-[#151527]">{money(Number(product.price_kobo))}</span>
+          {product.compare_at_price_kobo && (
+            <s className="text-[11px] font-medium text-[#8b93a5]">{money(Number(product.compare_at_price_kobo))}</s>
+          )}
+        </div>
+        {typeof product.rating === 'number' && product.rating > 0 && (
+          <span className="flex items-center gap-1 text-[11px] font-bold text-amber-500">
+            <Star size={12} fill="currentColor" aria-hidden />
+            {product.rating.toFixed(1)}
+            {typeof product.review_count === 'number' && (
+              <span className="font-medium text-[#8b93a5]">({product.review_count})</span>
+            )}
+          </span>
+        )}
+        <Link to={`/product/${product.slug}`} className="mt-auto pt-1">
+          <button
+            type="button"
+            className="flex h-9 w-full items-center justify-center rounded-xl border border-vura-500 text-xs font-bold text-vura-500 transition hover:bg-vura-500 hover:text-white"
+          >
+            Add to Cart
+          </button>
+        </Link>
       </div>
-    </section>
+    </article>
   );
 }
