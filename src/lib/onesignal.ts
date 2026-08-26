@@ -1,7 +1,6 @@
 /**
  * OneSignal Web SDK (browser).
  * App ID: e1e24d70-25cf-4c01-b66e-f17b8a73a0ea
- * Optional override: VITE_ONESIGNAL_APP_ID
  * Service worker: /OneSignalSDKWorker.js
  */
 
@@ -30,7 +29,6 @@ type OneSignalAPI = {
 
 const DEFAULT_APP_ID = 'e1e24d70-25cf-4c01-b66e-f17b8a73a0ea';
 const WELCOME_KEY = 'vura_onesignal_welcome_v1';
-const PROMPT_KEY = 'vura_onesignal_prompt_v1';
 
 let initStarted = false;
 
@@ -82,7 +80,49 @@ async function onOptedIn() {
   await reportSubscription('welcome');
 }
 
-/** Init OneSignal + soft prompt + welcome after Allow. */
+export function isPushSupported() {
+  if (typeof window === 'undefined') return false;
+  // iOS only supports web push when installed as PWA (standalone)
+  const ua = navigator.userAgent || '';
+  const isIOS = /iPad|iPhone|iPod/.test(ua);
+  const standalone =
+    window.matchMedia('(display-mode: standalone)').matches ||
+    (navigator as { standalone?: boolean }).standalone === true;
+  if (isIOS && !standalone) return false;
+  return 'Notification' in window && 'serviceWorker' in navigator;
+}
+
+export async function getPushPermissionState(): Promise<'granted' | 'denied' | 'default' | 'unsupported'> {
+  if (!isPushSupported()) return 'unsupported';
+  try {
+    const p = Notification.permission;
+    if (p === 'granted' || p === 'denied' || p === 'default') return p;
+  } catch {
+    /* ignore */
+  }
+  return 'default';
+}
+
+/** Must be called from a user tap for best browser support. */
+export function requestPushPermission(): Promise<boolean> {
+  return new Promise((resolve) => {
+    if (!isPushSupported()) {
+      resolve(false);
+      return;
+    }
+    defer(async (OneSignal) => {
+      try {
+        await OneSignal.Notifications?.requestPermission?.();
+        const opted = Boolean(OneSignal.User?.PushSubscription?.optedIn) || Notification.permission === 'granted';
+        if (opted) await onOptedIn();
+        resolve(opted);
+      } catch {
+        resolve(Notification.permission === 'granted');
+      }
+    });
+  });
+}
+
 export async function initOneSignal() {
   if (typeof window === 'undefined' || initStarted) return;
   initStarted = true;
@@ -96,7 +136,7 @@ export async function initOneSignal() {
         allowLocalhostAsSecureOrigin: true,
       });
     } catch {
-      // may already be inited
+      // already inited
     }
 
     try {
@@ -107,26 +147,7 @@ export async function initOneSignal() {
       // ignore
     }
 
-    try {
-      const prompted = localStorage.getItem(PROMPT_KEY);
-      if (!prompted) {
-        window.setTimeout(() => {
-          void (async () => {
-            try {
-              localStorage.setItem(PROMPT_KEY, '1');
-              await OneSignal.Notifications?.requestPermission?.();
-              if (OneSignal.User?.PushSubscription?.optedIn) void onOptedIn();
-            } catch {
-              // dismissed
-            }
-          })();
-        }, 12_000);
-      } else if (OneSignal.User?.PushSubscription?.optedIn) {
-        void onOptedIn();
-      }
-    } catch {
-      // ignore
-    }
+    if (OneSignal.User?.PushSubscription?.optedIn) void onOptedIn();
   });
 }
 
