@@ -7,7 +7,7 @@ import AdminSidebar from '@/components/AdminSidebar';
 import AdminMobileDrawer from '@/components/AdminMobileDrawer';
 import type { StudioTab } from '@/types';
 
-const VALID_TABS: StudioTab[] = ['overview', 'orders', 'payments', 'products', 'sourcing', 'suppliers', 'customers', 'notifications', 'audit'];
+const VALID_TABS: StudioTab[] = ['overview', 'health', 'orders', 'payments', 'products', 'inventory', 'sourcing', 'suppliers', 'delivery', 'customers', 'notifications', 'finance', 'analytics', 'audit', 'settings'];
 
 function tabFromSearch(): StudioTab {
   try {
@@ -35,33 +35,116 @@ export default function AdminApp() {
     return () => window.removeEventListener('popstate', onPop);
   }, []);
 
-  if (loading) return <div className="grid min-h-screen place-items-center bg-[#080a12] text-white"><div className="flex items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-xl bg-vura-500"><Zap size={19} fill="currentColor" /></span><span className="text-xl font-black">Vura Studio</span></div></div>;
+  const onTabChange = (next: StudioTab) => {
+    setTab(next);
+    const url = new URL(window.location.href);
+    url.searchParams.set('tab', next);
+    window.history.pushState({}, '', url.toString());
+    setMobileDrawerOpen(false);
+  };
 
-  if (!user) {
-    const submit = async (e: FormEvent) => { e.preventDefault(); setBusy(true); setError(''); const result = await signIn(email.trim().toLowerCase(), password); if (result.error) setError(result.error.message); setBusy(false); };
-    return <div className="grid min-h-screen place-items-center bg-[#080a12] px-4 text-white"><form onSubmit={submit} className="w-full max-w-md rounded-3xl border border-white/10 bg-white/[.035] p-8 shadow-2xl backdrop-blur-xl"><div className="flex items-center gap-3"><span className="grid h-11 w-11 place-items-center rounded-xl bg-vura-500"><Zap size={20} fill="currentColor" /></span><div><h1 className="text-xl font-black">Vura Studio</h1><p className="text-xs text-white/40">Protected operations console</p></div></div><div className="mt-8 space-y-4"><label className="block"><span className="text-sm font-semibold text-white/70">Email</span><input type="email" required value={email} onChange={e=>setEmail(e.target.value)} className="mt-2 w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm outline-none focus:border-vura-400" autoComplete="username" /></label><label className="block"><span className="text-sm font-semibold text-white/70">Password</span><div className="relative mt-2"><input type={show?'text':'password'} required value={password} onChange={e=>setPassword(e.target.value)} className="w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3 pr-11 text-sm outline-none focus:border-vura-400" autoComplete="current-password"/><button type="button" onClick={()=>setShow(v=>!v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40">{show?<EyeOff size={17}/>:<Eye size={17}/>}</button></div></label>{error&&<p className="rounded-lg bg-red-500/15 px-3 py-2 text-sm font-semibold text-red-300">{error}</p>}<button disabled={busy} className="w-full rounded-xl bg-vura-500 py-3.5 text-sm font-bold shadow-lg shadow-[#6a4cff]/25 disabled:opacity-60">{busy?'Signing in…':'Enter Studio'}</button></div><a href="/" className="mt-6 block text-center text-sm font-semibold text-white/40 hover:text-white">← Back to storefront</a></form></div>;
+  if (loading) {
+    return (
+      <div className="grid min-h-screen place-items-center bg-[#080a12] text-white">
+        <div className="flex items-center gap-3">
+          <span className="grid h-10 w-10 place-items-center rounded-xl bg-vura-500">
+            <Zap size={19} fill="currentColor" />
+          </span>
+          <span className="text-xl font-black">Vura Studio</span>
+        </div>
+      </div>
+    );
   }
 
-  if (user.role !== 'admin') return <div className="grid min-h-screen place-items-center bg-[#080a12] px-4 text-white"><div className="w-full max-w-md rounded-3xl border border-amber-500/30 bg-white/[.035] p-8 text-center"><ShieldAlert className="mx-auto text-amber-400" size={36}/><h1 className="mt-4 text-xl font-black">Access restricted</h1><p className="mt-2 text-sm text-white/55">{user.email} is signed in, but this account does not have admin access.</p><button onClick={()=>void signOut()} className="mt-6 w-full rounded-xl border border-white/15 py-3 text-sm font-bold hover:bg-white/5">Sign out and try another account</button><a href="/" className="mt-4 block text-sm font-semibold text-white/40 hover:text-white">← Back to storefront</a></div></div>;
+  if (!user) {
+    const submit = async (e: FormEvent) => {
+      e.preventDefault();
+      setBusy(true);
+      setError('');
+      const res = await signIn(email, password);
+      if (res.error) setError(res.error.message);
+      setBusy(false);
+    };
+    return (
+      <div className="grid min-h-screen place-items-center bg-[#080a12] px-4 text-white">
+        <form onSubmit={submit} className="w-full max-w-md rounded-2xl border border-white/10 bg-white/[.03] p-6">
+          <div className="mb-6 flex items-center gap-3">
+            <span className="grid h-10 w-10 place-items-center rounded-xl bg-vura-500">
+              <Zap size={19} fill="currentColor" />
+            </span>
+            <div>
+              <b className="block">Vura Studio</b>
+              <span className="text-xs text-white/40">Admin sign in</span>
+            </div>
+          </div>
+          {error && (
+            <div className="mb-4 flex items-start gap-2 rounded-xl border border-red-400/20 bg-red-400/10 p-3 text-sm text-red-200">
+              <ShieldAlert size={16} className="mt-0.5 shrink-0" />
+              {error}
+            </div>
+          )}
+          <label className="block text-sm">
+            <span className="text-xs text-white/45">Email</span>
+            <input
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="mt-1 w-full rounded-xl border border-white/10 bg-[#111522] px-3 py-2.5 outline-none focus:border-vura-500"
+            />
+          </label>
+          <label className="mt-3 block text-sm">
+            <span className="text-xs text-white/45">Password</span>
+            <div className="relative mt-1">
+              <input
+                type={show ? 'text' : 'password'}
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full rounded-xl border border-white/10 bg-[#111522] px-3 py-2.5 pr-10 outline-none focus:border-vura-500"
+              />
+              <button type="button" onClick={() => setShow((s) => !s)} className="absolute right-3 top-2.5 text-white/40">
+                {show ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+          </label>
+          <button type="submit" disabled={busy} className="mt-5 w-full rounded-xl bg-vura-500 py-3 font-bold disabled:opacity-50">
+            {busy ? 'Signing in…' : 'Sign in'}
+          </button>
+        </form>
+      </div>
+    );
+  }
 
-  return <div className="min-h-screen bg-[#080a12] text-white">
-    <AdminSidebar activeTab={tab} onTabChange={setTab} />
-    <AdminMobileDrawer isOpen={mobileDrawerOpen} onClose={() => setMobileDrawerOpen(false)} activeTab={tab} onTabChange={setTab} />
-    <div className="flex flex-col lg:ml-64">
-      <header className="sticky top-0 z-30 border-b border-white/10 bg-[#0b0d17]/90 backdrop-blur-xl">
-        <div className="flex items-center justify-between px-5 py-3 md:px-8">
-          <button onClick={() => setMobileDrawerOpen(true)} className="grid h-10 w-10 place-items-center rounded-lg border border-white/10 lg:hidden">
+  if (user.role !== 'admin') {
+    return (
+      <div className="grid min-h-screen place-items-center bg-[#080a12] text-white">
+        <div className="text-center">
+          <p className="text-white/60">This account is not an admin.</p>
+          <button type="button" onClick={() => void signOut()} className="mt-4 text-sm text-vura-300">
+            Sign out
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex min-h-screen bg-[#080a12] text-white">
+      <AdminSidebar activeTab={tab} onTabChange={onTabChange} />
+      <AdminMobileDrawer open={mobileDrawerOpen} onClose={() => setMobileDrawerOpen(false)} activeTab={tab} onTabChange={onTabChange} />
+      <div className="flex min-w-0 flex-1 flex-col">
+        <div className="flex items-center gap-3 border-b border-white/10 px-4 py-3 lg:hidden">
+          <button type="button" onClick={() => setMobileDrawerOpen(true)} className="grid h-10 w-10 place-items-center rounded-xl border border-white/10">
             <Menu size={18} />
           </button>
-          <div className="text-xs font-semibold text-white/35">Admin workspace</div>
-          <div className="w-10"></div>
+          <b className="flex-1">Vura Studio</b>
+          <button type="button" onClick={() => void signOut()} className="text-xs text-white/45">
+            Sign out
+          </button>
         </div>
-      </header>
-      {tab === 'finance' ? (
-        <div className="mx-auto max-w-[1800px] flex-1 p-5 md:p-8"><FinanceView /></div>
-      ) : (
-        <ProductionStudioOps tab={tab} onTabChange={setTab} />
-      )}
+        {tab === 'finance' ? <FinanceView /> : <ProductionStudioOps tab={tab} onTabChange={onTabChange} />}
+      </div>
     </div>
-  </div>;
+  );
 }
