@@ -1,4 +1,4 @@
-import { Instagram, MessageCircle, Zap } from 'lucide-react';
+import { Instagram, MessageCircle, ShoppingCart } from 'lucide-react';
 import { useRouter } from '../router';
 
 const columns: Array<{ title: string; links: Array<{ label: string; to: string }> }> = [
@@ -8,15 +8,14 @@ const columns: Array<{ title: string; links: Array<{ label: string; to: string }
       { label: 'All products', to: '/search' },
       { label: 'Deals', to: '/deals' },
       { label: 'New arrivals', to: '/new' },
-      { label: 'Track order', to: '/track' },
     ],
   },
   {
-    title: 'Customer service',
+    title: 'Help',
     links: [
-      { label: 'Help & FAQ', to: '/help' },
-      { label: 'Delivery information', to: '/help#delivery' },
-      { label: 'Returns & refunds', to: '/help#returns' },
+      { label: 'Track order', to: '/track' },
+      { label: 'Delivery info', to: '/help#delivery' },
+      { label: 'Returns', to: '/help#returns' },
       { label: 'Contact support', to: '/help#contact' },
     ],
   },
@@ -39,51 +38,65 @@ export function Footer({ categories }: { categories: Array<{ name: string; slug:
     e.preventDefault();
     router.navigate(to);
   };
+
   return (
-    <footer className="border-t border-white/8 bg-[#0A0A10] pb-20 sm:pb-0">
+    <footer className="border-t border-[#e8e7f1] bg-white">
       <div className="mx-auto max-w-7xl px-4 py-12 md:px-6">
-        <div className="grid gap-10 md:grid-cols-[1.3fr_repeat(3,1fr)]">
+        <div className="grid gap-8 md:grid-cols-4">
           <div>
-            <span className="flex items-center gap-2">
-              <span className="grid h-9 w-9 place-items-center rounded-xl bg-vura-500 text-white"><Zap size={17} fill="currentColor" aria-hidden /></span>
-              <b className="font-display text-xl tracking-[-0.06em] text-hi">VURA<span className="text-vura-400">.</span></b>
-            </span>
-            <p className="mt-4 max-w-xs text-sm leading-6 text-low">
-              A Nigerian marketplace for electronics, machinery, tools and everyday essentials — sourced for you and delivered across the country.
+            <div className="flex items-center gap-2">
+              <span className="grid h-9 w-9 place-items-center rounded-lg bg-vura-500 text-white">
+                <ShoppingCart size={17} strokeWidth={2.4} aria-hidden />
+              </span>
+              <b className="font-display text-xl tracking-[-0.04em] text-[#151527]">
+                VURA <span className="font-semibold text-[#5f6678]">MARKET</span>
+              </b>
+            </div>
+            <p className="mt-4 max-w-xs text-sm leading-6 text-[#5f6678]">
+              Shop products sourced for you — clear prices and delivery across Nigeria.
             </p>
-            <div className="mt-5 flex items-center gap-2">
-              <a href="https://wa.me/" target="_blank" rel="noopener noreferrer" aria-label="Vura on WhatsApp" className="grid h-10 w-10 place-items-center rounded-xl border border-white/10 text-mid transition hover:border-vura-400/40 hover:text-hi"><MessageCircle size={18} /></a>
-              <a href="https://instagram.com/" target="_blank" rel="noopener noreferrer" aria-label="Vura on Instagram" className="grid h-10 w-10 place-items-center rounded-xl border border-white/10 text-mid transition hover:border-vura-400/40 hover:text-hi"><Instagram size={18} /></a>
+            <div className="mt-4 flex gap-2">
+              <a href="https://wa.me/" className="grid h-9 w-9 place-items-center rounded-lg bg-[#f3f1ff] text-vura-500" aria-label="WhatsApp">
+                <MessageCircle size={16} />
+              </a>
+              <a href="https://instagram.com/" className="grid h-9 w-9 place-items-center rounded-lg bg-[#f3f1ff] text-vura-500" aria-label="Instagram">
+                <Instagram size={16} />
+              </a>
             </div>
           </div>
           {columns.map((col) => (
-            <nav key={col.title} aria-label={col.title}>
-              <p className="text-sm font-bold text-hi">{col.title}</p>
-              <ul className="mt-3 space-y-2.5">
+            <div key={col.title}>
+              <p className="font-bold text-[#151527]">{col.title}</p>
+              <div className="mt-3 space-y-2 text-sm text-[#5f6678]">
                 {col.links.map((link) => (
-                  <li key={link.label}>
-                    <a href={link.to} onClick={go(link.to)} className="text-sm text-mid transition hover:text-vura-300">{link.label}</a>
-                  </li>
+                  <a key={link.to} href={link.to} onClick={go(link.to)} className="block hover:text-vura-500">
+                    {link.label}
+                  </a>
                 ))}
-              </ul>
-            </nav>
+              </div>
+            </div>
           ))}
         </div>
-
         {categories.length > 0 && (
-          <div className="mt-10 border-t border-white/6 pt-8">
-            <p className="mb-3 text-xs font-bold uppercase tracking-[0.14em] text-low">Popular categories</p>
-            <div className="flex flex-wrap gap-x-5 gap-y-2">
-              {categories.slice(0, 14).map((c) => (
-                <a key={c.slug} href={`/c/${c.slug}`} onClick={go(`/c/${c.slug}`)} className="text-sm font-semibold text-mid transition hover:text-vura-300">{c.name}</a>
+          <div className="mt-10 border-t border-[#e8e7f1] pt-6">
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#8b93a5]">Categories</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {categories.slice(0, 12).map((c) => (
+                <a
+                  key={c.slug}
+                  href={`/c/${c.slug}`}
+                  onClick={go(`/c/${c.slug}`)}
+                  className="rounded-full border border-[#e8e7f1] bg-[#f7f7fb] px-3 py-1.5 text-xs font-semibold text-[#5f6678] hover:border-vura-300 hover:text-vura-500"
+                >
+                  {c.name}
+                </a>
               ))}
             </div>
           </div>
         )}
-
-        <div className="mt-10 flex flex-col justify-between gap-3 border-t border-white/6 pt-6 text-xs text-low sm:flex-row">
-          <span>© {new Date().getFullYear()} Vura. All rights reserved.</span>
-          <span>Secure checkout · Nationwide delivery · Support on WhatsApp</span>
+        <div className="mt-10 flex flex-col justify-between gap-3 border-t border-[#e8e7f1] pt-6 text-xs text-[#8b93a5] md:flex-row">
+          <span>© {new Date().getFullYear()} Vura Market. All rights reserved.</span>
+          <span>Local sourcing · Lagos delivery</span>
         </div>
       </div>
     </footer>
