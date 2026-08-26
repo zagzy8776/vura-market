@@ -52,7 +52,7 @@ function ProductModal({ product, suppliers, onClose, onSaved }: { product: Any |
       if (!form.name.trim() || !form.brand.trim() || Number(form.price) <= 0) throw new Error('Name, brand and a valid price are required.');
       const payload: Any = { name: form.name, brand: form.brand, description: form.description, priceKobo: Math.round(Number(form.price)*100), sourcePriceKobo: form.sourcePrice ? Math.round(Number(form.sourcePrice)*100) : null, conditionLabel: form.condition, storage: form.storage || null, color: form.color || null, stockStatus: form.stock, categoryId: form.categoryId || null, supplierId: form.supplierId || null, sourceLocation: form.sourceLocation || null, isActive: form.active };
       if (product) await api('/api/admin/products', { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ productId:product.id, ...payload }) });
-      else await api('/api/admin/products', { method:'POST', headers:{'Content-Type':'application/json'}, body:payload });
+      else await api('/api/admin/products', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
       onSaved();
     } catch(e) { setError(e instanceof Error ? e.message : 'Could not save product.'); } finally { setBusy(false); }
   };

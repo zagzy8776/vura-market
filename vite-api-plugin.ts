@@ -2,6 +2,14 @@ import type { Plugin, ViteDevServer } from 'vite';
 import { loadEnv } from 'vite';
 
 const ADMIN_HANDLER = '/api/admin.ts';
+const COMMERCE_HANDLER = '/api/commerce.ts';
+
+const COMMERCE_ROUTES: Record<string, string> = {
+  '/api/analytics': 'analytics',
+  '/api/wishlist': 'wishlist',
+  '/api/delivery/quote': 'delivery_quote',
+  '/api/couriers/webhook': 'courier_webhook',
+};
 
 const routes: Record<string, string> = {
   '/api/auth/login': '/api/auth/[action].ts',
@@ -40,12 +48,17 @@ export function apiRoutesPlugin(): Plugin {
         const url = new URL(req.url, 'http://localhost');
         let handlerPath = routes[url.pathname];
         let adminResource: string | undefined;
+        let commerceFn: string | undefined;
         if (!handlerPath) {
           const admin = resolveAdminHandler(url.pathname);
           if (admin.handler) {
             handlerPath = admin.handler;
             adminResource = admin.resource;
           }
+        }
+        if (!handlerPath && COMMERCE_ROUTES[url.pathname]) {
+          handlerPath = COMMERCE_HANDLER;
+          commerceFn = COMMERCE_ROUTES[url.pathname];
         }
         if (!handlerPath) {
           res.statusCode = 404;
@@ -55,10 +68,12 @@ export function apiRoutesPlugin(): Plugin {
         }
 
         let body: unknown = undefined;
+        let rawBody: string | undefined = undefined;
         if (req.method === 'POST' || req.method === 'PUT' || req.method === 'PATCH') {
           const chunks: Buffer[] = [];
           for await (const chunk of req) chunks.push(chunk as Buffer);
           const raw = Buffer.concat(chunks).toString();
+          rawBody = raw;
           try { body = JSON.parse(raw); } catch { body = raw; }
         }
 
@@ -66,6 +81,7 @@ export function apiRoutesPlugin(): Plugin {
           const module = await server.ssrLoadModule(handlerPath);
           const handler = module.default;
           (req as unknown as Record<string, unknown>).body = body;
+          if (rawBody !== undefined) (req as unknown as Record<string, unknown>).rawBody = rawBody;
 
           const query: Record<string, string | string[]> = {};
           url.searchParams.forEach((val, key) => { query[key] = val; });
@@ -73,6 +89,7 @@ export function apiRoutesPlugin(): Plugin {
             query.action = url.pathname.slice('/api/auth/'.length);
           }
           if (adminResource) query.resource = adminResource;
+          if (commerceFn) query.fn = commerceFn;
           (req as unknown as Record<string, unknown>).query = query;
 
           const resAdapter = {

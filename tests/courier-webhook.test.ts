@@ -11,7 +11,7 @@ vi.mock('../api/_lib/db', () => {
 });
 
 import { sql } from '../api/_lib/db';
-import handler from '../api/couriers/webhook';
+import handler from '../api/commerce';
 import { getCourierProvider, CourierNotConfiguredError } from '../api/_lib/courier';
 
 type TestRes = {
@@ -49,7 +49,7 @@ describe('courier webhook endpoint', () => {
   it('rejects an invalid signature with 401 and records nothing', async () => {
     const req = {
       method: 'POST',
-      query: { provider: 'generic-rest' },
+      query: { provider: 'generic-rest', fn: 'courier_webhook' },
       headers: { 'x-courier-signature': 'sha256=deadbeef' },
       on: (name: string, cb: (chunk?: unknown) => void) => {
         if (name === 'data') cb(Buffer.from(''));
@@ -65,7 +65,7 @@ describe('courier webhook endpoint', () => {
     const payload = JSON.stringify({ eventId: 'evt-1', trackingNumber: 'TRK-1', status: 'delivered' });
     const req = {
       method: 'POST',
-      query: { provider: 'generic-rest' },
+      query: { provider: 'generic-rest', fn: 'courier_webhook' },
       headers: { 'x-courier-signature': signed(payload) },
       on: (name: string, cb: (chunk?: unknown) => void) => {
         if (name === 'data') cb(Buffer.from(''));
@@ -85,7 +85,7 @@ describe('courier webhook endpoint', () => {
       .mockResolvedValueOnce([]); // mark processed
     const req = {
       method: 'POST',
-      query: { provider: 'generic-rest' },
+      query: { provider: 'generic-rest', fn: 'courier_webhook' },
       headers: { 'x-courier-signature': signed(payload), 'content-type': 'application/json' },
       on: (name: string, cb: (chunk?: unknown) => void) => {
         if (name === 'data') cb(payload);

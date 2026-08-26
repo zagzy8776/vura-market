@@ -4,6 +4,10 @@
   "outputDirectory": "dist",
   "rewrites": [
     { "source": "/api/admin/:resource", "destination": "/api/admin?resource=:resource" },
+    { "source": "/api/analytics", "destination": "/api/commerce?fn=analytics" },
+    { "source": "/api/wishlist", "destination": "/api/commerce?fn=wishlist" },
+    { "source": "/api/delivery/quote", "destination": "/api/commerce?fn=delivery_quote" },
+    { "source": "/api/couriers/webhook", "destination": "/api/commerce?fn=courier_webhook" },
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ],
   "headers": [
