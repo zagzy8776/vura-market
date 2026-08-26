@@ -1,8 +1,11 @@
 import { useState, type FormEvent } from 'react';
-import { BarChart3, Eye, EyeOff, Zap, ShieldAlert } from 'lucide-react';
+import { BarChart3, Eye, EyeOff, Zap, ShieldAlert, Menu } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import ProductionStudioOps from './ProductionStudioOps';
 import FinanceView from './FinanceView';
+import AdminSidebar from '@/components/AdminSidebar';
+import AdminMobileDrawer from '@/components/AdminMobileDrawer';
+import type { StudioTab } from '@/types';
 
 export default function AdminApp() {
   const { user, loading, signIn, signOut } = useAuth();
@@ -11,7 +14,8 @@ export default function AdminApp() {
   const [show, setShow] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-  const [section, setSection] = useState<'studio' | 'finance'>('studio');
+  const [tab, setTab] = useState<StudioTab>('overview');
+  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
 
   if (loading) return <div className="grid min-h-screen place-items-center bg-[#080a12] text-white"><div className="flex items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-xl bg-vura-500"><Zap size={19} fill="currentColor" /></span><span className="text-xl font-black">Vura Studio</span></div></div>;
 
@@ -23,13 +27,23 @@ export default function AdminApp() {
   if (user.role !== 'admin') return <div className="grid min-h-screen place-items-center bg-[#080a12] px-4 text-white"><div className="w-full max-w-md rounded-3xl border border-amber-500/30 bg-white/[.035] p-8 text-center"><ShieldAlert className="mx-auto text-amber-400" size={36}/><h1 className="mt-4 text-xl font-black">Access restricted</h1><p className="mt-2 text-sm text-white/55">{user.email} is signed in, but this account does not have admin access.</p><button onClick={()=>void signOut()} className="mt-6 w-full rounded-xl border border-white/15 py-3 text-sm font-bold hover:bg-white/5">Sign out and try another account</button><a href="/" className="mt-4 block text-sm font-semibold text-white/40 hover:text-white">← Back to storefront</a></div></div>;
 
   return <div className="min-h-screen bg-[#080a12] text-white">
-    <div className="flex items-center justify-between border-b border-white/10 bg-[#0b0d17] px-5 py-3 md:px-8">
-      <div className="text-xs font-semibold text-white/35">Admin workspace</div>
-      <div className="flex gap-2">
-        <button onClick={()=>setSection('studio')} className={`rounded-lg px-3 py-2 text-xs font-bold ${section==='studio'?'bg-vura-500':'bg-white/5 text-white/55'}`}>Operations</button>
-        <button onClick={()=>setSection('finance')} className={`flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-bold ${section==='finance'?'bg-vura-500':'bg-white/5 text-white/55'}`}><BarChart3 size={14}/> Finance & Reports</button>
-      </div>
+    <AdminSidebar activeTab={tab} onTabChange={setTab} />
+    <AdminMobileDrawer isOpen={mobileDrawerOpen} onClose={() => setMobileDrawerOpen(false)} activeTab={tab} onTabChange={setTab} />
+    <div className="flex flex-col lg:ml-64">
+      <header className="sticky top-0 z-30 border-b border-white/10 bg-[#0b0d17]/90 backdrop-blur-xl">
+        <div className="flex items-center justify-between px-5 py-3 md:px-8">
+          <button onClick={() => setMobileDrawerOpen(true)} className="grid h-10 w-10 place-items-center rounded-lg border border-white/10 lg:hidden">
+            <Menu size={18} />
+          </button>
+          <div className="text-xs font-semibold text-white/35">Admin workspace</div>
+          <div className="w-10"></div>
+        </div>
+      </header>
+      {tab === 'finance' ? (
+        <div className="mx-auto max-w-[1800px] flex-1 p-5 md:p-8"><FinanceView /></div>
+      ) : (
+        <ProductionStudioOps tab={tab} onTabChange={setTab} />
+      )}
     </div>
-    {section==='studio' ? <ProductionStudioOps /> : <div className="mx-auto max-w-[1800px] p-5 md:p-8"><FinanceView /></div>}
   </div>;
 }

@@ -130,7 +130,22 @@ export type View = 'home' | 'catalog' | 'deals' | 'product' | 'orders' | 'accoun
 export type AuthMode = 'signin' | 'signup';
 
 // Tabs that the live Studio actually loads data for.
-export type StudioTab = 'overview' | 'orders' | 'payments' | 'products' | 'sourcing' | 'suppliers' | 'customers' | 'notifications' | 'audit';
+export type StudioTab =
+  | 'overview'
+  | 'health'
+  | 'orders'
+  | 'payments'
+  | 'products'
+  | 'inventory'
+  | 'sourcing'
+  | 'suppliers'
+  | 'delivery'
+  | 'customers'
+  | 'notifications'
+  | 'finance'
+  | 'analytics'
+  | 'audit'
+  | 'settings';
 
 export type AppUser = {
   id: string;

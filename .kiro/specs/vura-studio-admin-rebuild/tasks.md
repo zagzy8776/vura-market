@@ -359,10 +359,48 @@ Document the Phase 0 recovery process and results for team reference.
 
 ---
 
+## PHASE 1: NAVIGATION ARCHITECTURE
+
+- [ ] 8. Create AdminSidebar Component (Desktop navigation)
+- [ ] 9. Create AdminMobileDrawer Component (Mobile navigation)
+- [ ] 10. Refactor AdminApp to use sidebar/drawer layout
+- [ ] 11. Update ProductionStudioOps to remove tab navigation
+- [ ] 12. Test navigation on mobile and desktop
+
+---
+
+## PHASE 2: ADMIN OVERVIEW (Command Center)
+
+- [ ] 13. Create AdminOverview component with system status
+- [ ] 14. Implement KPI cards (real-time metrics)
+- [ ] 15. Implement needs attention action queue
+- [ ] 16. Add trends and analytics section
+- [ ] 17. Add recent activity section
+
+---
+
+## PHASE 3+: REMAINING FEATURES
+
+- [ ] 18. Orders Operations (detailed order management)
+- [ ] 19. Payments & Verification Queue
+- [ ] 20. Products Management
+- [ ] 21. Suppliers & Sourcing
+- [ ] 22. Customers & Profiles
+- [ ] 23. Inventory Management
+- [ ] 24. Fulfillment & Delivery
+- [ ] 25. Refunds & RMA
+- [ ] 26. Analytics Dashboard
+- [ ] 27. Finance & Reporting
+- [ ] 28. Settings & Admin Panel
+- [ ] 29. Audit Log Advanced
+- [ ] 30. System Health & Monitoring
+
+---
+
 ## Notes
 
-- **Risk Level:** Medium - Tasks involve database recovery and endpoint implementation but with built-in verification
-- **Rollback Strategy:** All migrations are idempotent; can re-run safely
+- **Risk Level:** Phase 0 CRITICAL (database), Phase 1+ MEDIUM (UI refactoring)
+- **Rollback Strategy:** All changes are additive; frontend can be rolled back independently
 - **Monitoring:** Health endpoint provides ongoing diagnostics
-- **Communication:** Update team after Task 2 and Task 6 complete
+- **Communication:** Update team after each phase completion
 - **Escalation:** If health endpoint shows "degraded" or "down", escalate immediately
