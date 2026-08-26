@@ -23,6 +23,7 @@ const routes: Record<string, string> = {
   '/api/orders/payment-submission': '/api/orders/payment-submission.ts',
   '/api/payment-info': '/api/payment-info.ts',
   '/api/notifications': '/api/notifications.ts',
+  '/api/push-subscribe': '/api/push-subscribe.ts',
   '/api/health': '/api/health.ts',
 };
 
@@ -78,37 +79,45 @@ export function apiRoutesPlugin(): Plugin {
         }
 
         try {
-          const module = await server.ssrLoadModule(handlerPath);
-          const handler = module.default;
-          (req as unknown as Record<string, unknown>).body = body;
-          if (rawBody !== undefined) (req as unknown as Record<string, unknown>).rawBody = rawBody;
+          const mod = await server.ssrLoadModule(handlerPath);
+          const handler = mod.default;
+          const fakeReq = {
+            method: req.method,
+            url: req.url,
+            headers: req.headers,
+            body,
+            query: Object.fromEntries(url.searchParams),
+            cookies: {},
+          } as any;
+          if (adminResource) fakeReq.query = { ...fakeReq.query, resource: adminResource };
+          if (commerceFn) fakeReq.query = { ...fakeReq.query, fn: commerceFn };
+          if (rawBody !== undefined) (fakeReq as any).rawBody = rawBody;
 
-          const query: Record<string, string | string[]> = {};
-          url.searchParams.forEach((val, key) => { query[key] = val; });
-          if (url.pathname.startsWith('/api/auth/')) {
-            query.action = url.pathname.slice('/api/auth/'.length);
-          }
-          if (adminResource) query.resource = adminResource;
-          if (commerceFn) query.fn = commerceFn;
-          (req as unknown as Record<string, unknown>).query = query;
+          const fakeRes = {
+            statusCode: 200,
+            headers: {} as Record<string, string | string[]>,
+            setHeader(k: string, v: string | string[]) { this.headers[k.toLowerCase()] = v; },
+            getHeader(k: string) { return this.headers[k.toLowerCase()]; },
+            status(code: number) { this.statusCode = code; return this; },
+            json(data: unknown) {
+              res.statusCode = this.statusCode;
+              for (const [k, v] of Object.entries(this.headers)) res.setHeader(k, v as string);
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify(data));
+            },
+            end(data?: unknown) {
+              res.statusCode = this.statusCode;
+              for (const [k, v] of Object.entries(this.headers)) res.setHeader(k, v as string);
+              res.end(data as any);
+            },
+          } as any;
 
-          const resAdapter = {
-            setHeader: (key: string, value: string) => res.setHeader(key, value),
-            status: (code: number) => ({
-              json: (data: unknown) => {
-                res.statusCode = code;
-                res.setHeader('Content-Type', 'application/json');
-                res.end(JSON.stringify(data));
-              },
-            }),
-          };
-
-          await handler(req, resAdapter);
-        } catch (err) {
-          console.error('[api] error in', url.pathname, err);
+          await handler(fakeReq, fakeRes);
+        } catch (e) {
+          console.error(e);
           res.statusCode = 500;
           res.setHeader('Content-Type', 'application/json');
-          res.end(JSON.stringify({ error: 'Internal server error' }));
+          res.end(JSON.stringify({ error: 'Internal error' }));
         }
       });
     },
