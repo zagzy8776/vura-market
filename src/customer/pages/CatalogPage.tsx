@@ -53,6 +53,7 @@ export function CatalogPage({ mode, categorySlug, categories }: { mode: CatalogM
 
   const fetchProducts = useCallback((append = false) => {
     const token = ++loadToken.current;
+    setFailed(false);
     if (append) setLoadingMore(true);
     else {
       setProducts(null);
@@ -72,15 +73,21 @@ export function CatalogPage({ mode, categorySlug, categories }: { mode: CatalogM
     })
       .then((result) => {
         if (token !== loadToken.current) return;
-        setTotal(result.total);
-        setPages(result.pages);
-        setBrands(result.facets?.brands || []);
-        setProducts(result.products);
+        const list = Array.isArray(result?.products) ? result.products : [];
+        const nextTotal = typeof result?.total === 'number' ? result.total : list.length;
+        const nextPages = typeof result?.pages === 'number' ? result.pages : nextTotal > 0 ? Math.max(1, Math.ceil(nextTotal / 12)) : 0;
+        setTotal(nextTotal);
+        setPages(nextPages);
+        setBrands(result?.facets?.brands || []);
+        setProducts(list);
         setLoadingMore(false);
       })
       .catch(() => {
         if (token !== loadToken.current) return;
         setFailed(true);
+        setProducts([]);
+        setTotal(0);
+        setPages(0);
         setLoadingMore(false);
       });
   }, [mode, q, activeCategory, sort, page, brand, inStock, minPrice, maxPrice]);
@@ -103,6 +110,8 @@ export function CatalogPage({ mode, categorySlug, categories }: { mode: CatalogM
   };
 
   const hasFilters = Boolean(brand || inStock || minPrice || maxPrice);
+  const safeTotal = typeof total === 'number' && Number.isFinite(total) ? total : 0;
+  const safePages = typeof pages === 'number' && Number.isFinite(pages) ? pages : 0;
 
   const filtersPanel = (
     <div className="space-y-6">
@@ -178,7 +187,7 @@ export function CatalogPage({ mode, categorySlug, categories }: { mode: CatalogM
         <p className="text-xs font-bold uppercase tracking-[0.16em] text-vura-300">{eyebrow}</p>
         <h1 className="mt-1 font-display text-3xl font-black tracking-[-0.04em] text-hi sm:text-4xl">{title}</h1>
         {description && <p className="mt-2 max-w-xl text-sm leading-6 text-mid">{description}</p>}
-        <p className="mt-3 text-sm font-semibold text-low" aria-live="polite">{products ? `${total.toLocaleString()} product${total === 1 ? '' : 's'}` : 'Loading…'}</p>
+        <p className="mt-3 text-sm font-semibold text-low" aria-live="polite">{products ? `${safeTotal.toLocaleString()} product${safeTotal === 1 ? '' : 's'}` : 'Loading…'}</p>
       </header>
 
       <div className="mt-6 grid gap-8 lg:grid-cols-[240px_1fr]">
@@ -218,18 +227,18 @@ export function CatalogPage({ mode, categorySlug, categories }: { mode: CatalogM
               <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4">
                 {products.map((p, i) => <ProductCard key={p.id} product={p} priority={i < 4} />)}
               </div>
-              {pages > 1 && page < pages && (
+              {safePages > 1 && page < safePages && (
                 <div className="mt-10 text-center lg:hidden">
                   <Button
                     variant="secondary"
                     loading={loadingMore}
                     onClick={() => patchQuery({ page: String(page + 1) })}
                   >
-                    Load more ({total - page * 12} left)
+                    Load more ({Math.max(0, safeTotal - page * 12)} left)
                   </Button>
                 </div>
               )}
-              <Pagination page={page} pages={pages} onChange={(next) => patchQuery({ page: next === 1 ? null : String(next) })} />
+              <Pagination page={page} pages={safePages} onChange={(next) => patchQuery({ page: next === 1 ? null : String(next) })} />
             </>
           )}
         </section>
@@ -238,7 +247,7 @@ export function CatalogPage({ mode, categorySlug, categories }: { mode: CatalogM
       <Drawer open={filtersOpen} onClose={() => setFiltersOpen(false)} title="Filters" side="bottom">
         {filtersPanel}
         <div className="sticky bottom-0 mt-6 border-t border-white/8 bg-elevated pt-4">
-          <Button className="w-full" onClick={() => setFiltersOpen(false)}>Show {total.toLocaleString()} products</Button>
+          <Button className="w-full" onClick={() => setFiltersOpen(false)}>Show {safeTotal.toLocaleString()} products</Button>
         </div>
       </Drawer>
     </main>
