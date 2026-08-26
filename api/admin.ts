@@ -18,13 +18,13 @@ type Method = 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE';
 type Dispatcher = (req: VercelRequest, res: VercelResponse, adminId: string) => Promise<void> | void;
 
 const handlers: Record<string, Partial<Record<Method, Dispatcher>>> = {
-  overview: { GET: (_req, res) => overview(res) },
+  overview: { GET: (req, res, adminId) => overview(req, res, adminId) },
   orders: { GET: orders, PATCH: orders },
   products: { GET: products, POST: products, PATCH: products },
-  categories: { GET: (_req, res) => categories(res) },
+  categories: { GET: (req, res, adminId) => categories(req, res, adminId) },
   suppliers: { GET: suppliers, POST: suppliers, PATCH: suppliers },
-  customers: { GET: (_req, res) => customers(res) },
-  notifications: { GET: (_req, res) => notifications(res) },
+  customers: { GET: (req, res, adminId) => customers(req, res, adminId) },
+  notifications: { GET: (req, res, adminId) => notifications(req, res, adminId) },
   delivery: { GET: delivery, POST: delivery, PATCH: delivery },
   finance: { GET: finance },
   refunds: { GET: refunds, POST: refunds, PATCH: refunds },
@@ -56,7 +56,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 }
 
-async function overview(res: VercelResponse) {
+async function overview(req: VercelRequest, res: VercelResponse, adminId: string) {
+  const admin = await requireAdminPermission(req, res, 'dashboard.read');
+  if (!admin) return;
+  
   const [products, orders, revenue, profit, customersRows, notificationsRows, audit, orderEvents] = await Promise.all([
     sql`SELECT COUNT(*)::int AS count FROM products WHERE is_active = true`,
     sql`SELECT COUNT(*)::int AS count FROM orders WHERE created_at >= date_trunc('month', now())`,
@@ -70,22 +73,35 @@ async function overview(res: VercelResponse) {
   return json(res,200,{liveProducts:products[0].count,monthlyOrders:orders[0].count,monthlyRevenueKobo:revenue[0].amount,monthlyProfitKobo:profit[0].amount,customers:customersRows,notifications:notificationsRows,audit,orderEvents});
 }
 
-async function customers(res: VercelResponse) {
+async function customers(req: VercelRequest, res: VercelResponse, adminId: string) {
+  const admin = await requireAdminPermission(req, res, 'customers.read');
+  if (!admin) return;
+  
   const rows = await sql`SELECT u.id,u.name,u.email,u.role,u.created_at,COUNT(o.id)::int AS order_count,COALESCE(SUM(o.total_kobo),0)::bigint AS total_spend_kobo FROM users u LEFT JOIN orders o ON o.buyer_id=u.id WHERE u.role='customer' GROUP BY u.id ORDER BY total_spend_kobo DESC LIMIT 500`;
   return json(res,200,{customers:rows});
 }
 
-async function notifications(res: VercelResponse) {
+async function notifications(req: VercelRequest, res: VercelResponse, adminId: string) {
+  const admin = await requireAdminPermission(req, res, 'notifications.read');
+  if (!admin) return;
+  
   const rows = await sql`SELECT n.id,n.user_id,n.order_id,n.type,n.title,n.body,n.created_at,u.email AS user_email,o.order_number FROM notifications n LEFT JOIN users u ON u.id=n.user_id LEFT JOIN orders o ON o.id=n.order_id ORDER BY n.created_at DESC LIMIT 200`;
   return json(res,200,{notifications:rows});
 }
 
-async function categories(res: VercelResponse) {
+async function categories(req: VercelRequest, res: VercelResponse, adminId: string) {
+  const admin = await requireAdminPermission(req, res, 'categories.read');
+  if (!admin) return;
+  
   const rows = await sql`SELECT id,name,slug,icon FROM categories ORDER BY name ASC`;
   return json(res,200,{categories:rows});
 }
 
 async function products(req: VercelRequest,res: VercelResponse,adminId:string) {
+  const permission = req.method === 'GET' ? 'products.read' : (req.method === 'POST' ? 'products.create' : 'products.write');
+  const admin = await requireAdminPermission(req, res, permission);
+  if (!admin) return;
+  
   if (req.method==='GET') {
     const rows=await sql`SELECT p.id,p.name,p.brand,p.price_kobo,p.condition_label,p.storage,p.color,p.stock_status,p.is_active,p.source_price_kobo,p.source_location,p.expected_cost_kobo,p.verified_at,s.name AS supplier_name,c.name AS category,ARRAY_AGG(pi.image_url ORDER BY pi.sort_order) FILTER (WHERE pi.image_url IS NOT NULL) AS images FROM products p LEFT JOIN suppliers s ON s.id=p.supplier_id LEFT JOIN categories c ON c.id=p.category_id LEFT JOIN product_images pi ON pi.product_id=p.id GROUP BY p.id,s.name,c.name ORDER BY p.created_at DESC LIMIT 500`;
     return json(res,200,{products:rows});
@@ -125,6 +141,10 @@ async function products(req: VercelRequest,res: VercelResponse,adminId:string) {
 }
 
 async function suppliers(req: VercelRequest,res: VercelResponse,adminId:string) {
+  const permission = req.method === 'GET' ? 'suppliers.read' : (req.method === 'POST' ? 'suppliers.create' : 'suppliers.write');
+  const admin = await requireAdminPermission(req, res, permission);
+  if (!admin) return;
+  
   if(req.method==='GET') return json(res,200,{suppliers:await sql`SELECT id,name,location,phone,notes,reliability_score,created_at,updated_at FROM suppliers ORDER BY updated_at DESC`});
   if(req.method==='POST') {
     const {name,location,phone,notes}=req.body||{};
@@ -148,17 +168,21 @@ async function suppliers(req: VercelRequest,res: VercelResponse,adminId:string) 
 }
 
 async function orders(req: VercelRequest,res: VercelResponse,adminId:string) {
+  const permission = req.method === 'GET' ? 'orders.read' : 'orders.write';
+  const admin = await requireAdminPermission(req, res, permission);
+  if (!admin) return;
+  
   if(req.method==='GET') {
     const rows=await sql`SELECT o.id,o.order_number,o.quantity,o.total_kobo,o.status,o.payment_status,o.transfer_reference,o.payment_submitted_at,o.payment_verified_at,o.sourcing_status,o.delivery_name,o.delivery_phone,o.delivery_address,o.delivery_city,o.purchase_cost_kobo,o.delivery_fee_kobo,o.other_cost_kobo,o.actual_profit_kobo,o.created_at,p.name AS product_name,p.brand,s.name AS supplier_name,u.email AS buyer_email FROM orders o JOIN products p ON p.id=o.product_id LEFT JOIN suppliers s ON s.id=o.supplier_id JOIN users u ON u.id=o.buyer_id ORDER BY o.created_at DESC LIMIT 200`;
     return json(res,200,{orders:rows});
   }
   if(req.method!=='PATCH') return json(res,405,{error:'Method not allowed'});
-  const {orderId,status,paymentStatus,sourcingStatus,supplierId,purchaseCostKobo,deliveryFeeKobo,otherCostKobo}=req.body||{};
+  const {orderId,status,paymentStatus,sourcingStatus,supplierId,purchaseCostKobo,deliveryFeeKobo,otherCostKobo,version}=req.body||{};
   if(typeof orderId!=='string') return json(res,400,{error:'Order is required.'});
   if(status!=null&&!orderStatuses.has(status)) return json(res,400,{error:'Invalid order status.'});
   if(sourcingStatus!=null&&!sourcingStatuses.has(sourcingStatus)) return json(res,400,{error:'Invalid sourcing status.'});
   if(paymentStatus!=null&&!paymentStatuses.has(paymentStatus)) return json(res,400,{error:'Invalid payment status.'});
-  const existing=await sql`SELECT o.id,o.order_number,o.total_kobo,o.payment_status,o.status,o.sourcing_status,o.supplier_id,o.purchase_cost_kobo,o.delivery_fee_kobo,o.other_cost_kobo,o.actual_profit_kobo,u.id AS buyer_id,u.name AS buyer_name,u.email AS buyer_email,p.name AS product_name FROM orders o JOIN users u ON u.id=o.buyer_id JOIN products p ON p.id=o.product_id WHERE o.id=${orderId} LIMIT 1`;
+  const existing=await sql`SELECT o.id,o.order_number,o.total_kobo,o.payment_status,o.status,o.sourcing_status,o.supplier_id,o.purchase_cost_kobo,o.delivery_fee_kobo,o.other_cost_kobo,o.actual_profit_kobo,o.version,u.id AS buyer_id,u.name AS buyer_name,u.email AS buyer_email,p.name AS product_name FROM orders o JOIN users u ON u.id=o.buyer_id JOIN products p ON p.id=o.product_id WHERE o.id=${orderId} LIMIT 1`;
   if(!existing[0]) return json(res,404,{error:'Order not found.'});
   const purchase=purchaseCostKobo==null||purchaseCostKobo===''?null:Math.round(Number(purchaseCostKobo));
   const delivery=deliveryFeeKobo==null||deliveryFeeKobo===''?0:Math.round(Number(deliveryFeeKobo));
@@ -176,7 +200,20 @@ async function orders(req: VercelRequest,res: VercelResponse,adminId:string) {
     await sql`SELECT release_order_inventory(${orderId}::uuid, ${nextPayment === 'rejected' ? 'Payment rejected' : 'Order cancelled'}, ${adminId}::uuid)`;
   }
 
-  const updated=await sql`UPDATE orders SET status=${nextStatus},payment_status=${nextPayment},sourcing_status=${nextSourcing},supplier_id=COALESCE(${supplierId||null},supplier_id),purchase_cost_kobo=COALESCE(${purchase},purchase_cost_kobo),delivery_fee_kobo=${delivery},other_cost_kobo=${other},actual_profit_kobo=COALESCE(${actualProfit},actual_profit_kobo),purchased_at=CASE WHEN ${purchase} IS NOT NULL THEN COALESCE(purchased_at,now()) ELSE purchased_at END,paid_at=CASE WHEN ${nextPayment}='paid' THEN COALESCE(paid_at,now()) ELSE paid_at END,payment_verified_at=CASE WHEN ${nextPayment} IN ('paid','rejected') THEN now() ELSE payment_verified_at END,updated_at=now() WHERE id=${orderId} RETURNING id,order_number,status,payment_status,sourcing_status,actual_profit_kobo`;
+  // Update with optimistic locking: only update if version matches
+  // If version not provided, allow update anyway (backward compatibility)
+  const versionClause = typeof version === 'number' ? `AND version=${version}` : '';
+  const updated=await sql`UPDATE orders SET status=${nextStatus},payment_status=${nextPayment},sourcing_status=${nextSourcing},supplier_id=COALESCE(${supplierId||null},supplier_id),purchase_cost_kobo=COALESCE(${purchase},purchase_cost_kobo),delivery_fee_kobo=${delivery},other_cost_kobo=${other},actual_profit_kobo=COALESCE(${actualProfit},actual_profit_kobo),purchased_at=CASE WHEN ${purchase} IS NOT NULL THEN COALESCE(purchased_at,now()) ELSE purchased_at END,paid_at=CASE WHEN ${nextPayment}='paid' THEN COALESCE(paid_at,now()) ELSE paid_at END,payment_verified_at=CASE WHEN ${nextPayment} IN ('paid','rejected') THEN now() ELSE payment_verified_at END,version=version+1,updated_at=now() WHERE id=${orderId} ${versionClause} RETURNING id,order_number,status,payment_status,sourcing_status,actual_profit_kobo,version`;
+  
+  // Check for version conflict
+  if(!updated[0]) {
+    const current=await sql`SELECT version FROM orders WHERE id=${orderId} LIMIT 1`;
+    if(current[0]) {
+      return json(res,409,{error:'Order was modified by another operation. Please refresh and try again.',currentVersion:current[0].version});
+    }
+    return json(res,404,{error:'Order not found.'});
+  }
+  
   const stateChanged=existing[0].payment_status!==nextPayment||existing[0].status!==nextStatus||existing[0].sourcing_status!==nextSourcing;
   const costsChanged=Number(existing[0].purchase_cost_kobo||0)!==Number((purchase??existing[0].purchase_cost_kobo)||0)||Number(existing[0].delivery_fee_kobo||0)!==delivery||Number(existing[0].other_cost_kobo||0)!==other||(supplierId&&supplierId!==existing[0].supplier_id);
   if(stateChanged||costsChanged) {
