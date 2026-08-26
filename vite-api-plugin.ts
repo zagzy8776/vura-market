@@ -23,7 +23,6 @@ const routes: Record<string, string> = {
   '/api/orders/payment-submission': '/api/orders/payment-submission.ts',
   '/api/payment-info': '/api/payment-info.ts',
   '/api/notifications': '/api/notifications.ts',
-  '/api/push-subscribe': '/api/push-subscribe.ts',
   '/api/health': '/api/health.ts',
 };
 
