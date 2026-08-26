@@ -105,7 +105,7 @@ export function HomePage({ categories }: { categories: CategoryPublic[] }) {
               <span className="text-vura-500">delivered to your door</span>
             </h1>
             <p className="mt-4 max-w-lg text-base leading-7 text-[#5f6678] sm:text-lg">
-              Shop from thousands of trusted sellers and get real value on everything you love.
+              Shop products we source for you — clear prices and delivery across Nigeria.
             </p>
             <div className="mt-7 flex flex-wrap gap-3">
               <Link to="/search">
@@ -128,7 +128,7 @@ export function HomePage({ categories }: { categories: CategoryPublic[] }) {
               </span>
               <span className="flex items-center gap-2">
                 <PackageSearch size={16} className="text-vura-500" aria-hidden />
-                Easy Returns 7-day Returns
+                Easy Returns · 3-day Returns
               </span>
             </div>
           </div>
@@ -203,7 +203,7 @@ export function HomePage({ categories }: { categories: CategoryPublic[] }) {
 
       <section className="mx-auto max-w-7xl px-4 py-6 md:px-6">
         <div className="mb-6 flex items-end justify-between">
-          <h2 className="font-display text-xl font-bold text-[#151527] sm:text-2xl">Today&apos;s Best Deals</h2>
+          <h2 className="font-display text-xl font-bold text-[#151527] sm:text-2xl">Today's Best Deals</h2>
           <Link to="/deals" className="text-sm font-bold text-vura-500 hover:text-vura-600">
             View all deals
           </Link>
