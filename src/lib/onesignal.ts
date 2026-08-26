@@ -31,6 +31,7 @@ const DEFAULT_APP_ID = 'e1e24d70-25cf-4c01-b66e-f17b8a73a0ea';
 const WELCOME_KEY = 'vura_onesignal_welcome_v1';
 
 let initStarted = false;
+let initDone = false;
 
 function appId() {
   return (
@@ -80,15 +81,20 @@ async function onOptedIn() {
   await reportSubscription('welcome');
 }
 
-export function isPushSupported() {
+export function isIosSafariNotPwa() {
   if (typeof window === 'undefined') return false;
-  // iOS only supports web push when installed as PWA (standalone)
   const ua = navigator.userAgent || '';
   const isIOS = /iPad|iPhone|iPod/.test(ua);
+  if (!isIOS) return false;
   const standalone =
     window.matchMedia('(display-mode: standalone)').matches ||
     (navigator as { standalone?: boolean }).standalone === true;
-  if (isIOS && !standalone) return false;
+  return !standalone;
+}
+
+export function isPushSupported() {
+  if (typeof window === 'undefined') return false;
+  if (isIosSafariNotPwa()) return false;
   return 'Notification' in window && 'serviceWorker' in navigator;
 }
 
@@ -103,24 +109,76 @@ export async function getPushPermissionState(): Promise<'granted' | 'denied' | '
   return 'default';
 }
 
-/** Must be called from a user tap for best browser support. */
-export function requestPushPermission(): Promise<boolean> {
+function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
   return new Promise((resolve) => {
-    if (!isPushSupported()) {
-      resolve(false);
-      return;
-    }
-    defer(async (OneSignal) => {
-      try {
-        await OneSignal.Notifications?.requestPermission?.();
-        const opted = Boolean(OneSignal.User?.PushSubscription?.optedIn) || Notification.permission === 'granted';
-        if (opted) await onOptedIn();
-        resolve(opted);
-      } catch {
-        resolve(Notification.permission === 'granted');
-      }
-    });
+    const t = window.setTimeout(() => resolve(fallback), ms);
+    promise
+      .then((v) => {
+        window.clearTimeout(t);
+        resolve(v);
+      })
+      .catch(() => {
+        window.clearTimeout(t);
+        resolve(fallback);
+      });
   });
+}
+
+/** Must be called from a user tap. Never hangs more than a few seconds. */
+export async function requestPushPermission(): Promise<boolean> {
+  if (!isPushSupported()) return false;
+
+  // Prefer native API first (works even if OneSignal is slow)
+  try {
+    if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
+      const result = await withTimeout(Notification.requestPermission(), 8000, 'default');
+      if (result === 'granted') {
+        await onOptedIn();
+        // Still try OneSignal login path in background
+        defer(async (OneSignal) => {
+          try {
+            await OneSignal.Notifications?.requestPermission?.();
+          } catch {
+            /* ignore */
+          }
+        });
+        return true;
+      }
+      if (result === 'denied') return false;
+    }
+    if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+      await onOptedIn();
+      return true;
+    }
+  } catch {
+    /* fall through to OneSignal */
+  }
+
+  return withTimeout(
+    new Promise<boolean>((resolve) => {
+      let settled = false;
+      const done = (v: boolean) => {
+        if (settled) return;
+        settled = true;
+        resolve(v);
+      };
+
+      defer(async (OneSignal) => {
+        try {
+          await OneSignal.Notifications?.requestPermission?.();
+          const opted =
+            Boolean(OneSignal.User?.PushSubscription?.optedIn) ||
+            (typeof Notification !== 'undefined' && Notification.permission === 'granted');
+          if (opted) await onOptedIn();
+          done(opted);
+        } catch {
+          done(typeof Notification !== 'undefined' && Notification.permission === 'granted');
+        }
+      });
+    }),
+    10000,
+    false,
+  );
 }
 
 export async function initOneSignal() {
@@ -135,8 +193,9 @@ export async function initOneSignal() {
         serviceWorkerParam: { scope: '/' },
         allowLocalhostAsSecureOrigin: true,
       });
+      initDone = true;
     } catch {
-      // already inited
+      initDone = true;
     }
 
     try {
@@ -172,4 +231,8 @@ export async function unlinkOneSignalUser() {
       // ignore
     }
   });
+}
+
+export function isOneSignalReady() {
+  return initDone;
 }
