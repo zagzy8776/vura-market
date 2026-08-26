@@ -24,7 +24,7 @@ export default function ProductionStudioOps({ tab, onTabChange }: { tab: StudioT
   const [suppliers, setSuppliers] = useState<ResourceState<Supplier[]>>({ state: 'idle' });
   const [notifications, setNotifications] = useState<ResourceState<Notification[]>>({ state: 'idle' });
 
-  // Stable refs — must be useRef so the interval always sees current state
+  // Stable refs — must be useRef so loaders always see current state
   const overviewRef = useRef(overview);
   const ordersRef = useRef(orders);
   const productsRef = useRef(products);
@@ -113,10 +113,10 @@ export default function ProductionStudioOps({ tab, onTabChange }: { tab: StudioT
     ]);
   };
 
+  // Load once on mount. No auto-refresh — it was wiping open product forms on mobile.
+  // User can tap the refresh button when they want fresh data.
   useEffect(() => {
     void loadAll();
-    const id = window.setInterval(() => void loadAll({ silent: true }), 60000);
-    return () => window.clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
