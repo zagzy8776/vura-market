@@ -1,6 +1,6 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import App from './App.tsx';
+import CustomerApp from '@/customer/CustomerApp';
 import AdminApp from '@/pages/studio/AdminApp';
 import AccountClaimPage from '@/pages/AccountClaim';
 import { AuthProvider } from '@/context/AuthContext';
@@ -17,7 +17,7 @@ const isClaim = path.startsWith('/account/claim');
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <AuthProvider>
-      {isClaim ? <AccountClaimPage /> : isStudio ? <AdminApp /> : <App />}
+      {isClaim ? <AccountClaimPage /> : isStudio ? <AdminApp /> : <CustomerApp />}
       <PushPromptBanner />
     </AuthProvider>
   </StrictMode>
