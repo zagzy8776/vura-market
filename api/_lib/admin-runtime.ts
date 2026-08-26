@@ -7,7 +7,7 @@ import { randomUUID } from 'crypto';
 
 const stockStatuses = new Set(['available', 'low_stock', 'out_of_stock', 'unavailable']);
 
-type Method = 'GET' | 'POST' | 'PATCH';
+type Method = 'GET' | 'POST' | 'PATCH' | 'DELETE';
 
 function resource(req: VercelRequest) {
   const value = req.query.resource;
@@ -55,19 +55,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const ok = await requireAdminPermission(req, res, 'dashboard.read');
       if (!ok) return;
       const [live] = await sql`SELECT COUNT(*)::int AS count FROM products WHERE is_active = true`;
-      return json(res, 200, { liveProducts: live.count, monthlyOrders: 0, monthlyRevenueKobo: 0, monthlyProfitKobo: 0, customers: [], notifications: [], audit: [], orderEvents: [] });
+      return json(res, 200, {
+        liveProducts: live?.count || 0,
+        monthlyOrders: 0,
+        monthlyRevenueKobo: 0,
+        monthlyProfitKobo: 0,
+        customers: [],
+        notifications: [],
+        audit: [],
+        orderEvents: [],
+      });
     }
     if (r === 'orders' && method === 'GET') {
       const ok = await requireAdminPermission(req, res, 'orders.read');
       if (!ok) return;
-      const rows = await sql`SELECT o.id,o.order_number,o.quantity,o.total_kobo,o.status,o.payment_status,o.sourcing_status,o.delivery_name,o.delivery_phone,o.created_at,p.name AS product_name,p.brand,s.name AS supplier_name,u.email AS buyer_email FROM orders o JOIN products p ON p.id=o.product_id LEFT JOIN suppliers s ON s.id=o.supplier_id JOIN users u ON u.id=o.buyer_id ORDER BY o.created_at DESC LIMIT 200`;
+      const rows = await sql`SELECT o.id,o.order_number,o.quantity,o.total_kobo,o.status,o.payment_status,o.transfer_reference,o.payment_submitted_at,o.payment_verified_at,o.sourcing_status,o.delivery_name,o.delivery_phone,o.delivery_address,o.delivery_city,o.purchase_cost_kobo,o.delivery_fee_kobo,o.other_cost_kobo,o.actual_profit_kobo,o.created_at,p.name AS product_name,p.brand,s.name AS supplier_name,u.email AS buyer_email FROM orders o JOIN products p ON p.id=o.product_id LEFT JOIN suppliers s ON s.id=o.supplier_id JOIN users u ON u.id=o.buyer_id ORDER BY o.created_at DESC LIMIT 200`;
       return json(res, 200, { orders: rows });
     }
-    if (r === 'customers' && method === 'GET') return json(res, 200, { customers: [] });
-    if (r === 'notifications' && method === 'GET') return json(res, 200, { notifications: [] });
-    if (r === 'delivery' && method === 'GET') return json(res, 200, { fulfillments: [], events: [] });
-    if (r === 'finance' && method === 'GET') return json(res, 200, { summary: {}, monthly: [], payments: [], sourcing: [] });
-    if (r === 'refunds' && method === 'GET') return json(res, 200, { refunds: [], returns: [] });
+    if (r === 'notifications' && method === 'GET') {
+      const ok = await requireAdminPermission(req, res, 'notifications.read');
+      if (!ok) return;
+      const rows = await sql`SELECT n.id,n.user_id,n.order_id,n.type,n.title,n.body,n.created_at,u.email AS user_email,o.order_number FROM notifications n LEFT JOIN users u ON u.id=n.user_id LEFT JOIN orders o ON o.id=n.order_id ORDER BY n.created_at DESC LIMIT 200`;
+      return json(res, 200, { notifications: rows });
+    }
     return json(res, 404, { error: 'Admin resource not found.' });
   } catch {
     return json(res, 500, { error: 'The admin operation could not be completed.' });
@@ -84,17 +94,22 @@ async function categories(req: VercelRequest, res: VercelResponse, method: Metho
   }
   if (method !== 'POST') return json(res, 405, { error: 'Method not allowed' });
   const name = typeof req.body?.name === 'string' ? req.body.name.trim() : '';
+  const icon = typeof req.body?.icon === 'string' && req.body.icon.trim() ? req.body.icon.trim() : 'Package';
   if (name.length < 2) return json(res, 400, { error: 'Category name is required.' });
-  const base = slugify(name) || ('category-' + Date.now());
+  const base = slugify(name) || `category-${Date.now()}`;
   let slug = base;
   for (let i = 2; i < 30; i++) {
     const existing = await sql`SELECT id FROM categories WHERE slug=${slug} LIMIT 1`;
     if (!existing[0]) break;
-    slug = base + '-' + i;
+    slug = `${base}-${i}`;
   }
-  const rows = await sql`INSERT INTO categories(name,slug,icon) VALUES(${name},${slug},'Package') RETURNING id,name,slug,icon`;
-  await recordAudit({ actorUserId: adminId, action: 'category.create', entityType: 'category', entityId: rows[0].id, afterData: rows[0] });
-  return json(res, 201, { category: rows[0] });
+  try {
+    const rows = await sql`INSERT INTO categories(name,slug,icon) VALUES(${name},${slug},${icon}) RETURNING id,name,slug,icon`;
+    await recordAudit({ actorUserId: admin.id, action: 'category.create', entityType: 'category', entityId: rows[0].id, afterData: rows[0] });
+    return json(res, 201, { category: rows[0] });
+  } catch {
+    return json(res, 409, { error: 'A category with that name already exists.' });
+  }
 }
 
 async function products(req: VercelRequest, res: VercelResponse, method: Method, adminId: string) {
@@ -121,8 +136,24 @@ async function products(req: VercelRequest, res: VercelResponse, method: Method,
     if (urls.length < 1) return json(res, 400, { error: 'Add at least one product photo.' });
     const rows = await sql`INSERT INTO products(seller_id,category_id,supplier_id,name,brand,description,price_kobo,condition_label,storage,color,stock_status,source_price_kobo,source_location,expected_cost_kobo,is_active,verified_at) VALUES(${adminId},${body.categoryId||null},${body.supplierId||null},${name},${brand},${description},${Math.round(price)},${condition},${body.storage||null},${body.color||null},${stock},${sourcePrice===null?null:Math.round(sourcePrice)},${body.sourceLocation||null},${sourcePrice===null?null:Math.round(sourcePrice)},true,now()) RETURNING id`;
     await sql`INSERT INTO product_images (product_id, image_url, sort_order) SELECT ${rows[0].id}, image_value, ordinality - 1 FROM unnest(${urls}::text[]) WITH ORDINALITY AS t(image_value, ordinality)`;
-    await recordAudit({ actorUserId: adminId, action: 'product.create', entityType: 'product', entityId: rows[0].id, afterData: { name, brand, images: urls } });
-    return json(res, 201, { product: { id: rows[0].id, name, brand, images: urls } });
+    await recordAudit({ actorUserId: adminId, action: 'product.create', entityType: 'product', entityId: rows[0].id });
+    return json(res, 201, { product: { id: rows[0].id, images: urls } });
+  }
+  if (method === 'DELETE') {
+    const productId = body.productId;
+    if (typeof productId !== 'string') return json(res, 400, { error: 'Product is required.' });
+    const before = await sql`SELECT id, name, is_active FROM products WHERE id=${productId} LIMIT 1`;
+    if (!before[0]) return json(res, 404, { error: 'Product not found.' });
+    try {
+      await sql`DELETE FROM product_images WHERE product_id=${productId}`;
+      await sql`DELETE FROM products WHERE id=${productId}`;
+      await recordAudit({ actorUserId: adminId, action: 'product.delete', entityType: 'product', entityId: productId, beforeData: before[0] });
+      return json(res, 200, { deleted: true, productId });
+    } catch {
+      await sql`UPDATE products SET is_active=false, stock_status='unavailable', updated_at=now() WHERE id=${productId}`;
+      await recordAudit({ actorUserId: adminId, action: 'product.deactivate', entityType: 'product', entityId: productId, beforeData: before[0] });
+      return json(res, 200, { deleted: false, deactivated: true, productId, message: 'Product has related orders so it was deactivated instead of fully removed.' });
+    }
   }
   if (method !== 'PATCH') return json(res, 405, { error: 'Method not allowed' });
   const productId = body.productId;
