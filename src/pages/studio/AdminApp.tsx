@@ -132,7 +132,7 @@ export default function AdminApp() {
   return (
     <div className="flex min-h-screen bg-[#080a12] text-white">
       <AdminSidebar activeTab={tab} onTabChange={onTabChange} />
-      <AdminMobileDrawer open={mobileDrawerOpen} onClose={() => setMobileDrawerOpen(false)} activeTab={tab} onTabChange={onTabChange} />
+      <AdminMobileDrawer isOpen={mobileDrawerOpen} onClose={() => setMobileDrawerOpen(false)} activeTab={tab} onTabChange={onTabChange} />
       <div className="flex min-w-0 flex-1 flex-col">
         <div className="flex items-center gap-3 border-b border-white/10 px-4 py-3 lg:hidden">
           <button type="button" onClick={() => setMobileDrawerOpen(true)} className="grid h-10 w-10 place-items-center rounded-xl border border-white/10">
