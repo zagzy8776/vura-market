@@ -1,10 +1,12 @@
+import { useEffect, useState } from 'react';
 import { ChevronRight, LifeBuoy, MessageCircle } from 'lucide-react';
 import { Link, useRouter } from '../router';
 import { Accordion, Button } from '../components/ui';
+import { telHref, waHref } from '@/lib/phone';
 
 const FAQS = [
   { q: 'How does Vura work?', a: 'Vura is a curated Nigerian marketplace. Every product is checked by our team. You order and pay by secure bank transfer; once your payment is verified we source, package and dispatch your item with tracking.' },
-  { q: 'How is delivery priced?', a: 'Delivery depends on your state. Lagos is typically ₦3,500 (2–3 days), Abuja ₦4,500 (3–5 days) and other states ₦5,500 (4–7 days). The exact fee for your address is calculated at checkout — never a guess.' },
+  { q: 'How is delivery priced?', a: 'Delivery depends on your state. Lagos is typically ₥3,500 (2–3 days), Abuja ₥4,500 (3–5 days) and other states ₥5,500 (4–7 days). The exact fee for your address is calculated at checkout — never a guess.' },
   { q: 'When do I pay?', a: 'You place the order first, then transfer the exact total to the Vura account shown at checkout. Enter your transfer reference and our team verifies it before sourcing begins.' },
   { q: 'Can I return an item?', a: 'Yes. If your item arrives faulty or not as described, request a return within 3 days of delivery. Approved returns are inspected and refunded to your bank account within 5 working days of inspection.' },
   { q: 'Do I need an account to order?', a: 'No — guest checkout works with just your email. We then offer a one-click account claim so you can track all orders in one place.' },
@@ -12,6 +14,15 @@ const FAQS = [
 
 export function HelpPage() {
   const router = useRouter();
+  const [support, setSupport] = useState({ phone: '', whatsapp: '' });
+  useEffect(() => {
+    void fetch('/api/payment-info')
+      .then((r) => r.json())
+      .then((d) => setSupport({ phone: d.supportPhone || '', whatsapp: d.supportWhatsapp || d.supportPhone || '' }))
+      .catch(() => undefined);
+  }, []);
+  const wa = waHref(support.whatsapp, 'Hi Vura, I need help with an order.');
+  const call = telHref(support.phone || support.whatsapp);
   return (
     <main id="main" className="mx-auto max-w-3xl px-4 py-12 md:px-6">
       <p className="text-xs font-bold uppercase tracking-[0.16em] text-vura-300">Customer support</p>
@@ -19,7 +30,7 @@ export function HelpPage() {
       <p className="mt-3 max-w-lg text-sm leading-6 text-mid">Real humans, real answers. Reach us on WhatsApp for anything about an order, delivery or a return.</p>
 
       <div id="contact" className="mt-8 grid gap-3 sm:grid-cols-2">
-        <a href="https://wa.me/" target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 rounded-2xl border border-emerald-400/25 bg-emerald-400/[0.06] p-5 transition hover:border-emerald-400/50">
+        <a href={wa || call || 'https://wa.me/'} target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 rounded-2xl border border-emerald-400/25 bg-emerald-400/[0.06] p-5 transition hover:border-emerald-400/50">
           <span className="grid h-11 w-11 place-items-center rounded-xl bg-emerald-400/15 text-emerald-300"><MessageCircle size={20} /></span>
           <span>
             <b className="block text-sm font-bold text-hi">WhatsApp support</b>
@@ -53,7 +64,7 @@ export function HelpPage() {
           <li>We arrange pickup and inspect the item.</li>
           <li>Approved refunds go to your bank account within 5 working days of inspection.</li>
         </ol>
-        <Button variant="secondary" size="sm" className="mt-4" onClick={() => window.open('https://wa.me/', '_blank', 'noopener')}>Start a return on WhatsApp</Button>
+        <Button variant="secondary" size="sm" className="mt-4" onClick={() => window.open(wa || 'https://wa.me/', '_blank', 'noopener')}>Start a return on WhatsApp</Button>
       </section>
     </main>
   );

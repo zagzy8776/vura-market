@@ -18,7 +18,7 @@ export default function FinanceView() {
   const [error, setError] = useState('');
   const load = async () => {
     setLoading(true); setError('');
-    try { setData(await request<Finance>('/api/admin-finance')); }
+    try { setData(await request<Finance>('/api/admin/finance')); }
     catch (e) { setError(e instanceof Error ? e.message : 'Finance data could not be loaded.'); }
     finally { setLoading(false); }
   };
@@ -26,7 +26,7 @@ export default function FinanceView() {
   const s = data?.summary;
   const margin = useMemo(() => Number(s?.revenue_kobo || 0) ? (Number(s?.profit_kobo || 0) / Number(s?.revenue_kobo || 1)) * 100 : 0, [s]);
   if (loading && !data) return <div className="grid min-h-[60vh] place-items-center text-white/40"><RefreshCw className="mr-2 inline animate-spin" size={18}/> Loading finance…</div>;
-  return <div>
+  return <div className="p-5 md:p-8">
     <div className="flex flex-wrap items-end justify-between gap-3">
       <div><h1 className="text-2xl font-black tracking-[-.05em] md:text-4xl">Finance & Reports</h1><p className="mt-2 text-sm text-white/45">Revenue, real costs, profit, payment status, and sourcing exposure from live orders.</p></div>
       <button onClick={() => void load()} className="grid h-10 w-10 place-items-center rounded-xl border border-white/10 text-white/55 hover:bg-white/5" aria-label="Refresh finance"><RefreshCw size={17} className={loading ? 'animate-spin' : ''}/></button>
