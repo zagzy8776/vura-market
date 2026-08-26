@@ -94,7 +94,7 @@ function ProductCardInner({ product, priority }: Props) {
         )}
         <div className="absolute left-2 top-2 flex flex-col gap-1">
           {discount != null && (
-            <span className="rounded-md bg bg-red-500 px-1.5 py-0.5 text-[10px] font-bold text-white">-{discount}%</span>
+            <span className="rounded-md bg-red-500 px-1.5 py-0.5 text-[10px] font-bold text-white">-{discount}%</span>
           )}
           {!availability.purchasable && <Badge tone={availability.tone}>{availability.label}</Badge>}
           {availability.purchasable && availability.state === 'limited' && (
