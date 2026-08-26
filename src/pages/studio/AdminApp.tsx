@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { BarChart3, Eye, EyeOff, Zap, ShieldAlert, Menu } from 'lucide-react';
+import { Eye, EyeOff, Zap, ShieldAlert, Menu } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import ProductionStudioOps from './ProductionStudioOps';
 import FinanceView from './FinanceView';
