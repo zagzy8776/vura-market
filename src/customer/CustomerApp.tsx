@@ -31,6 +31,23 @@ function RouteView({ categories }: { categories: CategoryPublic[] }) {
   const router = useRouter();
   const path = router.path.replace(/\/+$/, '') || '/';
 
+  // Friendly aliases (bookmarks / external links / Jumia-style paths)
+  if (path === '/products' || path === '/shop' || path === '/catalog') {
+    return <CatalogPage mode="search" categories={categories} />;
+  }
+  if (path === '/new-arrivals' || path === '/arrivals') {
+    return <CatalogPage mode="new" categories={categories} />;
+  }
+  // Bare category slug → /c/{slug} (e.g. /phones, /laptops)
+  const bareSlug = path.startsWith('/') ? path.slice(1) : path;
+  if (
+    bareSlug &&
+    !bareSlug.includes('/') &&
+    categories.some((c) => c.slug === bareSlug)
+  ) {
+    return <CatalogPage mode="category" categorySlug={bareSlug} categories={categories} />;
+  }
+
   if (path === '/' || path === '') return <HomePage categories={categories} />;
   if (path === '/deals') return <CatalogPage mode="deals" categories={categories} />;
   if (path === '/new') return <CatalogPage mode="new" categories={categories} />;
