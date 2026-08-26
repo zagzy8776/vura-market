@@ -1,5 +1,6 @@
 import { sql } from './db.js';
 import { sendTransactionalEmail } from './email.js';
+import { adminDeepLink, customerDeepLink, sendOneSignalPush } from './onesignal.js';
 
 export async function createNotification(userId: string, type: string, title: string, body: string, orderId?: string | null) {
   await sql`
@@ -14,6 +15,7 @@ export async function notifyUser(params: {
   email: string;
   firstName: string;
   orderId?: string | null;
+  orderNumber?: string | null;
   eventType: string;
   title: string;
   body: string;
@@ -22,6 +24,20 @@ export async function notifyUser(params: {
   html: string;
 }) {
   await createNotification(params.userId, params.eventType, params.title, params.body, params.orderId);
+
+  void sendOneSignalPush({
+    externalUserIds: [params.userId],
+    title: params.title,
+    body: params.body,
+    url: customerDeepLink(params.orderNumber),
+    data: {
+      side: 'customer',
+      eventType: params.eventType,
+      orderId: params.orderId || '',
+      orderNumber: params.orderNumber || '',
+    },
+  });
+
   return sendTransactionalEmail({
     userId: params.userId,
     orderId: params.orderId,
@@ -35,6 +51,7 @@ export async function notifyUser(params: {
 
 export async function notifyAdmins(params: {
   orderId?: string | null;
+  orderNumber?: string | null;
   eventType: string;
   title: string;
   body: string;
@@ -43,16 +60,33 @@ export async function notifyAdmins(params: {
   html: string;
 }) {
   const admins = await sql`SELECT id, email FROM users WHERE role = 'admin' LIMIT 20`;
-  await Promise.all(admins.map(async (admin) => {
-    await createNotification(admin.id, params.eventType, params.title, params.body, params.orderId);
-    return sendTransactionalEmail({
-      userId: admin.id,
-      orderId: params.orderId,
+  const adminIds = admins.map((a) => String(a.id));
+
+  void sendOneSignalPush({
+    externalUserIds: adminIds,
+    title: params.title,
+    body: params.body,
+    url: adminDeepLink(params.orderNumber),
+    data: {
+      side: 'admin',
       eventType: params.eventType,
-      recipient: admin.email,
-      subject: params.subject,
-      text: params.text,
-      html: params.html,
-    });
-  }));
+      orderId: params.orderId || '',
+      orderNumber: params.orderNumber || '',
+    },
+  });
+
+  await Promise.all(
+    admins.map(async (admin) => {
+      await createNotification(admin.id, params.eventType, params.title, params.body, params.orderId);
+      return sendTransactionalEmail({
+        userId: admin.id,
+        orderId: params.orderId,
+        eventType: params.eventType,
+        recipient: admin.email,
+        subject: params.subject,
+        text: params.text,
+        html: params.html,
+      });
+    }),
+  );
 }
