@@ -62,7 +62,47 @@ input:focus, textarea:focus, select:focus {
 
 /* Product imagery */
 img { max-width: 100%; }
-img[loading="lazy"] { content-visibility: auto; }
+img[src=""], img:not([src]) { opacity: 0; }
+
+/* Utility helpers used across storefront + studio */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Subtle scrollbar for dark studio panels */
+.studio-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
+.studio-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,.12);
+  border-radius: 999px;
+}
+.studio-scroll::-webkit-scrollbar-track { background: transparent; }
+
+/* Reduce layout shift on image load in product cards */
+.aspect-product { aspect-ratio: 4 / 3; object-fit: cover; }
+
+/* Safe area for notched phones (iPhone) */
+@supports (padding: max(0px)) {
+  .safe-bottom { padding-bottom: max(1rem, env(safe-area-inset-bottom)); }
+  .safe-top { padding-top: max(0.5rem, env(safe-area-inset-top)); }
+}
+
+/* Prevent horizontal overflow on mobile studio tables */
+.overflow-x-auto { -webkit-overflow-scrolling: touch; }
+
+/* Make disabled controls obviously inactive */
+button:disabled, input:disabled, select:disabled, textarea:disabled {
+  cursor: not-allowed;
+  opacity: .55;
+}
 
 /* Never expose private admin/sourcing economics through presentation classes. */
 .vura-private-data { display: none; }
@@ -72,5 +112,15 @@ img[loading="lazy"] { content-visibility: auto; }
   *, *::before, *::after {
     transition-duration: .01ms !important;
     animation-duration: .01ms !important;
+  }
+}
+
+/* iOS Safari: inputs under 16px trigger auto-zoom on focus and the page stays zoomed.
+   Force form controls to 16px on small screens so typing never zooms the layout. */
+@media (max-width: 1024px) {
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
   }
 }
