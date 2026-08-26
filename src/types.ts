@@ -1,185 +1,46 @@
-export type ProductVariantPublic = {
-  id: string;
-  sku: string;
-  name: string;
-  attributes: Record<string, string>;
-  price_kobo: number;
-  available_quantity: number;
-  reserved_quantity: number;
-};
+export type MoneyKobo = number;
 
-export type StorefrontProduct = {
-  id: string;
-  slug: string;
-  name: string;
-  brand: string;
-  description?: string | null;
-  price_kobo: number;
-  compare_at_price_kobo?: number | null;
-  stock_status: string;
-  condition_label?: string | null;
-  storage?: string | null;
-  color?: string | null;
-  category_id?: string | null;
-  category_name?: string | null;
-  category_slug?: string | null;
-  specifications?: Record<string, unknown> | null;
-  images?: string[];
-  variants?: ProductVariantPublic[];
-  saved_at?: string;
-};
-
-export type CategoryPublic = {
-  id: string;
-  name: string;
-  slug: string;
-  icon?: string | null;
-  product_count?: number;
-};
-
-export type NigeriaState = {
-  id: string;
-  name: string;
-  code: string;
-};
-
-export type NigeriaLga = {
-  id: string;
-  name: string;
-};
-
-export type DeliveryQuote = {
-  stateCode: string | null;
-  stateName: string | null;
-  zoneName: string;
-  feeKobo: number;
-  etaMinDays: number;
-  etaMaxDays: number;
-};
-
-export type CustomerOrder = {
-  id: string;
-  order_number: string;
-  quantity: number;
-  total_kobo: number;
-  status: string;
-  payment_method?: string | null;
-  payment_status: string;
-  transfer_reference?: string | null;
-  payment_submitted_at?: string | null;
-  payment_verified_at?: string | null;
-  sourcing_status?: string | null;
-  delivery_name?: string | null;
-  delivery_phone?: string | null;
-  delivery_address?: string | null;
-  delivery_city?: string | null;
-  delivery_fee_kobo?: number | null;
-  created_at: string;
-  updated_at?: string | null;
-  product_name?: string | null;
-  brand?: string | null;
-  images?: Array<string | null>;
-};
-
-export type CreatedOrder = {
-  id: string;
-  order_number: string;
-  total_kobo: number;
-  payment_method?: string | null;
-  payment_status?: string | null;
-  variant_id?: string | null;
-  reservation_id?: string | null;
-};
-
-export type TrackingEvent = {
-  id: string | number;
-  status: string;
-  message?: string | null;
-  location?: string | null;
-  tracking_number?: string | null;
-  source?: string | null;
-  created_at: string;
-};
-
-export type ShipmentEvent = {
-  id: string | number;
-  status: string;
-  message?: string | null;
-  location?: string | null;
-  createdAt: string;
-};
-
-export type Shipment = {
-  id: string;
-  status: string;
-  supplier_name?: string | null;
-  tracking_number?: string | null;
-  courier_name?: string | null;
-  events?: ShipmentEvent[];
-};
+export type ResourceState<T> =
+  | { state: 'idle' }
+  | { state: 'loading' }
+  | { state: 'success'; data: T; requestId?: string }
+  | { state: 'error'; error: string; requestId?: string };
 
 export type AppUser = {
   id: string;
   name: string;
   email: string;
-  role: string;
+  role: 'customer' | 'admin';
 };
-
-export type View = 'home' | 'catalog' | 'deals' | 'product';
 
 export type Category = {
   id: string;
   name: string;
-  slug: string;
-  icon: string;
+  slug?: string | null;
+  icon?: string | null;
 };
 
 export type Product = {
   id: string;
   name: string;
-  brand: string;
+  brand?: string | null;
   description?: string | null;
   price_kobo: number;
-  condition_label: string;
+  condition_label?: string | null;
   storage?: string | null;
   color?: string | null;
-  stock_status: string;
-  category_id?: string | null;
-  category?: string | null;
-  supplier_id?: string | null;
-  supplier_name?: string | null;
+  stock_status?: string | null;
+  is_active?: boolean | null;
   source_price_kobo?: number | null;
   source_location?: string | null;
   expected_cost_kobo?: number | null;
-  is_active?: boolean;
   verified_at?: string | null;
-  created_at?: string;
-  images?: string[];
-};
-
-export type Order = {
-  id: string;
-  order_number: string;
-  status: string;
-  payment_status: string;
-  sourcing_status?: string | null;
-  total_kobo: number;
-  quantity?: number;
-  product_name?: string | null;
-  brand?: string | null;
-  buyer_email?: string | null;
-  buyer_name?: string | null;
-  delivery_name?: string | null;
-  delivery_phone?: string | null;
-  delivery_address?: string | null;
-  delivery_city?: string | null;
-  delivery_fee_kobo?: number | null;
-  purchase_cost_kobo?: number | null;
-  other_cost_kobo?: number | null;
+  category_id?: string | null;
   supplier_id?: string | null;
   supplier_name?: string | null;
+  category?: string | null;
+  images?: string[] | null;
   created_at?: string;
-  updated_at?: string | null;
 };
 
 export type Supplier = {
@@ -188,14 +49,47 @@ export type Supplier = {
   location?: string | null;
   phone?: string | null;
   notes?: string | null;
-  pending_orders?: number;
-  rejected_orders?: number;
   reliability_score?: number | null;
-  revenue_kobo?: number | null;
-  profit_kobo?: number | null;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type Order = {
+  id: string;
+  order_number: string;
+  quantity?: number;
+  total_kobo: number;
+  status: string;
+  payment_status: string;
+  payment_method?: string | null;
+  transfer_reference?: string | null;
+  payment_submitted_at?: string | null;
+  payment_verified_at?: string | null;
+  sourcing_status?: string | null;
+  delivery_name?: string | null;
+  delivery_phone?: string | null;
+  delivery_address?: string | null;
+  delivery_city?: string | null;
   purchase_cost_kobo?: number | null;
-  delivery_cost_kobo?: number | null;
+  delivery_fee_kobo?: number | null;
   other_cost_kobo?: number | null;
+  actual_profit_kobo?: number | null;
+  product_name?: string | null;
+  brand?: string | null;
+  supplier_name?: string | null;
+  supplier_id?: string | null;
+  buyer_email?: string | null;
+  created_at?: string;
+  images?: string[] | null;
+};
+
+export type CustomerOrder = {
+  id: string;
+  order_number: string;
+  total_kobo: number;
+  status: string;
+  payment_status: string;
+  created_at: string;
 };
 
 export type Customer = {
@@ -266,11 +160,19 @@ export type Overview = {
 
 export type StudioTab =
   | 'overview'
+  | 'health'
   | 'orders'
   | 'payments'
   | 'products'
+  | 'inventory'
   | 'sourcing'
   | 'suppliers'
+  | 'delivery'
   | 'customers'
   | 'notifications'
-  | 'audit';
+  | 'finance'
+  | 'analytics'
+  | 'audit'
+  | 'settings';
+
+export type View = 'home' | 'catalog' | 'deals' | 'product';
