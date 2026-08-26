@@ -32,11 +32,46 @@ export function OperationalProducts({ products, suppliers = [], onRefresh }: { p
   const [q, setQ] = useState('');
   const [selected, setSelected] = useState<Any | null>(null);
   const [creating, setCreating] = useState(false);
-  const rows = useMemo(() => products.filter(p => `${p.name} ${p.brand} ${p.category} ${p.supplier_name}`.toLowerCase().includes(q.toLowerCase())), [products, q]);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const rows = useMemo(
+    () => products.filter(p => p.is_active !== false && `${p.name} ${p.brand} ${p.category} ${p.supplier_name}`.toLowerCase().includes(q.toLowerCase())),
+    [products, q],
+  );
+  const remove = async (p: Any) => {
+    if (!window.confirm(`Delete "${p.name}"? This cannot be undone if there are no orders on it.`)) return;
+    setDeletingId(p.id);
+    try {
+      const res = await api<{ deleted?: boolean; deactivated?: boolean; message?: string }>('/api/admin/products', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ productId: p.id }),
+      });
+      if (res.deactivated) window.alert(res.message || 'Product was deactivated because it has related orders.');
+      onRefresh();
+    } catch (e) {
+      window.alert(e instanceof Error ? e.message : 'Could not delete product.');
+    } finally {
+      setDeletingId(null);
+    }
+  };
   return <section>
     <Toolbar title="Products" action={<div className="flex flex-wrap gap-2"><input value={q} onChange={e => setQ(e.target.value)} placeholder="Search products…" className={field.replace('mt-1 ','')}/><button onClick={() => setCreating(true)} className="flex items-center gap-2 rounded-xl bg-vura-500 px-4 py-2 text-sm font-bold"><Plus size={15}/> Add product</button></div>}/>
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{rows.map(p => <article key={p.id} className="overflow-hidden rounded-2xl border border-white/10 bg-white/[.02]"><div className="aspect-[4/3] bg-white/5">{p.images?.[0] ? <img src={p.images[0]} alt={p.name} className="h-full w-full object-cover"/> : <div className="grid h-full place-items-center text-white/25"><Package size={30}/></div>}</div><div className="p-4"><div className="font-bold">{p.name}</div><div className="text-xs text-white/35">{p.brand || '—'} · {p.category || 'Uncategorised'}</div><div className="mt-1 text-[11px] text-white/30">{Array.isArray(p.images) ? `${p.images.length} photo${p.images.length === 1 ? '' : 's'}` : 'No photos'}</div><div className="mt-3 flex items-center justify-between"><b>{money(p.price_kobo)}</b><Status value={p.stock_status}/></div><button onClick={() => setSelected(p)} className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg border border-white/10 py-2 text-xs font-bold hover:bg-white/5"><Pencil size={13}/> Edit product</button></div></article>)}</div>
-    {!rows.length && <Empty text="No products yet. Tap Add product to list the first item."/>}
+    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{rows.map(p => (
+      <article key={p.id} className="overflow-hidden rounded-2xl border border-white/10 bg-white/[.02]">
+        <div className="aspect-[4/3] bg-white/5">{p.images?.[0] ? <img src={p.images[0]} alt={p.name} className="h-full w-full object-cover"/> : <div className="grid h-full place-items-center text-white/25"><Package size={30}/></div>}</div>
+        <div className="p-4">
+          <div className="font-bold">{p.name}</div>
+          <div className="text-xs text-white/35">{p.brand || '—'} · {p.category || 'Uncategorised'}</div>
+          <div className="mt-1 text-[11px] text-white/30">{Array.isArray(p.images) ? `${p.images.length} photo${p.images.length === 1 ? '' : 's'}` : 'No photos'}</div>
+          <div className="mt-3 flex items-center justify-between"><b>{money(p.price_kobo)}</b><Status value={p.stock_status}/></div>
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            <button type="button" onClick={() => setSelected(p)} className="flex items-center justify-center gap-2 rounded-lg border border-white/10 py-2 text-xs font-bold hover:bg-white/5"><Pencil size={13}/> Edit</button>
+            <button type="button" disabled={deletingId === p.id} onClick={() => void remove(p)} className="flex items-center justify-center gap-2 rounded-lg border border-red-400/30 bg-red-500/10 py-2 text-xs font-bold text-red-200 hover:bg-red-500/20 disabled:opacity-50"><Trash2 size={13}/>{deletingId === p.id ? '…' : 'Delete'}</button>
+          </div>
+        </div>
+      </article>
+    ))}</div>
+    {!rows.length && <Empty text="No products yet. Tap Add product, upload photos, and publish the first listing."/>}
     {(selected || creating) && <ProductModal product={selected} suppliers={suppliers} onClose={() => { setSelected(null); setCreating(false); }} onSaved={() => { setSelected(null); setCreating(false); onRefresh(); }}/>}
   </section>;
 }
@@ -157,9 +192,9 @@ function ProductModal({ product, suppliers, onClose, onSaved }: { product: Any |
       <Label text="Supplier"><select value={form.supplierId} onChange={e=>set('supplierId',e.target.value)} className={field}><option value="">No supplier</option>{suppliers.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select></Label>
       <Label text="Stock status"><select value={form.stock} onChange={e=>set('stock',e.target.value)} className={field}><option value="available">Available</option><option value="low_stock">Low stock</option><option value="out_of_stock">Out of stock</option><option value="unavailable">Unavailable</option></select></Label>
       <Label text="Condition"><select value={form.condition} onChange={e=>set('condition',e.target.value)} className={field}><option>New</option><option>Open box</option><option>Used - like new</option><option>Used - good</option><option>Refurbished</option></select></Label>
-      <Label text="Storage"><input value={form.storage} onChange={e=>set('storage',e.target.value)} placeholder="128GB, 256GB, 512GB" className={field}/></Label>
-      <Label text="Color"><input value={form.color} onChange={e=>set('color',e.target.value)} placeholder="Black, Blue, Silver" className={field}/></Label>
-      <Label text="Source location"><input value={form.sourceLocation} onChange={e=>set('sourceLocation',e.target.value)} placeholder="Computer Village, Ikeja" className={field}/></Label>
+      <Label text="Storage"><input value={form.storage} onChange={e=>set('storage',e.target.value)} placeholder="e.g. 256GB" className={field}/></Label>
+      <Label text="Color"><input value={form.color} onChange={e=>set('color',e.target.value)} placeholder="e.g. Black" className={field}/></Label>
+      <Label text="Source location"><input value={form.sourceLocation} onChange={e=>set('sourceLocation',e.target.value)} placeholder="e.g. Owerri" className={field}/></Label>
       <Label text="Description"><textarea value={form.description} onChange={e=>set('description',e.target.value)} rows={3} placeholder="What the buyer should know." className={field}/></Label>
     </div>
     <label className="mt-4 flex items-center gap-3 text-sm"><input type="checkbox" checked={form.active} onChange={e=>set('active',e.target.checked)} /> Product is active on storefront</label>
