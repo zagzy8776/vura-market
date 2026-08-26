@@ -1,10 +1,7 @@
 /**
- * OneSignal Web SDK (browser).
- * Env: VITE_ONESIGNAL_APP_ID
- *
- * - Soft-prompts after a short delay (not on first paint)
- * - On Allow: welcome once + tell server (admin can get one-time "new subscriber")
- * - linkOneSignalUser(userId) after login so server targets external_user_ids
+ * OneSignal helpers (browser).
+ * SDK is loaded + init'd from index.html (App ID e1e24d70-...).
+ * This module: soft prompt, welcome once, link external user id on login.
  */
 
 declare global {
@@ -27,39 +24,16 @@ type OneSignalAPI = {
   Notifications?: {
     permission?: boolean | string;
     requestPermission?: () => Promise<boolean | void>;
-    addEventListener?: (event: string, cb: (e: unknown) => void) => void;
   };
 };
 
 const WELCOME_KEY = 'vura_onesignal_welcome_v1';
 const PROMPT_KEY = 'vura_onesignal_prompt_v1';
 
-let scriptLoaded = false;
-let initStarted = false;
-
-function appId() {
-  return (import.meta as { env?: { VITE_ONESIGNAL_APP_ID?: string } }).env?.VITE_ONESIGNAL_APP_ID;
-}
-
-function loadScript(): Promise<void> {
-  if (scriptLoaded || typeof document === 'undefined') return Promise.resolve();
-  const w = window as unknown as { __onesignalScriptPromise?: Promise<void> };
-  if (w.__onesignalScriptPromise) return w.__onesignalScriptPromise;
-
-  const p = new Promise<void>((resolve, reject) => {
-    window.OneSignalDeferred = window.OneSignalDeferred || [];
-    const s = document.createElement('script');
-    s.src = 'https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js';
-    s.async = true;
-    s.onload = () => {
-      scriptLoaded = true;
-      resolve();
-    };
-    s.onerror = () => reject(new Error('Failed to load OneSignal SDK'));
-    document.head.appendChild(s);
-  });
-  w.__onesignalScriptPromise = p;
-  return p;
+function defer(fn: (OneSignal: OneSignalAPI) => void | Promise<void>) {
+  if (typeof window === 'undefined') return;
+  window.OneSignalDeferred = window.OneSignalDeferred || [];
+  window.OneSignalDeferred.push(fn);
 }
 
 async function reportSubscription(kind: 'welcome' | 'subscribed') {
@@ -97,105 +71,62 @@ async function onOptedIn() {
   await reportSubscription('welcome');
 }
 
-/** Init once. Soft-asks permission after ~12s if not already decided. */
+/** Soft-prompt once + welcome after Allow. Init already ran in index.html. */
 export async function initOneSignal() {
-  const id = appId();
-  if (!id || typeof window === 'undefined') return;
-  if (initStarted) return;
-  initStarted = true;
+  if (typeof window === 'undefined') return;
 
-  try {
-    await loadScript();
-    window.OneSignalDeferred = window.OneSignalDeferred || [];
-    window.OneSignalDeferred.push(async (OneSignal) => {
-      await OneSignal.init({
-        appId: id,
-        allowLocalhostAsSecureOrigin: true,
-        serviceWorkerPath: '/OneSignalSDKWorker.js',
-        serviceWorkerParam: { scope: '/' },
-        promptOptions: {
-          slidedown: {
-            prompts: [
-              {
-                type: 'push',
-                autoPrompt: false,
-                text: {
-                  actionMessage: 'Allow notifications so we can update you on orders and delivery.',
-                  acceptButton: 'Allow',
-                  cancelButton: 'Not now',
-                },
-                delay: { pageViews: 1, timeDelay: 12 },
-              },
-            ],
-          },
-        },
+  defer(async (OneSignal) => {
+    try {
+      OneSignal.User?.PushSubscription?.addEventListener?.('change', (event) => {
+        if (event?.current?.optedIn) void onOptedIn();
       });
+    } catch {
+      // ignore
+    }
 
-      try {
-        OneSignal.User?.PushSubscription?.addEventListener?.('change', (event) => {
-          if (event?.current?.optedIn) void onOptedIn();
-        });
-      } catch {
-        // ignore
+    try {
+      const prompted = localStorage.getItem(PROMPT_KEY);
+      if (!prompted) {
+        window.setTimeout(() => {
+          void (async () => {
+            try {
+              localStorage.setItem(PROMPT_KEY, '1');
+              await OneSignal.Notifications?.requestPermission?.();
+              if (OneSignal.User?.PushSubscription?.optedIn) void onOptedIn();
+            } catch {
+              // dismissed / blocked
+            }
+          })();
+        }, 12_000);
+      } else if (OneSignal.User?.PushSubscription?.optedIn) {
+        void onOptedIn();
       }
-
-      try {
-        const prompted = localStorage.getItem(PROMPT_KEY);
-        if (!prompted) {
-          window.setTimeout(() => {
-            void (async () => {
-              try {
-                localStorage.setItem(PROMPT_KEY, '1');
-                await OneSignal.Notifications?.requestPermission?.();
-                if (OneSignal.User?.PushSubscription?.optedIn) void onOptedIn();
-              } catch {
-                // dismissed
-              }
-            })();
-          }, 12_000);
-        } else if (OneSignal.User?.PushSubscription?.optedIn) {
-          void onOptedIn();
-        }
-      } catch {
-        // ignore
-      }
-    });
-  } catch {
-    initStarted = false;
-  }
+    } catch {
+      // ignore
+    }
+  });
 }
 
+/** Bind this browser to your logged-in user id (admin or customer). */
 export async function linkOneSignalUser(userId: string | null | undefined) {
-  if (!userId || !appId() || typeof window === 'undefined') return;
-  try {
-    await loadScript();
-    window.OneSignalDeferred = window.OneSignalDeferred || [];
-    window.OneSignalDeferred.push(async (OneSignal) => {
-      try {
-        await OneSignal.login(String(userId));
-        if (OneSignal.User?.PushSubscription?.optedIn) void onOptedIn();
-      } catch {
-        // ignore
-      }
-    });
-  } catch {
-    // ignore
-  }
+  if (!userId || typeof window === 'undefined') return;
+  defer(async (OneSignal) => {
+    try {
+      await OneSignal.login(String(userId));
+      if (OneSignal.User?.PushSubscription?.optedIn) void onOptedIn();
+    } catch {
+      // ignore
+    }
+  });
 }
 
 export async function unlinkOneSignalUser() {
-  if (!appId() || typeof window === 'undefined') return;
-  try {
-    await loadScript();
-    window.OneSignalDeferred = window.OneSignalDeferred || [];
-    window.OneSignalDeferred.push(async (OneSignal) => {
-      try {
-        await OneSignal.logout();
-      } catch {
-        // ignore
-      }
-    });
-  } catch {
-    // ignore
-  }
+  if (typeof window === 'undefined') return;
+  defer(async (OneSignal) => {
+    try {
+      await OneSignal.logout();
+    } catch {
+      // ignore
+    }
+  });
 }
