@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS admin_roles (
 CREATE TABLE IF NOT EXISTS admin_permissions (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   code text NOT NULL UNIQUE,
-  name text NOT NULL,
+  name text,
   description text,
   created_at timestamptz NOT NULL DEFAULT now()
 );
@@ -32,6 +32,9 @@ CREATE TABLE IF NOT EXISTS admin_role_permissions (
   created_at timestamptz NOT NULL DEFAULT now(),
   PRIMARY KEY (role_id, permission_id)
 );
+
+-- Add name column if it doesn't exist
+ALTER TABLE admin_permissions ADD COLUMN IF NOT EXISTS name text;
 
 -- Create default roles
 INSERT INTO admin_roles (name, description) VALUES
