@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { X, Save, ShieldCheck } from 'lucide-react';
 import { money } from '@/lib/money';
+import ContactButtons from '@/components/ContactButtons';
 
 type AnyOrder = Record<string, any>;
 type AnySupplier = Record<string, any>;
@@ -52,7 +53,13 @@ export default function OrderActionPanel({ order, suppliers, onClose, onSaved }:
     <aside className="ml-auto flex h-full w-full max-w-xl flex-col border-l border-white/10 bg-[#0b0d17] shadow-2xl">
       <header className="flex items-center gap-3 border-b border-white/10 px-5 py-4"><div className="min-w-0 flex-1"><div className="text-xs text-white/35">ORDER OPERATIONS</div><h2 className="truncate text-lg font-black">{order.order_number}</h2></div><button onClick={onClose} className="grid h-9 w-9 place-items-center rounded-lg border border-white/10"><X size={17}/></button></header>
       <div className="flex-1 overflow-y-auto p-5">
-        <div className="rounded-2xl border border-white/10 bg-white/[.025] p-4"><div className="font-bold">{order.product_name}</div><div className="mt-1 text-sm text-white/45">{order.delivery_name} · {order.delivery_phone}</div><div className="mt-2 text-sm text-white/45">{order.delivery_address || 'No address recorded'}</div><div className="mt-4 text-xl font-black">{money(order.total_kobo)}</div></div>
+        <div className="rounded-2xl border border-white/10 bg-white/[.025] p-4">
+          <div className="font-bold">{order.product_name}</div>
+          <div className="mt-1 text-sm text-white/45">{order.delivery_name} · {order.delivery_phone || 'No phone'}</div>
+          <div className="mt-2 text-sm text-white/45">{order.delivery_address || 'No address recorded'}</div>
+          <div className="mt-3"><ContactButtons phone={order.delivery_phone} orderNumber={order.order_number} kind="order" /></div>
+          <div className="mt-4 text-xl font-black">{money(order.total_kobo)}</div>
+        </div>
         <div className="mt-5 grid gap-4 sm:grid-cols-2">
           <Field label="Order status"><select value={status} onChange={e => setStatus(e.target.value)}><option>awaiting_payment</option><option>payment_verification</option><option>confirmed</option><option>sourcing</option><option>purchased</option><option>out_for_delivery</option><option>delivered</option><option>cancelled</option></select></Field>
           <Field label="Payment status"><select value={paymentStatus} onChange={e => setPaymentStatus(e.target.value)}><option>unpaid</option><option>pending_verification</option><option>paid</option><option>rejected</option></select></Field>
