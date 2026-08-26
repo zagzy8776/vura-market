@@ -1,0 +1,64 @@
+# fly.toml app configuration file generated for vura-market-app
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+
+app = "vura-market-app"
+primary_region = "iad"
+
+[build]
+  builder = "paketobuildpacks"
+  buildpacks = ["gcr.io/buildpacks/nodejs"]
+
+[env]
+  NODE_ENV = "production"
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ["app"]
+
+[[services]]
+  protocol = "tcp"
+  internal_port = 3000
+  processes = ["app"]
+  
+  [services.concurrency]
+    type = "connections"
+    hard_limit = 1000
+    soft_limit = 800
+
+  [[services.ports]]
+    port = 80
+    handlers = ["http"]
+    force_https = true
+
+  [[services.ports]]
+    port = 443
+    handlers = ["tls", "http"]
+
+  [[services.tcp_checks]]
+    interval = 15000
+    timeout = 5000
+    grace_period = "5s"
+
+[checks]
+  [checks.status]
+    type = "http"
+    interval = 30000
+    timeout = 5000
+    grace_period = "10s"
+    method = "GET"
+    path = "/api/health"
+
+[env]
+  NODE_ENV = "production"
+  NODE_OPTIONS = "--max-old-space-size=256"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"
+
+# Secrets should be set via: flyctl secrets set VAR_NAME=value
+# Never commit secrets to this file
