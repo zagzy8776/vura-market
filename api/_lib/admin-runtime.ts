@@ -55,11 +55,48 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const ok = await requireAdminPermission(req, res, 'dashboard.read');
       if (!ok) return;
       const [live] = await sql`SELECT COUNT(*)::int AS count FROM products WHERE is_active = true`;
+      const [monthStats] = await sql`
+        SELECT
+          COUNT(*)::int AS orders,
+          COALESCE(SUM(total_kobo), 0)::bigint AS revenue,
+          COALESCE(SUM(actual_profit_kobo), 0)::bigint AS profit
+        FROM orders
+        WHERE created_at >= date_trunc('month', now())
+          AND COALESCE(status, '') <> 'cancelled'
+      `;
+      const [pendingPayment] = await sql`
+        SELECT COUNT(*)::int AS count FROM orders
+        WHERE payment_status IN ('unpaid', 'pending_verification')
+          AND COALESCE(status, '') <> 'cancelled'
+      `;
+      const [toFulfill] = await sql`
+        SELECT COUNT(*)::int AS count FROM orders
+        WHERE payment_status = 'paid'
+          AND COALESCE(status, '') NOT IN ('delivered', 'cancelled')
+      `;
+      const [lowStock] = await sql`
+        SELECT COUNT(*)::int AS count FROM products
+        WHERE is_active = true AND stock_status IN ('low_stock', 'out_of_stock')
+      `;
+      const recentOrders = await sql`
+        SELECT o.id, o.order_number, o.total_kobo, o.status, o.payment_status, o.created_at,
+               o.delivery_name, p.name AS product_name
+        FROM orders o
+        JOIN products p ON p.id = o.product_id
+        ORDER BY o.created_at DESC
+        LIMIT 8
+      `;
       return json(res, 200, {
         liveProducts: live?.count || 0,
-        monthlyOrders: 0,
-        monthlyRevenueKobo: 0,
-        monthlyProfitKobo: 0,
+        monthlyOrders: monthStats?.orders || 0,
+        monthlyRevenueKobo: Number(monthStats?.revenue || 0),
+        monthlyProfitKobo: Number(monthStats?.profit || 0),
+        attention: {
+          pendingPayment: pendingPayment?.count || 0,
+          toFulfill: toFulfill?.count || 0,
+          lowStock: lowStock?.count || 0,
+        },
+        recentOrders,
         customers: [],
         notifications: [],
         audit: [],

@@ -235,11 +235,30 @@ export type OrderEvent = {
   created_at: string;
 };
 
+export type OverviewAttention = {
+  pendingPayment: number;
+  toFulfill: number;
+  lowStock: number;
+};
+
+export type OverviewRecentOrder = {
+  id: string;
+  order_number: string;
+  total_kobo: number;
+  status: string;
+  payment_status: string;
+  created_at: string;
+  delivery_name?: string | null;
+  product_name?: string | null;
+};
+
 export type Overview = {
   liveProducts: number;
   monthlyOrders: number;
   monthlyRevenueKobo: number;
   monthlyProfitKobo: number;
+  attention?: OverviewAttention;
+  recentOrders?: OverviewRecentOrder[];
   customers?: Customer[];
   audit?: Audit[];
   orderEvents?: OrderEvent[];

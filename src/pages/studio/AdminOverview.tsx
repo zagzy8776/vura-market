@@ -1,10 +1,10 @@
-import { AlertCircle, TrendingDown, TrendingUp, Clock, CheckCircle, AlertTriangle } from 'lucide-react';
+import { AlertCircle, AlertTriangle, Clock, Package, Plus, ShoppingBag, ArrowRight } from 'lucide-react';
 import { money } from '@/lib/money';
-import type { Overview, ResourceState } from '@/types';
+import type { Overview, OverviewRecentOrder, ResourceState, StudioTab } from '@/types';
 
 interface AdminOverviewProps {
   state: ResourceState<Overview>;
-  onNavigate: (section: string) => void;
+  onNavigate: (section: StudioTab | string) => void;
   onRefresh: () => void;
 }
 
@@ -16,7 +16,7 @@ export default function AdminOverview({ state, onNavigate, onRefresh }: AdminOve
           <div className="inline-block animate-spin">
             <div className="h-8 w-8 rounded-full border-4 border-white/20 border-t-vura-500" />
           </div>
-          <p className="mt-4 text-sm">Loading overview...</p>
+          <p className="mt-4 text-sm">Loading overview…</p>
         </div>
       </div>
     );
@@ -34,6 +34,7 @@ export default function AdminOverview({ state, onNavigate, onRefresh }: AdminOve
               <p className="mt-2 text-xs text-red-300/50">Request ID: {state.requestId}</p>
             )}
             <button
+              type="button"
               onClick={onRefresh}
               className="mt-4 rounded-lg bg-red-500/20 px-3 py-2 text-sm font-semibold text-red-200 hover:bg-red-500/30"
             >
@@ -54,189 +55,112 @@ export default function AdminOverview({ state, onNavigate, onRefresh }: AdminOve
   }
 
   const overview = state.data;
+  const attention = overview.attention || { pendingPayment: 0, toFulfill: 0, lowStock: 0 };
+  const recent = overview.recentOrders || [];
+  const totalAttention = attention.pendingPayment + attention.toFulfill + attention.lowStock;
 
   return (
     <div>
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-black tracking-tight">Command Center</h1>
-        <p className="mt-2 text-sm text-white/45">Real-time commerce operations status and action items</p>
+      <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-3xl font-black tracking-tight">Command Center</h1>
+          <p className="mt-1 text-sm text-white/45">What needs you right now — and how the shop is doing</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => onNavigate('products')}
+            className="flex items-center gap-2 rounded-xl bg-vura-500 px-4 py-2 text-sm font-bold"
+          >
+            <Plus size={15} /> Add product
+          </button>
+          <button
+            type="button"
+            onClick={() => onNavigate('orders')}
+            className="flex items-center gap-2 rounded-xl border border-white/10 px-4 py-2 text-sm font-bold hover:bg-white/5"
+          >
+            <ShoppingBag size={15} /> Orders
+          </button>
+        </div>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-8">
-        <KPICard
-          label="Live products"
-          value={overview.liveProducts}
-          trend={null}
-          icon={null}
-        />
-        <KPICard
-          label="Orders this month"
-          value={overview.monthlyOrders}
-          trend={null}
-          icon={null}
-        />
-        <KPICard
-          label="Revenue this month"
-          value={money(overview.monthlyRevenueKobo)}
-          trend={null}
-          icon="currency"
-        />
-        <KPICard
-          label="Gross profit"
-          value={money(overview.monthlyProfitKobo)}
-          trend={null}
-          icon="currency"
-        />
+      <div className="mb-8 grid gap-3 grid-cols-2 lg:grid-cols-4">
+        <KPICard label="Live products" value={overview.liveProducts} />
+        <KPICard label="Orders this month" value={overview.monthlyOrders} />
+        <KPICard label="Revenue this month" value={money(overview.monthlyRevenueKobo)} />
+        <KPICard label="Gross profit" value={money(overview.monthlyProfitKobo)} />
       </div>
 
-      {/* Actions Queue */}
       <div className="mb-8">
-        <h2 className="text-lg font-bold mb-4">Needs Attention</h2>
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <h2 className="text-lg font-bold">Needs attention</h2>
+          {totalAttention === 0 && (
+            <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-2.5 py-1 text-[11px] font-bold text-emerald-300">
+              All clear
+            </span>
+          )}
+        </div>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <ActionCard
-            title="Payment Verification"
-            count={0}
+            title="Payment verification"
+            count={attention.pendingPayment}
             status="pending"
-            description="Orders awaiting verification"
-            onClick={() => onNavigate('payments')}
-          />
-          <ActionCard
-            title="Orders Awaiting Sourcing"
-            count={0}
-            status="warning"
-            description="Payment verified, not sourced"
+            description="Unpaid or awaiting verification"
             onClick={() => onNavigate('orders')}
           />
           <ActionCard
-            title="Orders Awaiting Dispatch"
-            count={0}
+            title="Orders to fulfill"
+            count={attention.toFulfill}
             status="warning"
-            description="Sourced, not dispatched"
-            onClick={() => onNavigate('delivery')}
+            description="Paid — not yet delivered"
+            onClick={() => onNavigate('orders')}
           />
           <ActionCard
-            title="Failed Deliveries"
-            count={0}
-            status="error"
-            description="Delivery updates failed"
-            onClick={() => onNavigate('delivery')}
-          />
-          <ActionCard
-            title="Low Stock Products"
-            count={0}
+            title="Low / out of stock"
+            count={attention.lowStock}
             status="warning"
-            description="Below reorder level"
-            onClick={() => onNavigate('inventory')}
-          />
-          <ActionCard
-            title="Supplier SLA Violations"
-            count={0}
-            status="error"
-            description="Missed delivery commitments"
-            onClick={() => onNavigate('suppliers')}
+            description="Active products need restock"
+            onClick={() => onNavigate('products')}
           />
         </div>
       </div>
 
-      {/* Recent Activity */}
-      <div className="grid gap-8 lg:grid-cols-2">
-        {/* Recent Orders */}
-        <div>
-          <h2 className="text-lg font-bold mb-4">Recent Orders</h2>
-          <div className="rounded-2xl border border-white/10 bg-white/[.025] overflow-hidden">
-            {overview.orderEvents && overview.orderEvents.length > 0 ? (
-              <div className="divide-y divide-white/5">
-                {overview.orderEvents.slice(0, 5).map((event) => (
-                  <div key={event.id} className="p-4 hover:bg-white/[.02] transition cursor-pointer">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="font-semibold text-sm">{event.order_number}</p>
-                        <p className="text-xs text-white/50 mt-1">{event.event_type}</p>
-                      </div>
-                      <p className="text-[11px] text-white/40 whitespace-nowrap">
-                        {new Date(event.created_at).toLocaleTimeString('en-NG', {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="p-8 text-center text-white/50">
-                <p className="text-sm">No recent orders</p>
-              </div>
-            )}
-          </div>
+      <div>
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-lg font-bold">Recent orders</h2>
+          <button
+            type="button"
+            onClick={() => onNavigate('orders')}
+            className="flex items-center gap-1 text-xs font-bold text-white/45 hover:text-white"
+          >
+            View all <ArrowRight size={12} />
+          </button>
         </div>
-
-        {/* Recent Activity */}
-        <div>
-          <h2 className="text-lg font-bold mb-4">Recent Admin Activity</h2>
-          <div className="rounded-2xl border border-white/10 bg-white/[.025] overflow-hidden">
-            {overview.audit && overview.audit.length > 0 ? (
-              <div className="divide-y divide-white/5">
-                {overview.audit.slice(0, 5).map((audit) => (
-                  <div key={audit.id} className="p-4 hover:bg-white/[.02] transition">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="font-semibold text-sm">{audit.actor_name || 'System'}</p>
-                        <p className="text-xs text-white/50 mt-1">
-                          {audit.action} {audit.entity_type}
-                        </p>
-                      </div>
-                      <p className="text-[11px] text-white/40 whitespace-nowrap">
-                        {new Date(audit.created_at).toLocaleTimeString('en-NG', {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="p-8 text-center text-white/50">
-                <p className="text-sm">No recent activity</p>
-              </div>
-            )}
-          </div>
+        <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/[.025]">
+          {recent.length > 0 ? (
+            <div className="divide-y divide-white/5">
+              {recent.map((order) => (
+                <RecentOrderRow key={order.id} order={order} onClick={() => onNavigate('orders')} />
+              ))}
+            </div>
+          ) : (
+            <div className="p-10 text-center text-white/40">
+              <Package className="mx-auto mb-2 opacity-40" size={28} />
+              <p className="text-sm">No orders yet</p>
+              <p className="mt-1 text-xs text-white/30">New orders will show up here</p>
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
 }
 
-function KPICard({
-  label,
-  value,
-  trend,
-  icon,
-}: {
-  label: string;
-  value: string | number;
-  trend?: 'up' | 'down' | null;
-  icon?: 'currency' | null;
-}) {
+function KPICard({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[.025] p-5">
+    <div className="rounded-2xl border border-white/10 bg-white/[.025] p-4 sm:p-5">
       <p className="text-[11px] font-bold uppercase tracking-wider text-white/40">{label}</p>
-      <div className="mt-4 flex items-end justify-between gap-3">
-        <p className="text-2xl font-black">{value}</p>
-        {trend && (
-          <div
-            className={`flex items-center gap-1 text-xs font-bold ${
-              trend === 'up' ? 'text-green-400' : 'text-red-400'
-            }`}
-          >
-            {trend === 'up' ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
-            {trend === 'up' ? 'Up' : 'Down'}
-          </div>
-        )}
-      </div>
+      <p className="mt-3 text-xl font-black sm:text-2xl">{value}</p>
     </div>
   );
 }
@@ -259,27 +183,51 @@ function ActionCard({
     warning: { bg: 'bg-amber-500/10', border: 'border-amber-500/30', icon: AlertTriangle, color: 'text-amber-400' },
     error: { bg: 'bg-red-500/10', border: 'border-red-500/30', icon: AlertCircle, color: 'text-red-400' },
   };
-
   const config = statusConfig[status];
   const Icon = config.icon;
+  const active = count > 0;
 
   return (
     <button
+      type="button"
       onClick={onClick}
-      className={`rounded-xl border p-4 text-left transition hover:bg-white/[.02] ${config.bg} ${config.border}`}
+      className={`rounded-xl border p-4 text-left transition hover:bg-white/[.02] ${
+        active ? `${config.bg} ${config.border}` : 'border-white/10 bg-white/[.02]'
+      }`}
     >
       <div className="flex items-start justify-between gap-3">
-        <div className="flex-1">
-          <p className="font-semibold text-sm">{title}</p>
-          <p className="text-xs text-white/50 mt-1">{description}</p>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold">{title}</p>
+          <p className="mt-1 text-xs text-white/50">{description}</p>
         </div>
-        <Icon className={`${config.color} shrink-0`} size={18} />
+        <Icon className={`${active ? config.color : 'text-white/25'} shrink-0`} size={18} />
       </div>
-      {count > 0 && (
-        <div className="mt-3 inline-block rounded-full bg-white/10 px-2 py-1 text-xs font-bold">
-          {count} action{count !== 1 ? 's' : ''}
-        </div>
-      )}
+      <div className="mt-3 inline-block rounded-full bg-white/10 px-2.5 py-1 text-xs font-bold">
+        {count > 0 ? `${count} action${count === 1 ? '' : 's'}` : 'None'}
+      </div>
+    </button>
+  );
+}
+
+function RecentOrderRow({ order, onClick }: { order: OverviewRecentOrder; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex w-full items-center justify-between gap-3 p-4 text-left hover:bg-white/[.03]"
+    >
+      <div className="min-w-0">
+        <p className="truncate text-sm font-bold">{order.order_number}</p>
+        <p className="mt-0.5 truncate text-xs text-white/45">
+          {order.product_name || 'Product'} · {order.delivery_name || 'Customer'}
+        </p>
+      </div>
+      <div className="shrink-0 text-right">
+        <p className="text-sm font-bold">{money(order.total_kobo)}</p>
+        <p className="mt-0.5 text-[11px] capitalize text-white/40">
+          {String(order.payment_status || order.status || '—').replaceAll('_', ' ')}
+        </p>
+      </div>
     </button>
   );
 }
