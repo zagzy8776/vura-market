@@ -1,7 +1,8 @@
 /**
- * OneSignal helpers (browser).
- * SDK is loaded + init'd from index.html (App ID e1e24d70-...).
- * This module: soft prompt, welcome once, link external user id on login.
+ * OneSignal Web SDK (browser).
+ * App ID: e1e24d70-25cf-4c01-b66e-f17b8a73a0ea
+ * Optional override: VITE_ONESIGNAL_APP_ID
+ * Service worker: /OneSignalSDKWorker.js
  */
 
 declare global {
@@ -27,8 +28,18 @@ type OneSignalAPI = {
   };
 };
 
+const DEFAULT_APP_ID = 'e1e24d70-25cf-4c01-b66e-f17b8a73a0ea';
 const WELCOME_KEY = 'vura_onesignal_welcome_v1';
 const PROMPT_KEY = 'vura_onesignal_prompt_v1';
+
+let initStarted = false;
+
+function appId() {
+  return (
+    (import.meta as { env?: { VITE_ONESIGNAL_APP_ID?: string } }).env?.VITE_ONESIGNAL_APP_ID ||
+    DEFAULT_APP_ID
+  );
+}
 
 function defer(fn: (OneSignal: OneSignalAPI) => void | Promise<void>) {
   if (typeof window === 'undefined') return;
@@ -71,11 +82,23 @@ async function onOptedIn() {
   await reportSubscription('welcome');
 }
 
-/** Soft-prompt once + welcome after Allow. Init already ran in index.html. */
+/** Init OneSignal + soft prompt + welcome after Allow. */
 export async function initOneSignal() {
-  if (typeof window === 'undefined') return;
+  if (typeof window === 'undefined' || initStarted) return;
+  initStarted = true;
 
   defer(async (OneSignal) => {
+    try {
+      await OneSignal.init({
+        appId: appId(),
+        serviceWorkerPath: '/OneSignalSDKWorker.js',
+        serviceWorkerParam: { scope: '/' },
+        allowLocalhostAsSecureOrigin: true,
+      });
+    } catch {
+      // may already be inited
+    }
+
     try {
       OneSignal.User?.PushSubscription?.addEventListener?.('change', (event) => {
         if (event?.current?.optedIn) void onOptedIn();
@@ -94,7 +117,7 @@ export async function initOneSignal() {
               await OneSignal.Notifications?.requestPermission?.();
               if (OneSignal.User?.PushSubscription?.optedIn) void onOptedIn();
             } catch {
-              // dismissed / blocked
+              // dismissed
             }
           })();
         }, 12_000);
@@ -107,7 +130,6 @@ export async function initOneSignal() {
   });
 }
 
-/** Bind this browser to your logged-in user id (admin or customer). */
 export async function linkOneSignalUser(userId: string | null | undefined) {
   if (!userId || typeof window === 'undefined') return;
   defer(async (OneSignal) => {
