@@ -1,0 +1,22 @@
+name: Operations jobs
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      # Payout eligibility evaluation, supplier SLA violation detection and
+      # courier webhook retry/dead-letter recovery. All idempotent.
+      - run: npm run jobs:run
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}

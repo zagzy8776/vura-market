@@ -31,3 +31,5 @@ dist-ssr
 
 # CodeAm local infrastructure (not part of the repo)
 .codeam/
+.vercel
+.env*
