@@ -39,6 +39,7 @@ const CATEGORY_ICONS: Record<string, typeof Headphones> = {
   automotive: Car,
   phones: Headphones,
   phone: Headphones,
+  // detailed icons also in CategoriesPage
   laptops: PackageSearch,
   laptop: PackageSearch,
   gaming: PackageSearch,
@@ -100,7 +101,9 @@ export function HomePage({ categories }: { categories: CategoryPublic[] }) {
         icon: CATEGORY_ICONS[c.slug] || CATEGORY_ICONS[c.slug.split('-')[0]] || PackageSearch,
       }));
     }
-    return FALLBACK_CATEGORIES;
+    // Do not show placeholder marketplace categories (Fashion, Groceries…) —
+    // they are not in the catalog and cause the "categories appear then change" flicker.
+    return [];
   }, [categories, localCategories]);
 
   if (failed && !deals) {
@@ -194,26 +197,33 @@ export function HomePage({ categories }: { categories: CategoryPublic[] }) {
       <section className="mx-auto max-w-7xl px-4 py-12 md:px-6">
         <div className="mb-6 flex items-end justify-between">
           <h2 className="font-display text-xl font-bold text-[#151527] sm:text-2xl">Shop by Category</h2>
-          <Link to="/search" className="text-sm font-bold text-vura-500 hover:text-vura-600">
+          <Link to="/categories" className="text-sm font-bold text-vura-500 hover:text-vura-600">
             View all
           </Link>
         </div>
         <div className="grid grid-cols-4 gap-3 sm:grid-cols-4 md:grid-cols-8">
-          {categoryCards.map((c) => {
-            const Icon = c.icon;
-            return (
-              <Link
-                key={c.slug}
-                to={`/c/${c.slug}`}
-                className="group flex flex-col items-center gap-2 rounded-2xl p-3 text-center transition hover:-translate-y-0.5"
-              >
-                <span className="grid h-14 w-14 place-items-center rounded-full bg-[#f3f1ff] text-vura-500 transition group-hover:bg-vura-500 group-hover:text-white sm:h-16 sm:w-16">
-                  <Icon size={24} aria-hidden />
-                </span>
-                <span className="text-[11px] font-bold leading-tight text-[#151527] sm:text-xs">{c.name}</span>
-              </Link>
-            );
-          })}
+          {categoryCards.length === 0
+            ? Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="flex flex-col items-center gap-2 p-3">
+                  <span className="h-14 w-14 animate-pulse rounded-full bg-[#ececf3] sm:h-16 sm:w-16" />
+                  <span className="h-3 w-12 animate-pulse rounded bg-[#ececf3]" />
+                </div>
+              ))
+            : categoryCards.map((c) => {
+                const Icon = c.icon;
+                return (
+                  <Link
+                    key={c.slug}
+                    to={`/c/${c.slug}`}
+                    className="group flex flex-col items-center gap-2 rounded-2xl p-3 text-center transition hover:-translate-y-0.5"
+                  >
+                    <span className="grid h-14 w-14 place-items-center rounded-full bg-[#f3f1ff] text-vura-500 transition group-hover:bg-vura-500 group-hover:text-white sm:h-16 sm:w-16">
+                      <Icon size={24} aria-hidden />
+                    </span>
+                    <span className="text-[11px] font-bold leading-tight text-[#151527] sm:text-xs">{c.name}</span>
+                  </Link>
+                );
+              })}
         </div>
       </section>
 

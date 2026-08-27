@@ -13,6 +13,7 @@ import type { CategoryPublic } from '@/types';
 
 const HomePage = lazy(() => import('./pages/HomePage').then((m) => ({ default: m.HomePage })));
 const CatalogPage = lazy(() => import('./pages/CatalogPage').then((m) => ({ default: m.CatalogPage })));
+const CategoriesPage = lazy(() => import('./pages/CategoriesPage').then((m) => ({ default: m.CategoriesPage })));
 const ProductPage = lazy(() => import('./pages/ProductPage').then((m) => ({ default: m.ProductPage })));
 const CartPage = lazy(() => import('./pages/CartPage').then((m) => ({ default: m.CartPage })));
 const CheckoutPage = lazy(() => import('./pages/CheckoutPage').then((m) => ({ default: m.CheckoutPage })));
@@ -30,6 +31,10 @@ function AccountTabGuard({ tab }: { tab: 'orders' | 'wishlist' | 'notifications'
 function RouteView({ categories }: { categories: CategoryPublic[] }) {
   const router = useRouter();
   const path = router.path.replace(/\/+$/, '') || '/';
+
+  if (path === '/categories') {
+    return <CategoriesPage categories={categories} />;
+  }
 
   // Friendly aliases (bookmarks / external links / Jumia-style paths)
   if (path === '/products' || path === '/shop' || path === '/catalog') {
@@ -72,15 +77,44 @@ function RouteView({ categories }: { categories: CategoryPublic[] }) {
 function Shell() {
   const router = useRouter();
   const cart = useCart();
-  const [categories, setCategories] = useState<CategoryPublic[]>([]);
+  const [categories, setCategories] = useState<CategoryPublic[]>(() => {
+    try {
+      const raw = sessionStorage.getItem('vura_categories_v1');
+      if (raw) {
+        const parsed = JSON.parse(raw) as CategoryPublic[];
+        if (Array.isArray(parsed) && parsed.length) return parsed;
+      }
+    } catch { /* ignore */ }
+    return [];
+  });
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   useEffect(() => {
     document.body.classList.add('storefront');
     setSiteJsonLd();
-    storefrontApi.categories()
-      .then((r) => setCategories(r.categories))
-      .catch(() => setCategories([]));
+    let cancelled = false;
+    const load = () =>
+      storefrontApi.categories()
+        .then((r) => {
+          if (cancelled) return;
+          const list = r.categories || [];
+          setCategories(list);
+          try {
+            sessionStorage.setItem('vura_categories_v1', JSON.stringify(list));
+          } catch { /* ignore */ }
+        })
+        .catch(() => {
+          // keep cached categories if network fails
+        });
+    load();
+    // Retry once after 2s if still empty (cold start / flaky proxy)
+    const t = window.setTimeout(() => {
+      if (!cancelled) load();
+    }, 2000);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(t);
+    };
   }, []);
 
   useEffect(() => {

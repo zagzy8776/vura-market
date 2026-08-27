@@ -220,7 +220,7 @@ export function MobileTabBar({ cartCount }: { cartCount: number }) {
     >
       <div className="mx-auto flex max-w-md">
         {tab('/', 'Home', <Home size={20} aria-hidden />)}
-        {tab('/search', 'Categories', <LayoutGrid size={20} aria-hidden />)}
+        {tab('/categories', 'Categories', <LayoutGrid size={20} aria-hidden />)}
         {tab('/cart', 'Cart', <ShoppingCart size={20} aria-hidden />, cartCount)}
         {tab('/track', 'Orders', <Package size={20} aria-hidden />)}
         {tab('/account', 'Account', <User size={20} aria-hidden />)}
