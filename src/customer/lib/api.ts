@@ -1,9 +1,11 @@
+import { apiUrl } from '@/lib/apiBase';
+
 import type { CategoryPublic, CreatedOrder, CustomerOrder, DeliveryQuote, NigeriaLga, NigeriaState, StorefrontProduct } from '@/types';
 
 type Json = Record<string, unknown>;
 
 async function request<T>(url: string, options: RequestInit = {}): Promise<T> {
-  const res = await fetch(url, {
+  const res = await fetch(apiUrl(url), {
     credentials: 'include',
     headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
     ...options,

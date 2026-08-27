@@ -3,6 +3,7 @@ import { ChevronRight, LifeBuoy, MessageCircle } from 'lucide-react';
 import { Link, useRouter } from '../router';
 import { Accordion, Button } from '../components/ui';
 import { telHref, waHref } from '@/lib/phone';
+import { apiUrl } from '@/lib/apiBase';
 
 const FAQS = [
   { q: 'How does Vura work?', a: 'Vura is a curated Nigerian marketplace. Every product is checked by our team. You order and pay by secure bank transfer; once your payment is verified we source, package and dispatch your item with tracking.' },
@@ -16,7 +17,7 @@ export function HelpPage() {
   const router = useRouter();
   const [support, setSupport] = useState({ phone: '', whatsapp: '' });
   useEffect(() => {
-    void fetch('/api/payment-info')
+    void fetch(apiUrl('/api/payment-info'))
       .then((r) => r.json())
       .then((d) => setSupport({ phone: d.supportPhone || '', whatsapp: d.supportWhatsapp || d.supportPhone || '' }))
       .catch(() => undefined);

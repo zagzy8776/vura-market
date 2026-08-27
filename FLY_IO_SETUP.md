@@ -1,5 +1,11 @@
 # Fly.io Deployment Setup for Vura Market
 
+> **Architecture (Aug 2026)**  
+> - **Frontend (customers):** [vura-market.vercel.app](https://vura-market.vercel.app)  
+> - **API host:** [vura-market.fly.dev](https://vura-market.fly.dev) — proxies `/api/*` to the working API (currently Vercel) until native handlers run on Fly.  
+> - Set Fly secrets: `API_ORIGIN`, `FRONTEND_URL`, `CORS_ORIGIN` (see `.env.example`).  
+> - On Vercel, leave `VITE_API_BASE_URL` empty until you deliberately point the browser at Fly.
+
 This guide walks through deploying Vura Market to Fly.io for production use.
 
 ## Prerequisites

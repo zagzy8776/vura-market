@@ -1,3 +1,4 @@
+import { apiUrl } from '@/lib/apiBase';
 const SESSION_KEY = 'vura_session_id';
 const RECENT_SEARCHES_KEY = 'vura_recent_searches';
 const RECENT_PRODUCTS_KEY = 'vura_recent_products';
@@ -24,7 +25,7 @@ function flush() {
   if (!queue.length) return;
   const events = queue.splice(0, queue.length);
   try {
-    void fetch('/api/analytics', {
+    void fetch(apiUrl('/api/analytics'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ events }),

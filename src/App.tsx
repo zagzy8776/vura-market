@@ -8,6 +8,7 @@ import {
 import { useAuth, type AppUser } from '@/context/AuthContext';
 import { money } from '@/lib/money';
 import type { Category, Order, Product, View } from '@/types';
+import { apiUrl } from '@/lib/apiBase';
 
 const categoryGroups = [
   { title: 'Tech', items: ['Phones', 'Laptops', 'Tablets', 'Monitors', 'Accessories'] },
@@ -51,8 +52,8 @@ export default function App() {
 
   // First-load fetch.
   useEffect(() => {
-    fetch('/api/categories').then(r => r.ok ? r.json() : null).then(data => setCategories(data?.categories || [])).catch(() => undefined);
-    fetch('/api/products').then(r => r.ok ? r.json() : null).then(data => setProducts(data?.products || [])).catch(() => undefined);
+    fetch(apiUrl('/api/categories')).then(r => r.ok ? r.json() : null).then(data => setCategories(data?.categories || [])).catch(() => undefined);
+    fetch(apiUrl('/api/products')).then(r => r.ok ? r.json() : null).then(data => setProducts(data?.products || [])).catch(() => undefined);
   }, []);
 
   // Sync URL → view on mount and whenever products load (so deep links like
@@ -186,7 +187,7 @@ function ProductPage({ product, user, onBack }: { product: Product; user: AppUse
     e.preventDefault();
     setBusy(true); setError('');
     try {
-      const r = await fetch('/api/orders', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ productId: product.id, quantity: qty, ...form }) });
+      const r = await fetch(apiUrl('/api/orders'), { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ productId: product.id, quantity: qty, ...form }) });
       const data = await r.json(); if (!r.ok) throw new Error(data.error || 'Unable to create order');
       setCreated(data.order); setPayment(data.payment);
     } catch (err) { setError(err instanceof Error ? err.message : 'Unable to create order'); }
@@ -201,7 +202,7 @@ function PaymentModal({ order, payment, onClose }: { order: Order; payment: { ac
     if (!ref.trim()) return;
     setBusy(true);
     try {
-      const r = await fetch('/api/orders/payment-submission', {
+      const r = await fetch(apiUrl('/api/orders/payment-submission'), {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },

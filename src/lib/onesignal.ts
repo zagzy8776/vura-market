@@ -1,3 +1,4 @@
+import { apiUrl } from '@/lib/apiBase';
 /**
  * OneSignal Web SDK (browser).
  * App ID: e1e24d70-25cf-4c01-b66e-f17b8a73a0ea
@@ -48,7 +49,7 @@ function defer(fn: (OneSignal: OneSignalAPI) => void | Promise<void>) {
 
 async function reportSubscription(kind: 'welcome' | 'subscribed') {
   try {
-    await fetch('/api/notifications', {
+    await fetch(apiUrl('/api/notifications'), {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },

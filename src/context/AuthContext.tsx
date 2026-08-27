@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { AppUser } from '@/types';
 import { linkOneSignalUser, unlinkOneSignalUser } from '@/lib/onesignal';
+import { apiUrl } from '@/lib/apiBase';
 
 export type { AppUser };
 type AuthContextValue = { user: AppUser | null; loading: boolean; signIn: (email: string, password: string) => Promise<{ error: Error | null }>; signUp: (email: string, password: string, name: string) => Promise<{ error: Error | null }>; signOut: () => Promise<void> };
@@ -16,7 +17,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/api/auth/me', { credentials: 'include' })
+    fetch(apiUrl('/api/auth/me'), { credentials: 'include' })
       .then(readUser)
       .then(({ result }) => {
         const u = result.user || null;
@@ -32,7 +33,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loading,
     async signIn(email, password) {
       try {
-        const response = await fetch('/api/auth/login', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) });
+        const response = await fetch(apiUrl('/api/auth/login'), { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) });
         const { result } = await readUser(response);
         if (!response.ok || !result.user) return { error: new Error(result.error || 'Unable to sign in') };
         setUser(result.user);
@@ -44,7 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     async signUp(email, password, name) {
       try {
-        const response = await fetch('/api/auth/signup', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password, name }) });
+        const response = await fetch(apiUrl('/api/auth/signup'), { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password, name }) });
         const { result } = await readUser(response);
         if (!response.ok || !result.user) return { error: new Error(result.error || 'Unable to create account') };
         setUser(result.user);
@@ -55,7 +56,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     },
     async signOut() {
-      try { await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }); } finally { void unlinkOneSignalUser(); setUser(null); }
+      try { await fetch(apiUrl('/api/auth/logout'), { method: 'POST', credentials: 'include' }); } finally { void unlinkOneSignalUser(); setUser(null); }
     },
   }), [loading, user]);
 

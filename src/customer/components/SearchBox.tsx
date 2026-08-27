@@ -5,6 +5,7 @@ import { money } from '@/lib/money';
 import { getRecentSearches, rememberSearch, trackSearch } from '../lib/analytics';
 import { optimizedImage } from '../lib/images';
 import type { StorefrontProduct } from '@/types';
+import { apiUrl } from '@/lib/apiBase';
 
 export function SearchBox({ autoFocus, onNavigate, placeholder = 'Search Vura...' }: { autoFocus?: boolean; onNavigate?: () => void; placeholder?: string }) {
   const [value, setValue] = useState('');
@@ -17,7 +18,7 @@ export function SearchBox({ autoFocus, onNavigate, placeholder = 'Search Vura...
 
   useEffect(() => {
     setRecent(getRecentSearches());
-    fetch('/api/analytics?resource=trending_searches')
+    fetch(apiUrl('/api/analytics?resource=trending_searches'))
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => setTrending(d?.trending || []))
       .catch(() => undefined);
