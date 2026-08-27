@@ -10,6 +10,7 @@ import { useWishlist } from '../context/WishlistContext';
 import { useCart } from '../context/CartContext';
 import { useToast } from '../context/ToastContext';
 import { effectivePriceKobo, variantAvailable } from '../lib/variants';
+import { productPath } from '../lib/productPath';
 
 type Props = { product: StorefrontProduct; priority?: boolean };
 
@@ -53,7 +54,7 @@ function ProductCardInner({ product, priority }: Props) {
     cart.add({
       productId: product.id,
       variantId: firstAvailable?.id ?? null,
-      slug: product.slug,
+      slug: product.slug || product.id,
       name: product.name,
       image: product.images?.[0] || null,
       unitPriceKobo: Number(
@@ -73,7 +74,7 @@ function ProductCardInner({ product, priority }: Props) {
   return (
     <article className="group relative flex flex-col overflow-hidden rounded-2xl border border-[#e8e7f1] bg-white transition hover:border-vura-300 hover:shadow-lg hover:shadow-vura-500/10">
       <Link
-        to={`/product/${product.slug}`}
+        to={productPath(product)}
         ariaLabel={product.name}
         className="relative block aspect-square overflow-hidden bg-[#fafafa]"
       >
@@ -126,7 +127,7 @@ function ProductCardInner({ product, priority }: Props) {
           <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-[#8b93a5]">{product.brand}</p>
         )}
         <Link
-          to={`/product/${product.slug}`}
+          to={productPath(product)}
           className="line-clamp-2 min-h-[36px] text-sm font-bold leading-snug text-[#151527] hover:text-vura-500"
         >
           {product.name}
@@ -227,7 +228,7 @@ export function QuickViewContent({
           cart.add({
             productId: product.id,
             variantId: first?.id ?? null,
-            slug: product.slug,
+            slug: product.slug || product.id,
             name: product.name,
             image: product.images?.[0] || null,
             unitPriceKobo: price,

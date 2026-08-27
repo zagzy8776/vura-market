@@ -22,6 +22,7 @@ import { getRecentProductIds, track } from '../lib/analytics';
 import { money } from '@/lib/money';
 import { discountPercent } from '../lib/availability';
 import { optimizedImage } from '../lib/images';
+import { productPath } from '../lib/productPath';
 
 const CATEGORY_ICONS: Record<string, typeof Headphones> = {
   electronics: Headphones,
@@ -148,7 +149,7 @@ export function HomePage({ categories }: { categories: CategoryPublic[] }) {
                       {(deals || []).slice(0, 2).map((p) => (
                         <Link
                           key={p.id}
-                          to={`/product/${p.slug}`}
+                          to={productPath(p)}
                           className="flex w-48 items-center gap-3 rounded-2xl border border-[#e8e7f1] bg-white p-3 shadow-md transition hover:-translate-y-0.5"
                         >
                           <div className="h-12 w-12 overflow-hidden rounded-lg bg-[#f3f1ff]">
@@ -266,7 +267,7 @@ function DealCard({ product, priority }: { product: StorefrontProduct; priority?
 
   return (
     <article className="group flex flex-col overflow-hidden rounded-2xl border border-[#e8e7f1] bg-white transition hover:border-vura-300 hover:shadow-lg hover:shadow-vura-500/10">
-      <Link to={`/product/${product.slug}`} className="relative block aspect-square bg-[#fafafa]">
+      <Link to={productPath(product)} className="relative block aspect-square bg-[#fafafa]">
         {image ? (
           <img
             src={image}
@@ -288,7 +289,7 @@ function DealCard({ product, priority }: { product: StorefrontProduct; priority?
       </Link>
       <div className="flex flex-1 flex-col gap-1.5 p-3">
         <Link
-          to={`/product/${product.slug}`}
+          to={productPath(product)}
           className="line-clamp-2 min-h-[36px] text-xs font-bold leading-snug text-[#151527] hover:text-vura-500"
         >
           {product.name}
@@ -308,7 +309,7 @@ function DealCard({ product, priority }: { product: StorefrontProduct; priority?
             )}
           </span>
         )}
-        <Link to={`/product/${product.slug}`} className="mt-auto pt-1">
+        <Link to={productPath(product)} className="mt-auto pt-1">
           <button
             type="button"
             className="flex h-9 w-full items-center justify-center rounded-xl border border-vura-500 text-xs font-bold text-vura-500 transition hover:bg-vura-500 hover:text-white"
