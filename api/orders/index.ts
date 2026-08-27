@@ -138,14 +138,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       subtotalKobo += lineTotal;
       productNames.push(String(productRows[0].name));
 
+      const orderNumber = `VR-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+      const cityValue = deliveryCity || stateName || 'Lagos';
+
       const rows = await sql`
         INSERT INTO orders (
-          buyer_id, product_id, quantity, total_kobo, status, payment_method, payment_status,
+          order_number, buyer_id, product_id, quantity, unit_price_kobo, total_kobo,
+          status, payment_method, payment_status,
           delivery_name, delivery_phone, delivery_address, delivery_city
         ) VALUES (
-          ${buyer!.id}, ${line.productId}::uuid, ${line.quantity}, ${lineTotal},
+          ${orderNumber}, ${buyer!.id}, ${line.productId}::uuid, ${line.quantity}, ${unit}, ${lineTotal},
           'awaiting_payment', 'bank_transfer', 'unpaid',
-          ${deliveryName}, ${deliveryPhone}, ${deliveryAddress}, ${deliveryCity}
+          ${deliveryName}, ${deliveryPhone}, ${deliveryAddress}, ${cityValue}
         )
         RETURNING id, order_number, total_kobo`;
       createdOrders.push(rows[0] as { id: string; order_number: string; total_kobo: number });
