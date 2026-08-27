@@ -27,7 +27,7 @@ function setNoStore(res: VercelResponse) {
 
 function setCookie(res: VercelResponse, value: string, maxAge: number) {
   const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
-  res.setHeader('Set-Cookie', `${COOKIE_NAME}=${encodeURIComponent(value)}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${maxAge}; Priority=High${secure}`);
+  res.setHeader('Set-Cookie', `${COOKIE_NAME}=${encodeURIComponent(value)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}; Priority=High${secure}`);
 }
 
 export async function createSession(req: VercelRequest, res: VercelResponse, userId: string) {

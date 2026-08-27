@@ -59,7 +59,13 @@ export async function notifyAdmins(params: {
   text: string;
   html: string;
 }) {
-  const admins = await sql`SELECT id, email FROM users WHERE role = 'admin' LIMIT 20`;
+  const admins = await sql`
+    SELECT DISTINCT u.id, u.email
+    FROM users u
+    LEFT JOIN admin_user_roles aur ON aur.user_id = u.id
+    WHERE u.role = 'admin' OR aur.user_id IS NOT NULL
+    LIMIT 30
+  `;
   const adminIds = admins.map((a) => String(a.id));
 
   void sendOneSignalPush({

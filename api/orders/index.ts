@@ -216,6 +216,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       html: adminEmail.html,
     });
 
+    // Activity feed for admin dashboard
+    try {
+      for (const o of createdOrders) {
+        await sql`
+          INSERT INTO order_events (order_id, event_type, from_status, to_status, note)
+          VALUES (${o.id}::uuid, 'order.created', '', 'awaiting_payment', 'Customer placed order')
+        `;
+      }
+    } catch (e) {
+      console.error('[orders] event log', e);
+    }
+
     const payment = {
       method: 'bank_transfer',
       accountNumber: paymentDetails.payout_account_number || '',

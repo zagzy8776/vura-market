@@ -77,7 +77,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       `;
       const audit = await sql`SELECT a.id, a.action, a.entity_type, a.entity_id, a.created_at, u.name AS actor_name, u.email AS actor_email FROM audit_log a LEFT JOIN users u ON u.id = a.actor_user_id ORDER BY a.created_at DESC LIMIT 100`;
       const orderEvents = await sql`SELECT e.id, e.event_type, e.order_id, e.created_at, u.name AS actor_name, o.order_number FROM order_events e LEFT JOIN users u ON u.id = e.actor_user_id LEFT JOIN orders o ON o.id = e.order_id ORDER BY e.created_at DESC LIMIT 100`;
-      return json(res, 200, { liveProducts: live?.count || 0, monthlyOrders: monthStats?.orders || 0, monthlyRevenueKobo: Number(monthStats?.revenue || 0), monthlyProfitKobo: Number(monthStats?.profit || 0), attention: { pendingPayment: pendingPayment?.count || 0, toFulfill: toFulfill?.count || 0, lowStock: lowStock?.count || 0 }, recentOrders, customers, notifications: [], audit, orderEvents });
+      const notifications = await sql`
+        SELECT n.id, n.type, n.title, n.body, n.order_id, n.created_at, n.read_at, o.order_number
+        FROM notifications n
+        LEFT JOIN orders o ON o.id = n.order_id
+        WHERE n.type LIKE '%.admin' OR n.type LIKE 'order.%' OR n.type LIKE 'payment.%'
+        ORDER BY n.created_at DESC
+        LIMIT 40`;
+      return json(res, 200, { liveProducts: live?.count || 0, monthlyOrders: monthStats?.orders || 0, monthlyRevenueKobo: Number(monthStats?.revenue || 0), monthlyProfitKobo: Number(monthStats?.profit || 0), attention: { pendingPayment: pendingPayment?.count || 0, toFulfill: toFulfill?.count || 0, lowStock: lowStock?.count || 0 }, recentOrders, customers, notifications, audit, orderEvents });
     }
     if (r === 'orders' && method === 'GET') {
       const ok = await requireAdminPermission(req, res, 'orders.read');
