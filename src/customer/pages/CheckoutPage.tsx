@@ -451,22 +451,38 @@ function ConfirmedView({ result, customerName, guest }: { result: CheckoutResult
         ) : (
           <>
             <p className="mt-2 text-sm leading-6 text-mid">
-              Send <b className="text-hi">{money(result.totals.totalKobo)}</b> to <b className="text-hi">{result.payment.accountName}</b>, <b className="text-hi">{result.payment.bankName}</b> · {result.payment.accountNumber}. Then enter your transfer reference:
+              Send <b className="text-hi">{money(result.totals.totalKobo)}</b> to <b className="text-hi">{result.payment.accountName}</b>, <b className="text-hi">{result.payment.bankName}</b> · {result.payment.accountNumber}.
+            </p>
+            <p className="mt-2 text-sm leading-6 text-mid">
+              After paying, enter the <b className="text-hi">bank transfer reference</b> from your receipt (not the order number).
             </p>
             <div className="mt-4 flex flex-col gap-3 sm:flex-row">
               <label htmlFor="transfer-ref" className="sr-only">Transfer reference</label>
-              <Input id="transfer-ref" value={reference} onChange={(e) => setReference(e.target.value)} placeholder="e.g. TRF-84920193" />
+              <Input id="transfer-ref" value={reference} onChange={(e) => setReference(e.target.value)} placeholder="e.g. from your bank app / SMS" />
               <Button loading={submitting} onClick={submitReference}>Submit reference</Button>
             </div>
             {error && <p role="alert" className="mt-2 text-sm font-semibold text-red-400">{error}</p>}
+            <a
+              className="mt-4 inline-flex w-full items-center justify-center rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm font-bold text-emerald-300 transition hover:bg-emerald-500/20 sm:w-auto"
+              href={`https://wa.me/2347042089496?text=${encodeURIComponent(
+                `Hi Vura Market, I have paid for order ${result.orders.map((o) => o.order_number).join(', ')} — total ${money(result.totals.totalKobo)}. Here is my transfer reference: `,
+              )}`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Or send receipt on WhatsApp
+            </a>
+            <p className="mt-2 text-xs leading-5 text-low">
+              WhatsApp is the fastest way if you prefer to share a screenshot of your bank receipt.
+            </p>
           </>
         )}
       </section>
 
       {guest && (
         <p className="mt-6 rounded-2xl border border-vura-500/25 bg-vura-500/[0.06] p-5 text-center text-sm leading-6 text-mid">
-          Create your Vura account to track all your orders easily — check your inbox for a claim link, or{' '}
-          <Link to="/signup" className="font-bold text-vura-300 hover:text-vura-200">sign up now</Link>.
+          Optional: create a Vura account to track orders later — check your inbox for a claim link, or{' '}
+          <Link to="/signup" className="font-bold text-vura-300 hover:text-vura-200">sign up</Link>. You can still submit payment without signing in.
         </p>
       )}
     </main>
