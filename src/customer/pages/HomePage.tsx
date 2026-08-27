@@ -37,6 +37,15 @@ const CATEGORY_ICONS: Record<string, typeof Headphones> = {
   'baby-kids': Baby,
   baby: Baby,
   automotive: Car,
+  phones: Headphones,
+  phone: Headphones,
+  laptops: PackageSearch,
+  laptop: PackageSearch,
+  gaming: PackageSearch,
+  audio: Headphones,
+  wearables: Sparkles,
+  accessories: PackageSearch,
+  computers: PackageSearch,
 };
 
 const FALLBACK_CATEGORIES = [
@@ -53,6 +62,7 @@ const FALLBACK_CATEGORIES = [
 export function HomePage({ categories }: { categories: CategoryPublic[] }) {
   const [deals, setDeals] = useState<StorefrontProduct[] | null>(null);
   const [recommended, setRecommended] = useState<StorefrontProduct[] | null>(null);
+  const [localCategories, setLocalCategories] = useState<CategoryPublic[]>([]);
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
@@ -65,11 +75,15 @@ export function HomePage({ categories }: { categories: CategoryPublic[] }) {
       storefrontApi.products({ deals: true, perPage: 6 }),
       storefrontApi.products({ ids: getRecentProductIds().slice(0, 6), perPage: 6 }),
       storefrontApi.products({ sort: 'popular', perPage: 6 }),
+      storefrontApi.products({ sort: 'newest', perPage: 8 }),
+      storefrontApi.categories().catch(() => ({ categories: [] as CategoryPublic[] })),
     ])
-      .then(([d, rec, popular]) => {
+      .then(([d, rec, popular, newest, cats]) => {
         if (cancelled) return;
-        setDeals(d.products);
-        setRecommended(rec.products.length ? rec.products : popular.products);
+        const pool = newest.products?.length ? newest.products : popular.products || [];
+        setDeals(d.products?.length ? d.products : pool.slice(0, 6));
+        setRecommended(rec.products.length ? rec.products : pool);
+        if (cats?.categories?.length) setLocalCategories(cats.categories);
       })
       .catch(() => !cancelled && setFailed(true));
     return () => {
@@ -78,15 +92,16 @@ export function HomePage({ categories }: { categories: CategoryPublic[] }) {
   }, []);
 
   const categoryCards = useMemo(() => {
-    if (categories.length) {
-      return categories.slice(0, 8).map((c) => ({
+    const source = categories.length ? categories : localCategories;
+    if (source.length) {
+      return source.slice(0, 8).map((c) => ({
         name: c.name,
         slug: c.slug,
         icon: CATEGORY_ICONS[c.slug] || CATEGORY_ICONS[c.slug.split('-')[0]] || PackageSearch,
       }));
     }
     return FALLBACK_CATEGORIES;
-  }, [categories]);
+  }, [categories, localCategories]);
 
   if (failed && !deals) {
     return (
