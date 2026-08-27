@@ -1,12 +1,21 @@
 /**
  * API base URL helper.
  *
- * - Leave VITE_API_BASE_URL empty → same-origin `/api/...` (Vercel front + Vercel API).
- * - Set VITE_API_BASE_URL=https://vura-market.fly.dev → Vercel front talks to Fly as the API.
+ * Architecture:
+ *   Vercel = public frontend (customers)
+ *   Fly    = API host (gateway today; native handlers later)
+ *
+ * Resolution order:
+ *   1. VITE_API_BASE_URL if set at build time
+ *   2. Production builds default to Fly so the shop scales off Vercel serverless limits
+ *   3. Dev / empty → same-origin `/api/...`
  */
 export function apiBase(): string {
   const raw = (import.meta.env.VITE_API_BASE_URL as string | undefined) || '';
-  return raw.replace(/\/$/, '');
+  if (raw.trim()) return raw.replace(/\/$/, '');
+  // Production (Vercel build): send browser API traffic to Fly
+  if (import.meta.env.PROD) return 'https://vura-market.fly.dev';
+  return '';
 }
 
 /** Prefix a path like `/api/products` with the configured API base (if any). */
