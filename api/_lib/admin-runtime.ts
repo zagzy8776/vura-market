@@ -4,6 +4,11 @@ import { requireAdmin, requireAdminPermission } from './auth.js';
 import { recordAudit, recordOrderEvent } from './audit.js';
 import { applySecurityHeaders } from './http.js';
 import { randomUUID } from 'crypto';
+import { runAgent, getRun, getAgentPolicy, listTools } from './agents/runtime.js';
+import type { AgentId, ModelProvider } from './agents/types.js';
+import { listAgentNotifications } from './agents/notifications.js';
+import { listOpportunities, updateOpportunityStatus } from './agents/opportunities.js';
+import type { OpportunityStatus } from './agents/opportunities.js';
 
 const stockStatuses = new Set(['available', 'low_stock', 'out_of_stock', 'unavailable']);
 
@@ -265,6 +270,101 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const rows = await sql`SELECT key, value FROM platform_settings ORDER BY key`;
       return json(res, 200, { ok: true, settings: Object.fromEntries(rows.map((row) => [row.key, row.value])) });
     }
+
+    // --- Agent runtime (consolidated under admin.ts to stay ≤12 Vercel functions) ---
+    if (r === 'agents') {
+      const ok = await requireAdminPermission(req, res, 'dashboard.read');
+      if (!ok) return;
+      const requestId = randomUUID();
+      res.setHeader('X-Request-ID', requestId);
+      const agentIds = new Set<AgentId>([
+        'product-intelligence', 'trend-intelligence', 'marketing-intelligence', 'sales', 'operations', 'engineering',
+      ]);
+      const providers = new Set<ModelProvider>(['groq', 'cerebras', 'gemini']);
+      if (method === 'GET') {
+        const runId = typeof req.query.runId === 'string' ? req.query.runId : '';
+        if (!runId) return json(res, 400, { error: 'runId is required.', requestId });
+        const run = await getRun(runId);
+        return run ? json(res, 200, { run, requestId }) : json(res, 404, { error: 'Agent run not found.', requestId });
+      }
+      if (method !== 'POST') return json(res, 405, { error: 'Method not allowed.' });
+      const body = req.body && typeof req.body === 'object' ? req.body as Record<string, unknown> : {};
+      const agentId = typeof body.agentId === 'string' ? body.agentId as AgentId : null;
+      const task = typeof body.task === 'string' ? body.task.trim() : '';
+      const requestedProviders = Array.isArray(body.providers)
+        ? body.providers.filter((value): value is ModelProvider => typeof value === 'string' && providers.has(value as ModelProvider))
+        : undefined;
+      if (!agentId || !agentIds.has(agentId)) return json(res, 400, { error: 'Unknown agent.', requestId });
+      if (task.length < 3 || task.length > 4000) return json(res, 400, { error: 'Task must be between 3 and 4000 characters.', requestId });
+      if (requestedProviders && requestedProviders.length === 0) return json(res, 400, { error: 'No valid model providers supplied.', requestId });
+      try {
+        const result = await runAgent({ agentId, task, providers: requestedProviders });
+        const tools = listTools(agentId).map((tool) => ({ name: tool.name, description: tool.description, risk: tool.risk }));
+        return json(res, 200, { requestId, policy: getAgentPolicy(agentId), tools, ...result });
+      } catch (error) {
+        return json(res, 500, { error: error instanceof Error ? error.message : 'Agent execution failed.', requestId });
+      }
+    }
+
+    if (r === 'agent-approvals') {
+      const ok = await requireAdminPermission(req, res, 'dashboard.read');
+      if (!ok) return;
+      const requestId = randomUUID();
+      res.setHeader('X-Request-ID', requestId);
+      if (method === 'GET') {
+        const status = typeof req.query.status === 'string' ? req.query.status : 'pending';
+        if (!['pending', 'approved', 'rejected', 'expired'].includes(status)) return json(res, 400, { error: 'Invalid approval status.', requestId });
+        const rows = await sql`
+          SELECT a.id, a.run_id, a.agent_id, a.tool_name, a.risk, a.input, a.status, a.requested_at, a.decided_at, a.decided_by, a.decision_note
+          FROM agent_approvals a WHERE a.status = ${status} ORDER BY a.requested_at DESC LIMIT 100`;
+        return json(res, 200, { approvals: rows, requestId });
+      }
+      if (method !== 'PATCH') return json(res, 405, { error: 'Method not allowed.' });
+      const body = req.body && typeof req.body === 'object' ? req.body as Record<string, unknown> : {};
+      const approvalId = typeof body.approvalId === 'string' ? body.approvalId : '';
+      const decision = body.decision === 'approved' || body.decision === 'rejected' ? body.decision : '';
+      const note = typeof body.note === 'string' ? body.note.trim().slice(0, 1000) : null;
+      if (!approvalId || !decision) return json(res, 400, { error: 'approvalId and decision are required.', requestId });
+      const updated = await sql`
+        UPDATE agent_approvals
+        SET status = ${decision}, decided_at = now(), decided_by = ${admin.id}, decision_note = ${note}
+        WHERE id = ${approvalId} AND status = 'pending'
+        RETURNING id, run_id, agent_id, tool_name, risk, status, decided_at`;
+      if (!updated[0]) return json(res, 409, { error: 'Approval is missing or already decided.', requestId });
+      await sql`UPDATE agent_runs SET status = CASE WHEN ${decision} = 'approved' THEN 'running' ELSE 'failed' END WHERE id = ${updated[0].run_id} AND status = 'awaiting_approval'`;
+      await sql`INSERT INTO agent_events (id, run_id, event_type, tool_name, risk, output) VALUES (${randomUUID()}, ${updated[0].run_id}, ${'approval.' + decision}, ${updated[0].tool_name}, ${updated[0].risk}, ${JSON.stringify({ decidedBy: admin.id, note })}::jsonb)`;
+      return json(res, 200, { ok: true, approval: updated[0], requestId });
+    }
+
+    if (r === 'agent-notifications' && method === 'GET') {
+      const ok = await requireAdminPermission(req, res, 'dashboard.read');
+      if (!ok) return;
+      const rawLimit = typeof req.query.limit === 'string' ? Number(req.query.limit) : 50;
+      if (!Number.isFinite(rawLimit)) return json(res, 400, { error: 'Invalid limit.' });
+      return json(res, 200, { notifications: await listAgentNotifications(rawLimit) });
+    }
+
+    if (r === 'agent-opportunities') {
+      const ok = await requireAdminPermission(req, res, 'dashboard.read');
+      if (!ok) return;
+      const statuses = new Set<OpportunityStatus>(['new', 'watching', 'investigating', 'approved', 'dismissed']);
+      if (method === 'GET') {
+        const status = typeof req.query.status === 'string' && statuses.has(req.query.status as OpportunityStatus)
+          ? req.query.status as OpportunityStatus : undefined;
+        const category = typeof req.query.category === 'string' ? req.query.category.trim().slice(0, 160) : undefined;
+        const limit = typeof req.query.limit === 'string' ? Number(req.query.limit) : 50;
+        if (!Number.isFinite(limit)) return json(res, 400, { error: 'Invalid limit.' });
+        return json(res, 200, { opportunities: await listOpportunities({ status, category, limit }) });
+      }
+      if (method !== 'PATCH') return json(res, 405, { error: 'Method not allowed.' });
+      const body = req.body && typeof req.body === 'object' ? req.body as Record<string, unknown> : {};
+      const id = typeof body.id === 'string' ? body.id.trim() : '';
+      const status = typeof body.status === 'string' ? body.status as OpportunityStatus : null;
+      if (!id || !status || !statuses.has(status)) return json(res, 400, { error: 'Valid id and status are required.' });
+      const opportunity = await updateOpportunityStatus(id, status);
+      return opportunity ? json(res, 200, { opportunity }) : json(res, 404, { error: 'Opportunity not found.' });
+    }
+
     return json(res, 404, { error: 'Admin resource not found.' });
   } catch {
     return json(res, 500, { error: 'The admin operation could not be completed.' });
