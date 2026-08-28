@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Activity, Bot, Loader2, Play, RefreshCw, Shield, Clock } from 'lucide-react';
 import { authHeaders } from '@/lib/session';
+import { StudioGrowthMission } from './StudioGrowthMission';
 
 type Job = {
   id: string;
@@ -178,7 +179,6 @@ export default function StudioAgents() {
     void load();
   }, [load]);
 
-  // Auto-refresh while jobs are in flight
   useEffect(() => {
     const active = jobs.some((j) => j.status === 'queued' || j.status === 'running');
     if (!active) return;
@@ -199,11 +199,7 @@ export default function StudioAgents() {
     setBanner('');
     setError('');
     try {
-      const res = await postAgent({
-        agentId,
-        task,
-        ...extra,
-      });
+      const res = await postAgent({ agentId, task, ...extra });
       setBanner(
         res.runId
           ? `Job started (${res.status || 'queued'}). ID ${res.runId.slice(0, 8)}… — agents work in the background on Fly.`
@@ -255,7 +251,6 @@ export default function StudioAgents() {
         <p className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">{banner}</p>
       )}
 
-      {/* Primary action: Trend scan */}
       <section className="rounded-2xl border border-vura-500/30 bg-gradient-to-br from-vura-500/10 to-transparent p-4 md:p-5">
         <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <div className="min-w-0 flex-1">
@@ -294,6 +289,8 @@ export default function StudioAgents() {
           </button>
         </div>
       </section>
+
+      <StudioGrowthMission categories={categories} onBanner={setBanner} onError={setError} />
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {[
@@ -388,13 +385,11 @@ export default function StudioAgents() {
               Approvals in queue: {approvals.length}. Schedules: {schedules.length}. Memory entries: {memory.length}.
             </p>
             <ul className="mt-3 space-y-1 text-[11px] text-white/40">
-              {(schedules as Array<{ id: string; agent_id: string; interval_minutes: number; enabled: boolean }>).map(
-                (s) => (
-                  <li key={s.id}>
-                    {s.id} → {s.agent_id} every {s.interval_minutes}m {s.enabled ? '' : '(disabled)'}
-                  </li>
-                ),
-              )}
+              {(schedules as Array<{ id: string; agent_id: string; interval_minutes: number; enabled: boolean }>).map((s) => (
+                <li key={s.id}>
+                  {s.id} → {s.agent_id} every {s.interval_minutes}m {s.enabled ? '' : '(disabled)'}
+                </li>
+              ))}
             </ul>
           </section>
 
@@ -423,13 +418,9 @@ export default function StudioAgents() {
         </>
       )}
 
-      {/* Job detail sheet */}
       {selectedJob && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-3 sm:items-center" onClick={() => setSelectedJob(null)}>
-          <div
-            className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-white/10 bg-[#12151f] p-4 shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
+          <div className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-white/10 bg-[#12151f] p-4 shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-start justify-between gap-2">
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-wider text-white/40">Job detail</p>
@@ -439,23 +430,19 @@ export default function StudioAgents() {
             </div>
             <dl className="mt-3 space-y-2 text-sm">
               <div><dt className="text-[10px] uppercase text-white/35">Status</dt><dd className={statusColor(selectedJob.status)}>{selectedJob.status}</dd></div>
-              <div><dt className="text-[10px] uppercase text-white/35">When</dt><dd className="text-white/70">{formatWhen(selectedJob.completed_at || selectedJob.started_at) || '—'} {selectedJob.started_at ? `(started ${new Date(selectedJob.started_at).toLocaleString()})` : ''}</dd></div>
+              <div><dt className="text-[10px] uppercase text-white/35">When</dt><dd className="text-white/70">{formatWhen(selectedJob.completed_at || selectedJob.started_at) || '—'}</dd></div>
               <div><dt className="text-[10px] uppercase text-white/35">Task</dt><dd className="text-white/80">{selectedJob.task}</dd></div>
-              {selectedJob.provider ? <div><dt className="text-[10px] uppercase text-white/35">Model</dt><dd className="text-white/70">{selectedJob.provider}{selectedJob.model ? ` / ${selectedJob.model}` : ''}</dd></div> : null}
               {selectedJob.error ? <div><dt className="text-[10px] uppercase text-white/35">Error</dt><dd className="text-red-300">{selectedJob.error}</dd></div> : null}
               <div><dt className="text-[10px] uppercase text-white/35">Run ID</dt><dd className="break-all font-mono text-[11px] text-white/40">{selectedJob.id}</dd></div>
             </dl>
             {selectedJob.result != null && (
               <div className="mt-4">
-                <p className="text-[10px] font-bold uppercase text-white/35">Result / what the agent found</p>
-                <pre className="mt-2 max-h-64 overflow-auto rounded-xl border border-white/10 bg-black/40 p-3 text-[11px] leading-relaxed text-white/70 whitespace-pre-wrap">
+                <p className="text-[10px] font-bold uppercase text-white/35">Result</p>
+                <pre className="mt-2 max-h-64 overflow-auto rounded-xl border border-white/10 bg-black/40 p-3 text-[11px] text-white/70 whitespace-pre-wrap">
 {typeof selectedJob.result === 'string' ? selectedJob.result : JSON.stringify(selectedJob.result, null, 2)}
                 </pre>
               </div>
             )}
-            <p className="mt-4 text-xs text-white/40">
-              Schedules run in the background on Fly. Approvals appear when an agent proposes a write action — you decide.
-            </p>
           </div>
         </div>
       )}
@@ -467,13 +454,10 @@ export default function StudioAgents() {
               <h3 className="text-lg font-black text-white">{selectedNotif.title}</h3>
               <button type="button" className="text-sm text-white/50" onClick={() => setSelectedNotif(null)}>Close</button>
             </div>
-            <p className="mt-1 text-[11px] text-white/40">{formatWhen(selectedNotif.created_at)} {selectedNotif.agent_id ? `· ${selectedNotif.agent_id}` : ''}</p>
-            <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-white/75">{selectedNotif.message}</p>
-            <p className="mt-4 text-xs text-white/40">Tip: open Opportunities to act on trend ideas. Product research alerts mean a brief is ready — review before listing.</p>
+            <p className="mt-3 whitespace-pre-wrap text-sm text-white/75">{selectedNotif.message}</p>
           </div>
         </div>
       )}
-
     </div>
   );
 }
