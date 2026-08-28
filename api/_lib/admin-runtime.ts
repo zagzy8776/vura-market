@@ -6,6 +6,11 @@ import { applySecurityHeaders } from './http.js';
 import { randomUUID } from 'crypto';
 import { runAgent, getRun, getAgentPolicy, listTools } from './agents/runtime.js';
 import { runTrendIntelligence } from './agents/trend-runner.js';
+import { runProductIntelligence } from './agents/product-runner.js';
+import { analyzeSales } from './agents/sales-intelligence.js';
+import { analyzeOperations } from './agents/operations-intelligence.js';
+import { scoutMarketing } from './agents/marketing-intelligence.js';
+import { createAgentNotification } from './agents/notifications.js';
 import type { AgentId, ModelProvider } from './agents/types.js';
 import { listAgentNotifications } from './agents/notifications.js';
 import { listOpportunities, updateOpportunityStatus } from './agents/opportunities.js';
@@ -306,7 +311,62 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           const tools = listTools(agentId).map((tool) => ({ name: tool.name, description: tool.description, risk: tool.risk }));
           return json(res, 200, { requestId, policy: getAgentPolicy(agentId), tools, run: { id: runId, agentId, status: 'completed' }, ...trend });
         }
-        const result = await runAgent({ agentId, task, providers: requestedProviders });
+        if (agentId === 'product-intelligence') {
+          const runId = randomUUID();
+          await sql`INSERT INTO agent_runs (id, agent_id, task, status) VALUES (${runId}, ${agentId}, ${task}, 'running')`.catch(() => undefined);
+          const opportunityId = typeof body.opportunityId === 'string' ? body.opportunityId.trim() : undefined;
+          const productName = typeof body.productName === 'string' ? body.productName.trim() : (task || undefined);
+          const category = typeof body.category === 'string' ? body.category.trim() : undefined;
+          const product = await runProductIntelligence({ agentId, runId, task }, { opportunityId, productName, category });
+          const tools = listTools(agentId).map((tool) => ({ name: tool.name, description: tool.description, risk: tool.risk }));
+          return json(res, 200, { requestId, policy: getAgentPolicy(agentId), tools, run: { id: runId, agentId, status: 'completed' }, ...product });
+        }
+        
+        if (agentId === 'sales') {
+          const runId = randomUUID();
+          await sql`INSERT INTO agent_runs (id, agent_id, task, status) VALUES (${runId}, ${agentId}, ${task}, 'running')`.catch(() => undefined);
+          const sales = await analyzeSales({ agentId, runId, task });
+          await createAgentNotification({
+            title: 'Sales intelligence report',
+            message: (sales.insights || []).slice(0, 3).join(' '),
+            severity: 'info',
+            agentId,
+            metadata: { runId },
+          }).catch(() => undefined);
+          await sql`UPDATE agent_runs SET status = 'completed', completed_at = now() WHERE id = ${runId}`.catch(() => undefined);
+          return json(res, 200, { requestId, policy: getAgentPolicy(agentId), tools: listTools(agentId).map((tool) => ({ name: tool.name, description: tool.description, risk: tool.risk })), run: { id: runId, agentId, status: 'completed' }, ...sales });
+        }
+        if (agentId === 'operations') {
+          const runId = randomUUID();
+          await sql`INSERT INTO agent_runs (id, agent_id, task, status) VALUES (${runId}, ${agentId}, ${task}, 'running')`.catch(() => undefined);
+          const ops = await analyzeOperations({ agentId, runId, task });
+          await createAgentNotification({
+            title: 'Operations snapshot',
+            message: (ops.alerts || []).slice(0, 3).join(' '),
+            severity: 'info',
+            agentId,
+            metadata: { runId },
+          }).catch(() => undefined);
+          await sql`UPDATE agent_runs SET status = 'completed', completed_at = now() WHERE id = ${runId}`.catch(() => undefined);
+          return json(res, 200, { requestId, policy: getAgentPolicy(agentId), tools: listTools(agentId).map((tool) => ({ name: tool.name, description: tool.description, risk: tool.risk })), run: { id: runId, agentId, status: 'completed' }, ...ops });
+        }
+        if (agentId === 'marketing-intelligence') {
+          const runId = randomUUID();
+          await sql`INSERT INTO agent_runs (id, agent_id, task, status) VALUES (${runId}, ${agentId}, ${task}, 'running')`.catch(() => undefined);
+          const marketing = await scoutMarketing({ agentId, runId, task }, task);
+          await createAgentNotification({
+            title: 'Marketing scout brief',
+            message: marketing.brief && typeof marketing.brief === 'object' && 'trend' in marketing.brief
+              ? String((marketing.brief as { trend?: string }).trend || 'Brief ready')
+              : (marketing.note || 'Scout completed'),
+            severity: 'info',
+            agentId,
+            metadata: { runId },
+          }).catch(() => undefined);
+          await sql`UPDATE agent_runs SET status = 'completed', completed_at = now() WHERE id = ${runId}`.catch(() => undefined);
+          return json(res, 200, { requestId, policy: getAgentPolicy(agentId), tools: listTools(agentId).map((tool) => ({ name: tool.name, description: tool.description, risk: tool.risk })), run: { id: runId, agentId, status: 'completed' }, ...marketing });
+        }
+const result = await runAgent({ agentId, task, providers: requestedProviders });
         const tools = listTools(agentId).map((tool) => ({ name: tool.name, description: tool.description, risk: tool.risk }));
         return json(res, 200, { requestId, policy: getAgentPolicy(agentId), tools, ...result });
       } catch (error) {

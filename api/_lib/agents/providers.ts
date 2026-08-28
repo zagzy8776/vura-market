@@ -1,4 +1,4 @@
-import { getEnvironment } from '../env.js';
+import { getOptionalEnvironment } from '../env.js';
 import type { ModelProvider, ModelRequest, ModelResponse } from './types.js';
 
 const DEFAULT_MODELS: Record<ModelProvider, string> = {
@@ -13,16 +13,22 @@ const ENDPOINTS: Record<ModelProvider, string> = {
   gemini: 'https://generativelanguage.googleapis.com/v1beta/models',
 };
 
-function keyFor(provider: ModelProvider) {
-  return getEnvironment(
+function keyFor(provider: ModelProvider): string | null {
+  return getOptionalEnvironment(
     provider === 'groq' ? 'GROQ_API_KEY' : provider === 'cerebras' ? 'CEREBRAS_API_KEY' : 'GEMINI_API_KEY',
   );
+}
+
+function requireKey(provider: ModelProvider): string {
+  const key = keyFor(provider);
+  if (!key) throw new Error(`${provider} is not configured`);
+  return key;
 }
 
 async function openAiCompatible(provider: ModelProvider, request: ModelRequest): Promise<ModelResponse> {
   const response = await fetch(ENDPOINTS[provider], {
     method: 'POST',
-    headers: { Authorization: `Bearer ${keyFor(provider)}`, 'Content-Type': 'application/json' },
+    headers: { Authorization: `Bearer ${requireKey(provider)}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
       model: DEFAULT_MODELS[provider],
       messages: [
@@ -42,7 +48,7 @@ async function openAiCompatible(provider: ModelProvider, request: ModelRequest):
 
 async function gemini(request: ModelRequest): Promise<ModelResponse> {
   const model = DEFAULT_MODELS.gemini;
-  const response = await fetch(`${ENDPOINTS.gemini}/${model}:generateContent?key=${encodeURIComponent(keyFor('gemini'))}`, {
+  const response = await fetch(`${ENDPOINTS.gemini}/${model}:generateContent?key=${encodeURIComponent(requireKey('gemini'))}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -64,7 +70,11 @@ export async function generate(provider: ModelProvider, request: ModelRequest) {
 
 export async function generateWithFallback(preferred: ModelProvider[], request: ModelRequest) {
   const errors: string[] = [];
-  for (const provider of preferred) {
+  const available = preferred.filter((provider) => Boolean(keyFor(provider)));
+  if (!available.length) {
+    throw new Error('No model providers configured (set GROQ_API_KEY, CEREBRAS_API_KEY, or GEMINI_API_KEY)');
+  }
+  for (const provider of available) {
     try {
       return await generate(provider, request);
     } catch (error) {

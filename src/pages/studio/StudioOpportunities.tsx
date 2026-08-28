@@ -126,6 +126,8 @@ export default function StudioOpportunities() {
   const [q, setQ] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [mobileShowDetail, setMobileShowDetail] = useState(false);
+  const [productBusy, setProductBusy] = useState(false);
+  const [productReport, setProductReport] = useState<Record<string, unknown> | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -240,6 +242,32 @@ export default function StudioOpportunities() {
   const selectRow = (id: string) => {
     setSelectedId(id);
     setMobileShowDetail(true);
+    setProductReport(null);
+  };
+
+  const runProductIntel = async (opportunityId: string, productName: string, category: string) => {
+    setProductBusy(true);
+    setError('');
+    setProductReport(null);
+    try {
+      const res = await api<{ report?: Record<string, unknown>; note?: string }>('agents', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          agentId: 'product-intelligence',
+          task: `Investigate ${productName}`,
+          opportunityId,
+          productName,
+          category,
+        }),
+      });
+      if (res.report) setProductReport(res.report);
+      else setError(res.note || 'Product intelligence returned no report');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Product intelligence failed');
+    } finally {
+      setProductBusy(false);
+    }
   };
 
   return (
@@ -572,6 +600,31 @@ export default function StudioOpportunities() {
                       ))
                     )}
                   </ul>
+                </div>
+
+                <div className="mt-6 border-t border-white/10 pt-5">
+                  <p className="text-xs font-bold uppercase tracking-wider text-white/35">Product Intelligence</p>
+                  <button
+                    type="button"
+                    disabled={productBusy}
+                    onClick={() =>
+                      void runProductIntel(selected.op.id, selected.op.name, selected.op.category)
+                    }
+                    className="mt-3 inline-flex items-center gap-2 rounded-xl border border-vura-400/40 bg-vura-500/15 px-4 py-2.5 text-xs font-bold text-vura-200 hover:bg-vura-500/25 disabled:opacity-50"
+                  >
+                    {productBusy ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
+                    Investigate with Product AI
+                  </button>
+                  <p className="mt-2 text-[11px] text-white/35">
+                    Deep research for this opportunity. Does not publish a product.
+                  </p>
+                  {productReport && (
+                    <div className="mt-4 max-h-80 overflow-y-auto rounded-xl border border-white/10 bg-[#0b0d17] p-4 text-xs text-white/70">
+                      <pre className="whitespace-pre-wrap font-mono leading-5">
+                        {JSON.stringify(productReport, null, 2)}
+                      </pre>
+                    </div>
+                  )}
                 </div>
 
                 <div className="mt-6 border-t border-white/10 pt-5">
