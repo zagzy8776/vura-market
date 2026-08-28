@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { money } from '@/lib/money';
 import type { Order, Product, ResourceState } from '@/types';
+import { authHeaders } from '@/lib/session';
 
 async function api(url: string, init?: RequestInit) {
-  const r = await fetch(url, { credentials: 'include', ...init });
+  const r = await fetch(url, { credentials: 'include', ...init, headers: authHeaders(init?.headers) });
   const b = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(b?.error || `Request failed (${r.status})`);
   return b;

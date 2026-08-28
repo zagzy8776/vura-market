@@ -69,8 +69,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     try {
       const owner = await provisionOwner(email, password);
       if (owner) {
-        await createSession(req, res, owner.id);
-        return json(res, 200, { user: { id: owner.id, name: owner.name, email: owner.email, role: owner.role } });
+        const sessionToken = await createSession(req, res, owner.id);
+        return json(res, 200, { user: { id: owner.id, name: owner.name, email: owner.email, role: owner.role }, sessionToken });
       }
 
       const rows = await sql`SELECT id, name, email, password_hash, role FROM users WHERE email = ${email.toLowerCase().trim()} LIMIT 1`;
@@ -81,8 +81,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const promoted = await promoteIfOwner(rows[0].id, rows[0].email);
       const user = promoted || { id: rows[0].id, name: rows[0].name, email: rows[0].email, role: rows[0].role };
-      await createSession(req, res, user.id);
-      return json(res, 200, { user: { id: user.id, name: user.name, email: user.email, role: user.role } });
+      const sessionToken = await createSession(req, res, user.id);
+      return json(res, 200, { user: { id: user.id, name: user.name, email: user.email, role: user.role }, sessionToken });
     } catch {
       return json(res, 500, { error: 'We could not sign you in.' });
     }
@@ -97,7 +97,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     try {
       const passwordHash = await hash(password, 12);
       const rows = await sql`INSERT INTO users (name, email, password_hash, role) VALUES (${name.trim()}, ${email.toLowerCase().trim()}, ${passwordHash}, 'customer') RETURNING id, name, email, role`;
-      await createSession(req, res, rows[0].id);
+      const sessionToken = await createSession(req, res, rows[0].id);
       await createNotification(rows[0].id, 'account.created', 'Welcome to Vura', 'Your Vura account is ready. Start exploring curated products.', null);
       await sendTransactionalEmail({
         userId: rows[0].id,
@@ -107,7 +107,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         text: `Hi ${rows[0].name}, welcome to Vura. Your account is ready and you can start exploring curated products.`,
         html: `<!doctype html><html><body style="margin:0;background:#f7f7fb;font-family:Arial,Helvetica,sans-serif;color:#151527"><table width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td align="center" style="padding:32px 16px"><table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;background:#ffffff;border-radius:24px"><tr><td style="padding:32px"><p style="margin:0;font-size:28px;line-height:34px;font-weight:700;color:#5b2cff">vura.</p><p style="margin:24px 0 8px;font-size:16px;line-height:24px">Hi ${rows[0].name.replace(/[&<>"]/g, '')},</p><p style="margin:0;font-size:16px;line-height:26px">Welcome to Vura. Your account is ready.</p></td></tr></table></td></tr></table></body></html>`,
       });
-      return json(res, 201, { user: rows[0] });
+      return json(res, 201, { user: rows[0], sessionToken });
     } catch (error) {
       const message = error instanceof Error && /unique/i.test(error.message) ? 'An account with that email already exists.' : 'We could not create that account.';
       return json(res, 400, { error: message });
@@ -146,7 +146,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const passwordHash = await hash(password, 12);
       const rows = await sql`UPDATE users SET password_hash = ${passwordHash}, updated_at = now() WHERE id = ${userId} RETURNING id, name, email, role`;
       if (!rows[0]) return json(res, 404, { error: 'Account not found.' });
-      await createSession(req, res, rows[0].id);
+      const sessionToken = await createSession(req, res, rows[0].id);
       return json(res, 200, { user: rows[0] });
     } catch {
       return json(res, 500, { error: 'We could not claim that account right now.' });

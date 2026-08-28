@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Activity, Bot, Loader2, Play, RefreshCw, Shield, Clock } from 'lucide-react';
+import { authHeaders } from '@/lib/session';
 
 type Job = {
   id: string;
@@ -100,7 +101,7 @@ async function getApi<T>(resource: string): Promise<T> {
   const [res, ...rest] = resource.split('&');
   let url = `/api/admin?resource=${encodeURIComponent(res)}`;
   if (rest.length) url += `&${rest.join('&')}`;
-  const r = await fetch(url, { credentials: 'include' });
+  const r = await fetch(url, { credentials: 'include', headers: authHeaders() });
   const b = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error((b as { error?: string })?.error || `Failed (${r.status})`);
   return b as T;
@@ -110,7 +111,7 @@ async function postAgent(body: Record<string, unknown>): Promise<{ runId?: strin
   const r = await fetch('/api/admin?resource=agents', {
     method: 'POST',
     credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
+    headers: authHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(body),
   });
   const b = (await r.json().catch(() => ({}))) as {

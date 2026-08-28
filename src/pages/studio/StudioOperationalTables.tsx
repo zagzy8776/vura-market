@@ -4,12 +4,13 @@ import { ChevronRight, ImagePlus, Package, Pencil, Plus, RefreshCw, Sparkles, Tr
 import { uploadToCloudinary } from '@/lib/cloudinary';
 import { money } from '@/lib/money';
 import OrderActionPanel from './OrderActionPanel';
+import { authHeaders } from '@/lib/session';
 
 type Any = Record<string, any>;
 type Category = { id: string; name: string; slug: string; icon: string };
 
 async function api<T>(url: string, init?: RequestInit): Promise<T> {
-  const r = await fetch(url, { credentials: 'include', ...init });
+  const r = await fetch(url, { credentials: 'include', ...init, headers: authHeaders(init?.headers) });
   const b = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(b?.error || `Request failed (${r.status})`);
   return b as T;

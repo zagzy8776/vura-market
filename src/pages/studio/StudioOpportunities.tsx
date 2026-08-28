@@ -1,3 +1,4 @@
+import { authHeaders } from '@/lib/session';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle,
@@ -76,7 +77,7 @@ async function api<T>(resourceWithQuery: string, init?: RequestInit): Promise<T>
   const [resource, ...rest] = resourceWithQuery.split('&');
   let url = `/api/admin?resource=${encodeURIComponent(resource)}`;
   if (rest.length) url += `&${rest.join('&')}`;
-  const r = await fetch(url, { credentials: 'include', ...init });
+  const r = await fetch(url, { credentials: 'include', ...init, headers: authHeaders(init?.headers) });
   const b = await r.json().catch(() => ({}));
   if (!r.ok && r.status !== 202) throw new Error((b as { error?: string })?.error || `Request failed (${r.status})`);
   return b as T;

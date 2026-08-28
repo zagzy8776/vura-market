@@ -2,9 +2,10 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Activity, AlertTriangle, RefreshCw, ShieldCheck, Wallet } from 'lucide-react';
 import { money } from '@/lib/money';
 import type { Overview, ResourceState, StudioTab } from '@/types';
+import { authHeaders } from '@/lib/session';
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(url, { credentials: 'include', ...init });
+  const res = await fetch(url, { credentials: 'include', ...init, headers: authHeaders(init?.headers) });
   const body = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(body?.error || `Request failed (${res.status})`);
   return body as T;

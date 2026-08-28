@@ -2,12 +2,13 @@ import { useEffect, useState } from 'react';
 import { X, Save, ShieldCheck } from 'lucide-react';
 import { money } from '@/lib/money';
 import ContactButtons from '@/components/ContactButtons';
+import { authHeaders } from '@/lib/session';
 
 type AnyOrder = Record<string, any>;
 type AnySupplier = Record<string, any>;
 
 async function api<T>(url: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(url, { credentials: 'include', ...init });
+  const res = await fetch(url, { credentials: 'include', ...init, headers: authHeaders(init?.headers) });
   const body = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(body?.error || `Request failed (${res.status})`);
   return body as T;

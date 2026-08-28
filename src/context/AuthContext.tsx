@@ -2,13 +2,15 @@ import { createContext, useContext, useEffect, useMemo, useState, type ReactNode
 import type { AppUser } from '@/types';
 import { linkOneSignalUser, unlinkOneSignalUser } from '@/lib/onesignal';
 import { apiUrl } from '@/lib/apiBase';
+import { authHeaders, setSessionToken } from '@/lib/session';
 
 export type { AppUser };
 type AuthContextValue = { user: AppUser | null; loading: boolean; signIn: (email: string, password: string) => Promise<{ error: Error | null }>; signUp: (email: string, password: string, name: string) => Promise<{ error: Error | null }>; signOut: () => Promise<void> };
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 async function readUser(response: Response) {
-  const result = await response.json() as { user?: AppUser | null; error?: string };
+  const result = await response.json() as { user?: AppUser | null; error?: string; sessionToken?: string };
+  if (result.sessionToken) setSessionToken(result.sessionToken);
   return { result, ok: response.ok };
 }
 
@@ -17,7 +19,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch(apiUrl('/api/auth/me'), { credentials: 'include' })
+    fetch(apiUrl('/api/auth/me'), { credentials: 'include', headers: authHeaders() })
       .then(readUser)
       .then(({ result }) => {
         const u = result.user || null;
@@ -56,7 +58,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     },
     async signOut() {
-      try { await fetch(apiUrl('/api/auth/logout'), { method: 'POST', credentials: 'include' }); } finally { void unlinkOneSignalUser(); setUser(null); }
+      try { await fetch(apiUrl('/api/auth/logout'), { method: 'POST', credentials: 'include', headers: authHeaders() }); } finally { setSessionToken(null); void unlinkOneSignalUser(); setUser(null); }
     },
   }), [loading, user]);
 

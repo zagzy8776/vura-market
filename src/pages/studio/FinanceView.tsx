@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { AlertTriangle, RefreshCw, TrendingUp, Wallet, Clock3, XCircle } from 'lucide-react';
 import { money } from '@/lib/money';
+import { authHeaders } from '@/lib/session';
 
 type Row = Record<string, any>;
 type Finance = { summary: Row; monthly: Row[]; payments: Row[]; sourcing: Row[] };
 
 async function request<T>(url: string): Promise<T> {
-  const res = await fetch(url, { credentials: 'include' });
+  const res = await fetch(url, { credentials: 'include', headers: authHeaders() });
   const body = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(body?.error || `Request failed (${res.status})`);
   return body as T;

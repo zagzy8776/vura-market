@@ -1,3 +1,4 @@
+import { authHeaders } from '@/lib/session';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   Activity, AlertTriangle, Bell, ChevronRight, CreditCard, LayoutDashboard,
@@ -24,7 +25,13 @@ const nav: Array<{ id: StudioTab; label: string; icon: typeof LayoutDashboard }>
 ];
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(url, { credentials: 'include', ...init });
+  const res = await fetch(url, {
+    credentials: 'include',
+    ...init,
+    headers: authHeaders({
+      ...(init?.headers || {}),
+    }),
+  });
   const body = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(body?.error || `Request failed (${res.status})`);
   return body as T;

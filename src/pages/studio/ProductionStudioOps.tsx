@@ -8,9 +8,10 @@ import StudioAgents from './StudioAgents';
 import AdminOverview from './AdminOverview';
 import { PaymentsBoard, InventoryBoard, SourcingBoard, FulfillmentBoard } from './StudioBoards';
 import { AnalyticsBoard, HealthBoard, SettingsBoard } from './StudioInsightPages';
+import { authHeaders } from '@/lib/session';
 
 async function request<T>(url: string, init?: RequestInit): Promise<{ data: T; requestId?: string }> {
-  const r = await fetch(url, { credentials: 'include', ...init });
+  const r = await fetch(url, { credentials: 'include', ...init, headers: authHeaders(init?.headers) });
   const b = await r.json().catch(() => ({}));
   if (!r.ok) {
     const err = new Error(b?.error || `Request failed (${r.status})`);
