@@ -78,7 +78,7 @@ async function api<T>(resourceWithQuery: string, init?: RequestInit): Promise<T>
   if (rest.length) url += `&${rest.join('&')}`;
   const r = await fetch(url, { credentials: 'include', ...init });
   const b = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error((b as { error?: string })?.error || `Request failed (${r.status})`);
+  if (!r.ok && r.status !== 202) throw new Error((b as { error?: string })?.error || `Request failed (${r.status})`);
   return b as T;
 }
 
@@ -250,7 +250,13 @@ export default function StudioOpportunities() {
     setError('');
     setProductReport(null);
     try {
-      const res = await api<{ report?: Record<string, unknown>; note?: string }>('agents', {
+      const res = await api<{
+        report?: Record<string, unknown>;
+        note?: string;
+        mode?: string;
+        runId?: string;
+        status?: string;
+      }>('agents', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -261,6 +267,31 @@ export default function StudioOpportunities() {
           category,
         }),
       });
+      if (res.mode === 'queued' && res.runId) {
+        setProductReport({
+          status: 'queued',
+          runId: res.runId,
+          message: 'Job queued on Fly worker. Poll run status or refresh notifications shortly.',
+        });
+        // light poll
+        for (let i = 0; i < 20; i++) {
+          await new Promise((r) => setTimeout(r, 3000));
+          const job = await api<{ run?: { status?: string; result?: Record<string, unknown>; error?: string } }>(
+            `agents&runId=${res.runId}`,
+          );
+          const st = job.run?.status;
+          if (st === 'completed') {
+            setProductReport(job.run?.result || { status: 'completed' });
+            return;
+          }
+          if (st === 'failed') {
+            setError(job.run?.error || 'Product intelligence job failed');
+            return;
+          }
+        }
+        setError('Job still running — check Opportunities notifications later.');
+        return;
+      }
       if (res.report) setProductReport(res.report);
       else setError(res.note || 'Product intelligence returned no report');
     } catch (e) {

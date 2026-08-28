@@ -20,7 +20,9 @@
     "db:migration-readiness": "tsx scripts/verify-migration-readiness.ts",
     "db:migration-analysis": "tsx scripts/detailed-migration-analysis.ts",
     "db:fix-v13": "tsx scripts/fix-v13-mismatch.ts",
-    "db:fix-migrations": "tsx scripts/fix-migration-versions.ts"
+    "db:fix-migrations": "tsx scripts/fix-migration-versions.ts",
+    "build:worker": "esbuild api/_lib/agents/worker-entry.ts --bundle --platform=node --format=esm --outfile=agent-worker.mjs",
+    "build:fly": "vite build && npm run build:worker"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",
@@ -48,6 +50,7 @@
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.3.0",
     "vite": "^5.4.8",
-    "vitest": "^4.1.11"
+    "vitest": "^4.1.11",
+    "esbuild": "^0.25.0"
   }
 }

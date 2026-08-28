@@ -70,11 +70,43 @@ function applyCors(req, res) {
   res.setHeader('Vary', 'Origin');
 }
 
+
+/** Phase N: start Fly agent worker alongside gateway */
+async function startAgentWorker() {
+  if (process.env.AGENT_WORKER_ENABLED === 'false') {
+    console.log('[fly] agent worker disabled');
+    return;
+  }
+  try {
+    const mod = await import('./agent-worker.mjs');
+    if (typeof mod.startWorker === 'function') {
+      mod.startWorker();
+      console.log('[fly] agent worker started (bundled)');
+      return;
+    }
+  } catch (err) {
+    console.warn('[fly] bundled worker unavailable, trying tsx fallback', err?.message || err);
+  }
+  try {
+    const { spawn } = await import('node:child_process');
+    const child = spawn('npx', ['tsx', 'api/_lib/agents/worker-entry.ts'], {
+      stdio: 'inherit',
+      env: process.env,
+      detached: false,
+    });
+    child.on('exit', (code) => console.error('[fly] tsx worker exited', code));
+    console.log('[fly] agent worker started (tsx)');
+  } catch (err) {
+    console.error('[fly] agent worker failed to start', err);
+  }
+}
+
 function health(res) {
   send(res, 200, JSON.stringify({
     status: 'healthy',
     service: 'vura-market',
-    role: 'api-gateway',
+    role: 'api-gateway+agent-worker',
+    agentWorker: process.env.AGENT_WORKER_ENABLED !== 'false',
     apiOrigin: API_ORIGIN,
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
@@ -194,6 +226,7 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
+void startAgentWorker();
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`[${new Date().toISOString()}] Vura Market listening on :${PORT}`);
   console.log(`[${new Date().toISOString()}] API proxy → ${API_ORIGIN}`);

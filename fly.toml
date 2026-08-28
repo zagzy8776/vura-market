@@ -10,7 +10,8 @@ primary_region = 'jnb'
 
 [env]
   NODE_ENV = 'production'
-  NODE_OPTIONS = '--max-old-space-size=256'
+  NODE_OPTIONS = '--max-old-space-size=384'
+  AGENT_WORKER_ENABLED = 'true'
 
 [http_service]
   internal_port = 3000
@@ -29,4 +30,4 @@ primary_region = 'jnb'
 
 [[vm]]
   size = 'shared-cpu-1x'
-  memory = '256mb'
+  memory = '512mb'

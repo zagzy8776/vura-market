@@ -11,6 +11,7 @@ import { analyzeSales } from './agents/sales-intelligence.js';
 import { analyzeOperations } from './agents/operations-intelligence.js';
 import { scoutMarketing } from './agents/marketing-intelligence.js';
 import { createAgentNotification } from './agents/notifications.js';
+import { enqueueAgentJob, getJob } from './agents/job-queue.js';
 import type { AgentId, ModelProvider } from './agents/types.js';
 import { listAgentNotifications } from './agents/notifications.js';
 import { listOpportunities, updateOpportunityStatus } from './agents/opportunities.js';
@@ -290,8 +291,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (method === 'GET') {
         const runId = typeof req.query.runId === 'string' ? req.query.runId : '';
         if (!runId) return json(res, 400, { error: 'runId is required.', requestId });
+        const job = await getJob(runId);
+        if (job) return json(res, 200, { run: job, requestId, mode: 'job' });
         const run = await getRun(runId);
-        return run ? json(res, 200, { run, requestId }) : json(res, 404, { error: 'Agent run not found.', requestId });
+        return run ? json(res, 200, { run, requestId, mode: 'legacy' }) : json(res, 404, { error: 'Agent run not found.', requestId });
       }
       if (method !== 'POST') return json(res, 405, { error: 'Method not allowed.' });
       const body = req.body && typeof req.body === 'object' ? req.body as Record<string, unknown> : {};
@@ -303,7 +306,38 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (!agentId || !agentIds.has(agentId)) return json(res, 400, { error: 'Unknown agent.', requestId });
       if (task.length < 3 || task.length > 4000) return json(res, 400, { error: 'Task must be between 3 and 4000 characters.', requestId });
       if (requestedProviders && requestedProviders.length === 0) return json(res, 400, { error: 'No valid model providers supplied.', requestId });
+      const sync = body.sync === true || body.mode === 'sync';
+      const longRunning = new Set([
+        'trend-intelligence', 'product-intelligence', 'marketing-intelligence', 'sales', 'operations', 'engineering',
+      ]);
+
       try {
+        // Phase N: default async enqueue for long-running agents (Fly worker executes)
+        if (!sync && longRunning.has(agentId)) {
+          const jobInput: Record<string, unknown> = {
+            categories: body.categories,
+            opportunityId: body.opportunityId,
+            productName: body.productName,
+            category: body.category,
+          };
+          const enqueued = await enqueueAgentJob({
+            agentId,
+            task,
+            input: jobInput,
+            idempotencyKey: typeof body.idempotencyKey === 'string' ? body.idempotencyKey : undefined,
+          });
+          return json(res, 202, {
+            requestId,
+            mode: 'queued',
+            runId: enqueued.runId,
+            status: enqueued.status,
+            deduped: enqueued.deduped,
+            message: 'Job queued for Fly agent worker. Poll GET /api/admin?resource=agents&runId=...',
+            policy: getAgentPolicy(agentId),
+            tools: listTools(agentId).map((tool) => ({ name: tool.name, description: tool.description, risk: tool.risk })),
+          });
+        }
+
         if (agentId === 'trend-intelligence') {
           const runId = randomUUID();
           await sql`INSERT INTO agent_runs (id, agent_id, task, status) VALUES (${runId}, ${agentId}, ${task}, 'running')`.catch(() => undefined);
