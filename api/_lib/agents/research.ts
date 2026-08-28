@@ -1,4 +1,6 @@
 import { getEnvironment } from '../env.js';
+import { generateWithFallback } from './providers.js';
+import type { AgentContext, ModelProvider } from './types.js';
 
 export type ResearchProvider = 'tavily' | 'exa' | 'firecrawl' | 'serpapi';
 
@@ -15,30 +17,21 @@ function keyFor(provider: ResearchProvider) {
 }
 
 async function searchTavily(query: string, maxResults: number) {
-  const response = await fetch('https://api.tavily.com/search', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ api_key: keyFor('tavily'), query, search_depth: 'basic', max_results: maxResults, include_answer: false }),
-  });
+  const response = await fetch('https://api.tavily.com/search', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ api_key: keyFor('tavily'), query, search_depth: 'basic', max_results: maxResults, include_answer: false }) });
   if (!response.ok) throw new Error(`tavily search failed (${response.status})`);
   const data = await response.json() as { results?: Array<{ title?: string; url?: string; content?: string; score?: number }> };
   return (data.results ?? []).map((item) => ({ provider: 'tavily' as const, title: item.title ?? '', url: item.url ?? '', snippet: item.content ?? '', score: item.score }));
 }
 
 async function searchExa(query: string, maxResults: number) {
-  const response = await fetch('https://api.exa.ai/search', {
-    method: 'POST', headers: { Authorization: `Bearer ${keyFor('exa')}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query, type: 'auto', numResults: maxResults, contents: { highlights: { maxCharacters: 800 } } }),
-  });
+  const response = await fetch('https://api.exa.ai/search', { method: 'POST', headers: { Authorization: `Bearer ${keyFor('exa')}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ query, type: 'auto', numResults: maxResults, contents: { highlights: { maxCharacters: 800 } } }) });
   if (!response.ok) throw new Error(`exa search failed (${response.status})`);
   const data = await response.json() as { results?: Array<{ title?: string; url?: string; highlights?: string[]; score?: number }> };
   return (data.results ?? []).map((item) => ({ provider: 'exa' as const, title: item.title ?? '', url: item.url ?? '', snippet: (item.highlights ?? []).join(' '), score: item.score }));
 }
 
 async function searchFirecrawl(query: string, maxResults: number) {
-  const response = await fetch('https://api.firecrawl.dev/v1/search', {
-    method: 'POST', headers: { Authorization: `Bearer ${keyFor('firecrawl')}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query, limit: maxResults }),
-  });
+  const response = await fetch('https://api.firecrawl.dev/v1/search', { method: 'POST', headers: { Authorization: `Bearer ${keyFor('firecrawl')}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ query, limit: maxResults }) });
   if (!response.ok) throw new Error(`firecrawl search failed (${response.status})`);
   const data = await response.json() as { data?: Array<{ title?: string; url?: string; description?: string }> };
   return (data.data ?? []).map((item) => ({ provider: 'firecrawl' as const, title: item.title ?? '', url: item.url ?? '', snippet: item.description ?? '' }));
@@ -61,4 +54,16 @@ export async function researchSearch(input: { query: string; providers?: Researc
   const results: ResearchResult[] = [];
   for (const search of searches) if (search.status === 'fulfilled') results.push(...search.value);
   return results.slice(0, maxResults * providers.length);
+}
+
+export async function runResearch(query: string, context: AgentContext, providers?: ResearchProvider[]) {
+  const sources = await researchSearch({ query, providers, maxResults: 5 });
+  const evidence = sources.map((source, index) => `${index + 1}. ${source.title}\nURL: ${source.url}\n${source.snippet}`).join('\n\n');
+  const result = await generateWithFallback(['groq', 'cerebras', 'gemini'] as ModelProvider[], {
+    system: `You are Vura's ${context.agentId} research analyst. Use only evidence supplied below. Do not invent facts, URLs, prices, demand, or trends. If evidence is insufficient, say so.\n\nSOURCES:\n${evidence}`,
+    user: query,
+    temperature: 0.1,
+    maxTokens: 1800,
+  });
+  return { ...result, sources };
 }
