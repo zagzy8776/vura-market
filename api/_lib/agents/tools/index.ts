@@ -16,7 +16,7 @@ import { productCreateProposeTool, inventoryUpdateTool, shippingUpdateTool, noti
 
 let registered = false;
 
-export function registerBuiltinTools() {
+export function registerBuiltinTools(): void {
   if (registered) return;
   registered = true;
 

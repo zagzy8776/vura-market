@@ -73,12 +73,12 @@ export async function requestApproval(input: { runId: string; agentId: AgentId; 
 }
 
 export async function runAgent(input: {
-  registerBuiltinTools();
   agentId: AgentId;
   task: string;
   providers?: ModelProvider[];
   system?: string;
 }) {
+  registerBuiltinTools();
   const id = randomUUID();
   const record: AgentRunRecord = { id, agentId: input.agentId, task: input.task, status: 'running', startedAt: new Date().toISOString() };
   await sql`INSERT INTO agent_runs (id, agent_id, task, status) VALUES (${id}, ${input.agentId}, ${input.task}, 'running')`;
