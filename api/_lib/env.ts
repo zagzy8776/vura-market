@@ -19,3 +19,10 @@ export function getEnvironment(name: string): string {
   if (!value?.trim()) throw new Error(`Missing required environment variable: ${name}`);
   return value;
 }
+
+
+export function getOptionalEnvironment(name: string): string | null {
+  const value = process.env[name];
+  if (typeof value !== 'string' || !value.trim()) return null;
+  return value.trim();
+}

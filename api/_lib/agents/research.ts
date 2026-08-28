@@ -1,4 +1,4 @@
-import { getEnvironment } from '../env.js';
+import { getOptionalEnvironment } from '../env.js';
 import { generateWithFallback } from './providers.js';
 import type { AgentContext, ModelProvider } from './types.js';
 
@@ -12,33 +12,43 @@ export interface ResearchResult {
   score?: number;
 }
 
-function keyFor(provider: ResearchProvider) {
-  return getEnvironment(provider === 'tavily' ? 'TAVILY_API_KEY' : provider === 'exa' ? 'EXA_API_KEY' : provider === 'firecrawl' ? 'FIRECRAWL_API_KEY' : 'SERPAPI_API_KEY');
+function keyFor(provider: ResearchProvider): string | null {
+  return getOptionalEnvironment(
+    provider === 'tavily' ? 'TAVILY_API_KEY' :
+    provider === 'exa' ? 'EXA_API_KEY' :
+    provider === 'firecrawl' ? 'FIRECRAWL_API_KEY' : 'SERPAPI_API_KEY',
+  );
+}
+
+function requireKey(provider: ResearchProvider): string {
+  const key = keyFor(provider);
+  if (!key) throw new Error(`${provider} is not configured`);
+  return key;
 }
 
 async function searchTavily(query: string, maxResults: number) {
-  const response = await fetch('https://api.tavily.com/search', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ api_key: keyFor('tavily'), query, search_depth: 'basic', max_results: maxResults, include_answer: false }) });
+  const response = await fetch('https://api.tavily.com/search', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ api_key: requireKey('tavily'), query, search_depth: 'basic', max_results: maxResults, include_answer: false }) });
   if (!response.ok) throw new Error(`tavily search failed (${response.status})`);
   const data = await response.json() as { results?: Array<{ title?: string; url?: string; content?: string; score?: number }> };
   return (data.results ?? []).map((item) => ({ provider: 'tavily' as const, title: item.title ?? '', url: item.url ?? '', snippet: item.content ?? '', score: item.score }));
 }
 
 async function searchExa(query: string, maxResults: number) {
-  const response = await fetch('https://api.exa.ai/search', { method: 'POST', headers: { Authorization: `Bearer ${keyFor('exa')}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ query, type: 'auto', numResults: maxResults, contents: { highlights: { maxCharacters: 800 } } }) });
+  const response = await fetch('https://api.exa.ai/search', { method: 'POST', headers: { Authorization: `Bearer ${requireKey('exa')}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ query, type: 'auto', numResults: maxResults, contents: { highlights: { maxCharacters: 800 } } }) });
   if (!response.ok) throw new Error(`exa search failed (${response.status})`);
   const data = await response.json() as { results?: Array<{ title?: string; url?: string; highlights?: string[]; score?: number }> };
   return (data.results ?? []).map((item) => ({ provider: 'exa' as const, title: item.title ?? '', url: item.url ?? '', snippet: (item.highlights ?? []).join(' '), score: item.score }));
 }
 
 async function searchFirecrawl(query: string, maxResults: number) {
-  const response = await fetch('https://api.firecrawl.dev/v1/search', { method: 'POST', headers: { Authorization: `Bearer ${keyFor('firecrawl')}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ query, limit: maxResults }) });
+  const response = await fetch('https://api.firecrawl.dev/v1/search', { method: 'POST', headers: { Authorization: `Bearer ${requireKey('firecrawl')}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ query, limit: maxResults }) });
   if (!response.ok) throw new Error(`firecrawl search failed (${response.status})`);
   const data = await response.json() as { data?: Array<{ title?: string; url?: string; description?: string }> };
   return (data.data ?? []).map((item) => ({ provider: 'firecrawl' as const, title: item.title ?? '', url: item.url ?? '', snippet: item.description ?? '' }));
 }
 
 async function searchSerpApi(query: string, maxResults: number) {
-  const params = new URLSearchParams({ engine: 'google', q: query, num: String(maxResults), api_key: keyFor('serpapi') });
+  const params = new URLSearchParams({ engine: 'google', q: query, num: String(maxResults), api_key: requireKey('serpapi') });
   const response = await fetch(`https://serpapi.com/search.json?${params.toString()}`);
   if (!response.ok) throw new Error(`serpapi search failed (${response.status})`);
   const data = await response.json() as { organic_results?: Array<{ title?: string; link?: string; snippet?: string; position?: number }> };
@@ -49,7 +59,9 @@ export async function researchSearch(input: { query: string; providers?: Researc
   const query = input.query.trim();
   if (query.length < 2 || query.length > 500) throw new Error('Research query must be between 2 and 500 characters.');
   const maxResults = Math.min(Math.max(input.maxResults ?? 5, 1), 10);
-  const providers = input.providers?.length ? input.providers : ['tavily', 'exa', 'firecrawl', 'serpapi'] as ResearchProvider[];
+  const requested = input.providers?.length ? input.providers : (['tavily', 'exa', 'firecrawl', 'serpapi'] as ResearchProvider[]);
+  const providers = requested.filter((provider) => Boolean(keyFor(provider)));
+  if (!providers.length) return [];
   const searches = await Promise.allSettled(providers.map((provider) => provider === 'tavily' ? searchTavily(query, maxResults) : provider === 'exa' ? searchExa(query, maxResults) : provider === 'firecrawl' ? searchFirecrawl(query, maxResults) : searchSerpApi(query, maxResults)));
   const results: ResearchResult[] = [];
   for (const search of searches) if (search.status === 'fulfilled') results.push(...search.value);

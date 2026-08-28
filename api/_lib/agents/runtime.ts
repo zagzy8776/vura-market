@@ -2,30 +2,30 @@ import { randomUUID } from 'crypto';
 import { generateWithFallback } from './providers.js';
 import { sql } from '../db.js';
 import type { AgentContext, AgentId, AgentPolicy, AgentRunRecord, AgentTool, ModelProvider } from './types.js';
-
-const policies: Record<AgentId, AgentPolicy> = {
-  'product-intelligence': { allowedTools: ['web.search', 'products.search', 'analytics.read'], requireApprovalFor: ['write', 'destructive'] },
-  'trend-intelligence': { allowedTools: ['web.search', 'analytics.read'], requireApprovalFor: ['write', 'destructive'] },
-  'marketing-intelligence': { allowedTools: ['web.search', 'products.search', 'analytics.read'], requireApprovalFor: ['write', 'destructive'] },
-  sales: { allowedTools: ['products.search', 'inventory.read', 'customers.read'], requireApprovalFor: ['write', 'destructive'] },
-  operations: { allowedTools: ['orders.read', 'inventory.read', 'shipping.read'], requireApprovalFor: ['write', 'destructive'] },
-  engineering: { allowedTools: ['github.read', 'runtime.read', 'runtime.test'], requireApprovalFor: ['write', 'destructive'] },
-};
-
-const tools = new Map<string, AgentTool>();
+import { registerTool as registerToolInMap, getTool, getAllTools } from './tool-registry.js';
+import { registerBuiltinTools } from './tools/index.js';
 
 export function registerTool(tool: AgentTool) {
-  if (tools.has(tool.name)) throw new Error(`Agent tool already registered: ${tool.name}`);
-  tools.set(tool.name, tool);
+  registerToolInMap(tool);
 }
+
+const policies: Record<AgentId, AgentPolicy> = {
+  'product-intelligence': { allowedTools: ['web.search', 'products.search', 'product.inspect', 'inventory.read', 'analytics.read'], requireApprovalFor: ['write', 'destructive'] },
+  'trend-intelligence': { allowedTools: ['web.search', 'products.search', 'analytics.read'], requireApprovalFor: ['write', 'destructive'] },
+  'marketing-intelligence': { allowedTools: ['web.search', 'products.search', 'product.inspect', 'analytics.read'], requireApprovalFor: ['write', 'destructive'] },
+  sales: { allowedTools: ['products.search', 'product.inspect', 'inventory.read', 'orders.read', 'analytics.read'], requireApprovalFor: ['write', 'destructive'] },
+  operations: { allowedTools: ['orders.read', 'inventory.read', 'products.search', 'product.inspect'], requireApprovalFor: ['write', 'destructive'] },
+  engineering: { allowedTools: ['github.read', 'runtime.read', 'runtime.test'], requireApprovalFor: ['write', 'destructive'] },
+};
 
 export function getAgentPolicy(agentId: AgentId) {
   return policies[agentId];
 }
 
 export function listTools(agentId: AgentId) {
+  registerBuiltinTools();
   const allowed = new Set(policies[agentId].allowedTools);
-  return [...tools.values()].filter((tool) => allowed.has(tool.name));
+  return getAllTools().filter((tool) => allowed.has(tool.name));
 }
 
 function canUse(agentId: AgentId, tool: AgentTool) {
@@ -46,7 +46,8 @@ function safeJson(value: unknown) {
 }
 
 export async function executeTool(agentId: AgentId, runId: string, name: string, input: unknown) {
-  const tool = tools.get(name);
+  registerBuiltinTools();
+  const tool = getTool(name);
   if (!tool) throw new Error(`Unknown agent tool: ${name}`);
   canUse(agentId, tool);
   const context: AgentContext = { agentId, runId, task: `tool:${name}` };
@@ -71,6 +72,7 @@ export async function requestApproval(input: { runId: string; agentId: AgentId; 
 }
 
 export async function runAgent(input: {
+  registerBuiltinTools();
   agentId: AgentId;
   task: string;
   providers?: ModelProvider[];
