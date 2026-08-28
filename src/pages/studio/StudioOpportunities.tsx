@@ -502,7 +502,19 @@ export default function StudioOpportunities() {
           <div className={`space-y-2 lg:col-span-2 ${mobileShowDetail && selected ? 'hidden lg:block' : ''}`}>
             {filtered.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-white/15 bg-white/[0.02] px-6 py-16 text-center text-sm text-white/40">
-                No opportunities yet. Open Command Center → Start Trend scan, wait a few minutes, then refresh here.
+                No opportunities yet — scans create them.
+                <button
+                  type="button"
+                  onClick={() => {
+                    const url = new URL(window.location.href);
+                    url.searchParams.set('tab', 'agents');
+                    window.history.pushState({}, '', url.toString());
+                    window.dispatchEvent(new PopStateEvent('popstate'));
+                  }}
+                  className="mt-3 inline-flex items-center justify-center rounded-xl bg-vura-500 px-4 py-2.5 text-sm font-bold text-white"
+                >
+                  Open Command Center → Start scan
+                </button>
               </div>
             ) : (
               filtered.map(({ op, trendScore, commercialScore, confidence, urg }) => (

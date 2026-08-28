@@ -48,8 +48,8 @@ const navSections: NavSection[] = [
   {
     label: 'AGENTS',
     items: [
-      { id: 'opportunities', label: 'Opportunities', icon: Radar },
       { id: 'agents', label: 'Command Center', icon: Bot },
+      { id: 'opportunities', label: 'Opportunities', icon: Radar },
     ],
   },
   {
