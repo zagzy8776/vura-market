@@ -5,7 +5,7 @@ import type { ModelProvider, ModelRequest, ModelResponse } from './types.js';
 const DEFAULT_MODELS: Record<ModelProvider, string> = {
   groq: process.env.GROQ_MODEL || 'llama-3.3-70b-versatile',
   cerebras: process.env.CEREBRAS_MODEL || 'llama3.1-8b',
-  gemini: process.env.GEMINI_MODEL || 'gemini-2.0-flash',
+  gemini: process.env.GEMINI_MODEL || 'gemini-3.6-flash',
 };
 
 const ENDPOINTS: Record<ModelProvider, string> = {
