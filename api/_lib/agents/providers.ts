@@ -3,8 +3,9 @@ import { sql } from '../db.js';
 import type { ModelProvider, ModelRequest, ModelResponse } from './types.js';
 
 const DEFAULT_MODELS: Record<ModelProvider, string> = {
-  groq: process.env.GROQ_MODEL || 'llama-3.3-70b-versatile',
-  cerebras: process.env.CEREBRAS_MODEL || 'llama3.1-8b',
+  // Free-tier accounts only see a subset — these IDs match current Groq/Cerebras/Gemini free inventories
+  groq: process.env.GROQ_MODEL || 'openai/gpt-oss-20b',
+  cerebras: process.env.CEREBRAS_MODEL || 'gemma-4-31b',
   gemini: process.env.GEMINI_MODEL || 'gemini-3.6-flash',
 };
 
