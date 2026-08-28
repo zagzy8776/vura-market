@@ -143,6 +143,7 @@ export type StudioTab =
   | 'customers'
   | 'notifications'
   | 'opportunities'
+  | 'agents'
   | 'finance'
   | 'analytics'
   | 'audit'

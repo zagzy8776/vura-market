@@ -4,6 +4,7 @@ import { money } from '@/lib/money';
 import type { Customer, Notification, Order, Overview, Product, ResourceState, StudioTab, Supplier } from '@/types';
 import { OperationalOrders, OperationalProducts, OperationalSuppliers } from './StudioOperationalTables';
 import StudioOpportunities from './StudioOpportunities';
+import StudioAgents from './StudioAgents';
 import AdminOverview from './AdminOverview';
 import { PaymentsBoard, InventoryBoard, SourcingBoard, FulfillmentBoard } from './StudioBoards';
 import { AnalyticsBoard, HealthBoard, SettingsBoard } from './StudioInsightPages';
@@ -190,6 +191,7 @@ export default function ProductionStudioOps({ tab, onTabChange }: { tab: StudioT
             {tab === 'customers' && <Customers customers={customersData} />}
             {tab === 'notifications' && <Notifications state={notifications} />}
             {tab === 'opportunities' && <StudioOpportunities />}
+            {tab === 'agents' && <StudioAgents />}
             {tab === 'audit' && <AuditView state={overview} />}
             {tab === 'settings' && <SettingsBoard />}
             {tab === 'health' && <HealthBoard overview={overview} onNavigate={onTabChange} />}

@@ -420,6 +420,27 @@ const result = await runAgent({ agentId, task, providers: requestedProviders });
       }
     }
 
+    if (r === 'agent-jobs') {
+      requireAdminPermission(admin, 'orders:read');
+      const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 50));
+      const status = typeof req.query.status === 'string' ? req.query.status : '';
+      const rows = status
+        ? await sql`SELECT id, agent_id, task, status, attempts, error, provider, model, started_at, completed_at, metadata FROM agent_runs WHERE status = ${status} ORDER BY started_at DESC LIMIT ${limit}`
+        : await sql`SELECT id, agent_id, task, status, attempts, error, provider, model, started_at, completed_at, metadata FROM agent_runs ORDER BY started_at DESC LIMIT ${limit}`;
+      return json(res, 200, { jobs: rows, requestId });
+    }
+    if (r === 'agent-memory') {
+      requireAdminPermission(admin, 'orders:read');
+      const { recall } = await import('./agents/memory.js');
+      const agentId = typeof req.query.agentId === 'string' ? req.query.agentId : undefined;
+      const rows = await recall({ agentId, limit: 40 });
+      return json(res, 200, { memory: rows, requestId });
+    }
+    if (r === 'agent-schedules') {
+      requireAdminPermission(admin, 'orders:read');
+      const rows = await sql`SELECT id, agent_id, task, interval_minutes, enabled, last_enqueued_at, next_run_at FROM agent_schedules ORDER BY id`;
+      return json(res, 200, { schedules: rows, requestId });
+    }
     if (r === 'agent-approvals') {
       const ok = await requireAdminPermission(req, res, 'dashboard.read');
       if (!ok) return;

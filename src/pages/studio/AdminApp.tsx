@@ -7,7 +7,7 @@ import AdminSidebar from '@/components/AdminSidebar';
 import AdminMobileDrawer from '@/components/AdminMobileDrawer';
 import type { StudioTab } from '@/types';
 
-const VALID_TABS: StudioTab[] = ['overview', 'health', 'orders', 'payments', 'products', 'inventory', 'sourcing', 'suppliers', 'delivery', 'customers', 'notifications', 'opportunities', 'finance', 'analytics', 'audit', 'settings'];
+const VALID_TABS: StudioTab[] = ['overview', 'health', 'orders', 'payments', 'products', 'inventory', 'sourcing', 'suppliers', 'delivery', 'customers', 'notifications', 'opportunities', 'agents', 'finance', 'analytics', 'audit', 'settings'];
 
 function tabFromSearch(): StudioTab {
   try {

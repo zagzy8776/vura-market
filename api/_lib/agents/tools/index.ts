@@ -12,6 +12,7 @@ import {
 } from './vura-read.js';
 import { webSearchTool } from './web-search.js';
 import { trendCollectTool, trendScoreTool } from './trend-tools.js';
+import { productCreateProposeTool, inventoryUpdateTool, shippingUpdateTool, notificationSendTool } from './write-tools.js';
 
 let registered = false;
 
@@ -28,6 +29,10 @@ export function registerBuiltinTools() {
   registerTool(webSearchTool);
   registerTool(trendCollectTool);
   registerTool(trendScoreTool);
+  registerTool(productCreateProposeTool);
+  registerTool(inventoryUpdateTool);
+  registerTool(shippingUpdateTool);
+  registerTool(notificationSendTool);
 }
 
 export function listRegisteredToolNames() {

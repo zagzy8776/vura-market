@@ -124,9 +124,10 @@ export async function failJob(runId: string, lockToken: string, error: string, a
         completed_at = now(),
         error = ${error.slice(0, 2000)},
         lock_token = null,
-        locked_at = null
+        locked_at = null,
+        metadata = COALESCE(metadata, '{}'::jsonb) || ${JSON.stringify({ deadLetter: true, failedAt: new Date().toISOString() })}::jsonb
     WHERE id = ${runId}::uuid AND (lock_token = ${lockToken} OR lock_token IS NULL)`;
-  return { retried: false };
+  return { retried: false, deadLetter: true };
 }
 
 /** Recover stuck running jobs (worker crash). */

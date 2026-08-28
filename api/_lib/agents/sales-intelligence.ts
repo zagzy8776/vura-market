@@ -47,12 +47,30 @@ export async function analyzeSales(_context: AgentContext) {
 
   if (!insights.length) insights.push('Not enough order history yet for strong sales signals.');
 
+  const unpaidOrders = await sql`
+    SELECT order_number, customer_name, customer_phone, total_kobo, payment_status, created_at
+    FROM orders
+    WHERE payment_status IN ('unpaid', 'pending_verification')
+    ORDER BY created_at DESC LIMIT 15`;
+
+  const followUpQueue = unpaidOrders.map((o) => ({
+    customer: o.customer_name || 'Customer',
+    orderNumber: o.order_number,
+    reason: o.payment_status === 'pending_verification' ? 'Verify payment' : 'Payment outstanding',
+    priority: o.payment_status === 'pending_verification' ? 'high' : 'medium',
+    suggestedMessage: `Hi, regarding order ${o.order_number} — please complete or confirm payment when convenient.`,
+    status: 'pending_human',
+    phone: o.customer_phone || null,
+  }));
+
   return {
     insights,
     topProducts: top,
     slowProducts: slow,
     payments,
     stock,
+    followUpQueue,
+    promotionRecommendations: top.slice(0, 3).map((p) => `Consider promoting: ${p.brand ? p.brand + ' ' : ''}${p.name}`),
     messageQueuePolicy: 'Human-only: agents must not auto-message customers.',
   };
 }

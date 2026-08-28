@@ -1,4 +1,5 @@
 import { getOptionalEnvironment } from '../env.js';
+import { sql } from '../db.js';
 import type { ModelProvider, ModelRequest, ModelResponse } from './types.js';
 
 const DEFAULT_MODELS: Record<ModelProvider, string> = {
@@ -64,8 +65,33 @@ async function gemini(request: ModelRequest): Promise<ModelResponse> {
   return { provider: 'gemini', model, text };
 }
 
+async function trackProviderUsage(provider: ModelProvider, ok: boolean, usage?: { inputTokens?: number; outputTokens?: number }) {
+  try {
+    await sql`
+      INSERT INTO agent_provider_usage (provider, usage_day, requests, input_tokens, output_tokens, failures, last_used_at)
+      VALUES (
+        ${provider}, CURRENT_DATE, 1,
+        ${usage?.inputTokens ?? 0}, ${usage?.outputTokens ?? 0},
+        ${ok ? 0 : 1}, now()
+      )
+      ON CONFLICT (provider, usage_day) DO UPDATE SET
+        requests = agent_provider_usage.requests + 1,
+        input_tokens = agent_provider_usage.input_tokens + EXCLUDED.input_tokens,
+        output_tokens = agent_provider_usage.output_tokens + EXCLUDED.output_tokens,
+        failures = agent_provider_usage.failures + EXCLUDED.failures,
+        last_used_at = now()`;
+  } catch { /* non-fatal */ }
+}
+
 export async function generate(provider: ModelProvider, request: ModelRequest) {
-  return provider === 'gemini' ? gemini(request) : openAiCompatible(provider, request);
+  try {
+    const result = provider === 'gemini' ? await gemini(request) : await openAiCompatible(provider, request);
+    await trackProviderUsage(provider, true, result.usage);
+    return result;
+  } catch (e) {
+    await trackProviderUsage(provider, false);
+    throw e;
+  }
 }
 
 /** Gemini multimodal vision — image URLs must be publicly fetchable (e.g. Cloudinary). */
