@@ -11,7 +11,7 @@ export function registerTool(tool: AgentTool) {
 
 const policies: Record<AgentId, AgentPolicy> = {
   'product-intelligence': { allowedTools: ['web.search', 'products.search', 'product.inspect', 'inventory.read', 'analytics.read'], requireApprovalFor: ['write', 'destructive'] },
-  'trend-intelligence': { allowedTools: ['web.search', 'products.search', 'analytics.read'], requireApprovalFor: ['write', 'destructive'] },
+  'trend-intelligence': { allowedTools: ['web.search', 'products.search', 'analytics.read', 'trend.collect', 'trend.score'], requireApprovalFor: ['write', 'destructive'] },
   'marketing-intelligence': { allowedTools: ['web.search', 'products.search', 'product.inspect', 'analytics.read'], requireApprovalFor: ['write', 'destructive'] },
   sales: { allowedTools: ['products.search', 'product.inspect', 'inventory.read', 'orders.read', 'analytics.read'], requireApprovalFor: ['write', 'destructive'] },
   operations: { allowedTools: ['orders.read', 'inventory.read', 'products.search', 'product.inspect'], requireApprovalFor: ['write', 'destructive'] },

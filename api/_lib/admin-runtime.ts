@@ -5,6 +5,7 @@ import { recordAudit, recordOrderEvent } from './audit.js';
 import { applySecurityHeaders } from './http.js';
 import { randomUUID } from 'crypto';
 import { runAgent, getRun, getAgentPolicy, listTools } from './agents/runtime.js';
+import { runTrendIntelligence } from './agents/trend-runner.js';
 import type { AgentId, ModelProvider } from './agents/types.js';
 import { listAgentNotifications } from './agents/notifications.js';
 import { listOpportunities, updateOpportunityStatus } from './agents/opportunities.js';
@@ -298,6 +299,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (task.length < 3 || task.length > 4000) return json(res, 400, { error: 'Task must be between 3 and 4000 characters.', requestId });
       if (requestedProviders && requestedProviders.length === 0) return json(res, 400, { error: 'No valid model providers supplied.', requestId });
       try {
+        if (agentId === 'trend-intelligence') {
+          const runId = randomUUID();
+          await sql`INSERT INTO agent_runs (id, agent_id, task, status) VALUES (${runId}, ${agentId}, ${task}, 'running')`.catch(() => undefined);
+          const trend = await runTrendIntelligence({ agentId, runId, task }, Array.isArray(body.categories) ? body.categories.filter((c): c is string => typeof c === 'string') : undefined);
+          const tools = listTools(agentId).map((tool) => ({ name: tool.name, description: tool.description, risk: tool.risk }));
+          return json(res, 200, { requestId, policy: getAgentPolicy(agentId), tools, run: { id: runId, agentId, status: 'completed' }, ...trend });
+        }
         const result = await runAgent({ agentId, task, providers: requestedProviders });
         const tools = listTools(agentId).map((tool) => ({ name: tool.name, description: tool.description, risk: tool.risk }));
         return json(res, 200, { requestId, policy: getAgentPolicy(agentId), tools, ...result });

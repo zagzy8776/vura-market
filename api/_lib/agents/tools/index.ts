@@ -11,6 +11,7 @@ import {
   productsSearchTool,
 } from './vura-read.js';
 import { webSearchTool } from './web-search.js';
+import { trendCollectTool, trendScoreTool } from './trend-tools.js';
 
 let registered = false;
 
@@ -25,6 +26,8 @@ export function registerBuiltinTools() {
   registerTool(ordersReadTool);
   registerTool(analyticsReadTool);
   registerTool(webSearchTool);
+  registerTool(trendCollectTool);
+  registerTool(trendScoreTool);
 }
 
 export function listRegisteredToolNames() {
@@ -37,5 +40,7 @@ export function listRegisteredToolNames() {
     ordersReadTool.name,
     analyticsReadTool.name,
     webSearchTool.name,
+    trendCollectTool.name,
+    trendScoreTool.name,
   ];
 }

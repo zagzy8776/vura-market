@@ -20,11 +20,40 @@ export interface Opportunity {
 export async function saveTrendCandidates(candidates: TrendCandidate[], agentId: AgentId = 'trend-intelligence') {
   const saved: Opportunity[] = [];
   for (const candidate of candidates) {
-    const score = typeof candidate.score === 'number' && Number.isFinite(candidate.score)
-      ? Math.min(100, Math.max(0, Math.round(candidate.score))) : null;
+    const score = Number.isFinite(candidate.trendScore)
+      ? Math.min(100, Math.max(0, Math.round(candidate.trendScore)))
+      : Number.isFinite(candidate.commercialScore)
+        ? Math.min(100, Math.max(0, Math.round(candidate.commercialScore)))
+        : null;
+
+    const evidencePayload = JSON.stringify({
+      evidence: candidate.evidence,
+      product: candidate.product,
+      confidence: candidate.confidence,
+      trendScore: candidate.trendScore,
+      commercialScore: candidate.commercialScore,
+      urgency: candidate.urgency,
+      region: candidate.region,
+      timeWindow: candidate.timeWindow,
+      recommendation: candidate.recommendation,
+      sources: candidate.sources,
+      evidenceClass: 'SOURCE_CONFIRMED',
+    });
+
+    const sourceField = candidate.sources.slice(0, 5).join(' | ').slice(0, 1000) || null;
+
     const rows = await sql`
       INSERT INTO agent_opportunities (agent_id, name, category, signal, score, source, evidence, status)
-      VALUES (${agentId}, ${candidate.name.slice(0, 300)}, ${candidate.category.slice(0, 160)}, ${candidate.signal.slice(0, 1000)}, ${score}, ${candidate.source?.slice(0, 1000) ?? null}, ${candidate.evidence?.slice(0, 5000) ?? null}, 'new')
+      VALUES (
+        ${agentId},
+        ${candidate.name.slice(0, 300)},
+        ${candidate.category.slice(0, 160)},
+        ${candidate.signal.slice(0, 1000)},
+        ${score},
+        ${sourceField},
+        ${evidencePayload.slice(0, 5000)},
+        'new'
+      )
       RETURNING id, agent_id, name, category, signal, score, source, evidence, status, created_at
     `;
     const row = rows[0];
@@ -54,9 +83,15 @@ export async function updateOpportunityStatus(id: string, status: OpportunitySta
 
 function mapOpportunity(row: Record<string, unknown>): Opportunity {
   return {
-    id: String(row.id), agentId: String(row.agent_id) as AgentId, name: String(row.name), category: String(row.category),
-    signal: String(row.signal), score: row.score == null ? null : Number(row.score), source: row.source == null ? null : String(row.source),
-    evidence: row.evidence == null ? null : String(row.evidence), status: String(row.status) as OpportunityStatus,
+    id: String(row.id),
+    agentId: String(row.agent_id) as AgentId,
+    name: String(row.name),
+    category: String(row.category),
+    signal: String(row.signal),
+    score: row.score == null ? null : Number(row.score),
+    source: row.source == null ? null : String(row.source),
+    evidence: row.evidence == null ? null : String(row.evidence),
+    status: String(row.status) as OpportunityStatus,
     createdAt: new Date(String(row.created_at)).toISOString(),
   };
 }

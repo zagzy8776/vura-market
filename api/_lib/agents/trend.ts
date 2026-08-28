@@ -1,40 +1,190 @@
-import { runResearch } from './research.js';
-import type { AgentContext } from './types.js';
+/**
+ * Trend Intelligence Agent — discovery only.
+ * Never invents evidence. Structures commercial signals from research sources
+ * and optional Vura catalog context. Category-agnostic.
+ */
+import { researchSearch, type ResearchResult } from './research.js';
+import { generateWithFallback } from './providers.js';
+import { sql } from '../db.js';
+import type { AgentContext, ModelProvider } from './types.js';
 
 export interface TrendCandidate {
   name: string;
   category: string;
+  product?: string;
   signal: string;
-  source?: string;
-  evidence?: string;
-  score?: number;
+  evidence: string;
+  sources: string[];
+  confidence: number;
+  trendScore: number;
+  commercialScore: number;
+  urgency: 'low' | 'medium' | 'high';
+  region: string;
+  timeWindow: string;
+  recommendation: string;
 }
 
-const CATEGORY_SEEDS = [
+const DEFAULT_CATEGORIES = [
   'phones', 'laptops', 'earphones', 'phone accessories', 'gaming',
   'solar panels', 'inverters', 'fashion', 'shoes', 'bags',
   'beverages', 'home appliances', 'cars', 'car accessories',
 ];
 
-function extractJson(text: string): TrendCandidate[] {
+function clampScore(n: unknown): number {
+  const v = typeof n === 'number' ? n : Number(n);
+  if (!Number.isFinite(v)) return 0;
+  return Math.min(100, Math.max(0, Math.round(v)));
+}
+
+function extractArray(text: string): unknown[] {
   const match = text.match(/\[[\s\S]*\]/);
   if (!match) return [];
   try {
     const parsed = JSON.parse(match[0]) as unknown;
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter((item): item is TrendCandidate => {
-      if (!item || typeof item !== 'object') return false;
-      const value = item as Record<string, unknown>;
-      return typeof value.name === 'string' && typeof value.category === 'string' && typeof value.signal === 'string';
-    });
+    return Array.isArray(parsed) ? parsed : [];
   } catch {
     return [];
   }
 }
 
-export async function discoverTrends(context: AgentContext, categories = CATEGORY_SEEDS) {
-  const query = `Nigeria ecommerce product trends. Categories: ${categories.join(', ')}. Find products with rising demand, new launches, unusual search interest, or strong buying intent. Return ONLY JSON array with objects containing name, category, signal, source, evidence, score (0-100). Do not invent evidence.`;
-  const result = await runResearch(query, context);
-  const candidates = extractJson(result.text);
-  return { ...result, candidates };
+function normalizeCandidate(raw: Record<string, unknown>, fallbackSources: string[]): TrendCandidate | null {
+  const name = typeof raw.name === 'string' ? raw.name.trim() : typeof raw.trend === 'string' ? raw.trend.trim() : '';
+  const category = typeof raw.category === 'string' ? raw.category.trim() : '';
+  const signal = typeof raw.signal === 'string' ? raw.signal.trim() : '';
+  const evidence = typeof raw.evidence === 'string' ? raw.evidence.trim() : '';
+  if (!name || !category || !signal || !evidence) return null;
+
+  const sourcesRaw = raw.sources;
+  const sources = Array.isArray(sourcesRaw)
+    ? sourcesRaw.filter((s): s is string => typeof s === 'string' && s.startsWith('http')).slice(0, 8)
+    : fallbackSources.slice(0, 5);
+  if (!sources.length) return null; // no invented sources
+
+  const urgencyRaw = typeof raw.urgency === 'string' ? raw.urgency.toLowerCase() : 'medium';
+  const urgency = urgencyRaw === 'high' || urgencyRaw === 'low' ? urgencyRaw : 'medium';
+
+  return {
+    name: name.slice(0, 300),
+    category: category.slice(0, 160),
+    product: typeof raw.product === 'string' ? raw.product.trim().slice(0, 300) : name.slice(0, 300),
+    signal: signal.slice(0, 1000),
+    evidence: evidence.slice(0, 5000),
+    sources,
+    confidence: clampScore(raw.confidence ?? raw.trendScore ?? 50),
+    trendScore: clampScore(raw.trendScore ?? raw.score ?? 50),
+    commercialScore: clampScore(raw.commercialScore ?? raw.trendScore ?? 50),
+    urgency,
+    region: typeof raw.region === 'string' && raw.region.trim() ? raw.region.trim().slice(0, 120) : 'Nigeria',
+    timeWindow: typeof raw.timeWindow === 'string' && raw.timeWindow.trim()
+      ? raw.timeWindow.trim().slice(0, 120)
+      : 'next 30–90 days',
+    recommendation: typeof raw.recommendation === 'string' && raw.recommendation.trim()
+      ? raw.recommendation.trim().slice(0, 1000)
+      : 'Investigate sourcing and pricing before listing.',
+  };
+}
+
+async function catalogContext(categories: string[]): Promise<string> {
+  try {
+    const rows = await sql`
+      SELECT p.name, p.brand, c.name AS category
+      FROM products p
+      LEFT JOIN categories c ON c.id = p.category_id
+      WHERE p.is_active = true
+      ORDER BY p.created_at DESC
+      LIMIT 40`;
+    if (!rows.length) return 'Catalog: empty or unavailable.';
+    const lines = rows.map((r) => `- ${r.brand ? `${r.brand} ` : ''}${r.name}${r.category ? ` [${r.category}]` : ''}`);
+    return `Current Vura catalog sample (do not invent products beyond this list when referring to "already listed"):\n${lines.join('\n')}\nFocus categories requested: ${categories.join(', ')}`;
+  } catch {
+    return 'Catalog: unavailable.';
+  }
+}
+
+/**
+ * Discover commercial trends from research sources + catalog context.
+ * Returns only candidates with evidence and real source URLs.
+ */
+export async function discoverTrends(context: AgentContext, categories = DEFAULT_CATEGORIES) {
+  const focus = categories.slice(0, 16);
+  const query =
+    `Nigeria ecommerce and retail product demand trends 2025–2026. ` +
+    `Categories of interest: ${focus.join(', ')}. ` +
+    `Look for rising search interest, new product launches, price moves, competitor activity, seasonal demand. ` +
+    `Prefer signals relevant to Nigerian buyers and West African retail.`;
+
+  const sources: ResearchResult[] = await researchSearch({ query, maxResults: 5 });
+  const sourceUrls = sources.map((s) => s.url).filter(Boolean);
+  const evidenceBlock = sources.length
+    ? sources
+        .map((s, i) => `${i + 1}. [${s.provider}] ${s.title}\nURL: ${s.url}\n${s.snippet}`)
+        .join('\n\n')
+    : 'NO_EXTERNAL_SOURCES_AVAILABLE';
+
+  const catalog = await catalogContext(focus);
+
+  const system = [
+    `You are Vura Market's Trend Intelligence agent (${context.agentId}).`,
+    'You discover commercial opportunities. You do NOT invent evidence, URLs, prices, or demand.',
+    'Use ONLY the SOURCES block below. If evidence is thin, return fewer items or an empty array.',
+    'Every opportunity MUST include real source URLs copied from the SOURCES list.',
+    'Return ONLY a JSON array (no markdown) of objects with keys:',
+    'name, category, product, signal, evidence, sources (array of URLs), confidence (0-100),',
+    'trendScore (0-100), commercialScore (0-100), urgency (low|medium|high), region, timeWindow, recommendation.',
+    'Region default Nigeria. Be category-agnostic (phones, solar, fashion, cars, etc.).',
+    '',
+    'CATALOG CONTEXT:',
+    catalog,
+    '',
+    'SOURCES:',
+    evidenceBlock,
+  ].join('\n');
+
+  const user =
+    `From the sources only, extract up to 8 high-signal commercial trends for a Nigerian multi-category marketplace. ` +
+    `If sources are insufficient, return [].`;
+
+  let text = '';
+  let provider: ModelProvider | undefined;
+  let model: string | undefined;
+
+  if (sources.length === 0) {
+    // Soft path: no research keys — do not invent trends from the model alone
+    return {
+      text: '',
+      provider: undefined,
+      model: undefined,
+      sources,
+      candidates: [] as TrendCandidate[],
+      note: 'No research providers configured or all providers failed. Trend scan produced zero evidence-backed opportunities.',
+    };
+  }
+
+  try {
+    const result = await generateWithFallback(['groq', 'cerebras', 'gemini'] as ModelProvider[], {
+      system,
+      user,
+      temperature: 0.15,
+      maxTokens: 2500,
+    });
+    text = result.text;
+    provider = result.provider;
+    model = result.model;
+  } catch (error) {
+    return {
+      text: '',
+      provider: undefined,
+      model: undefined,
+      sources,
+      candidates: [] as TrendCandidate[],
+      note: error instanceof Error ? error.message : 'Model providers unavailable',
+    };
+  }
+
+  const candidates = extractArray(text)
+    .map((item) => (item && typeof item === 'object' ? normalizeCandidate(item as Record<string, unknown>, sourceUrls) : null))
+    .filter((c): c is TrendCandidate => Boolean(c))
+    .slice(0, 8);
+
+  return { text, provider, model, sources, candidates };
 }
