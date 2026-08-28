@@ -1,4 +1,4 @@
-import { Activity, BarChart3, Bell, CreditCard, Home, Layers, Package, RefreshCcw, Settings, ShieldCheck, ShoppingBag, Store, TrendingUp, UserRound, X } from 'lucide-react';
+import { Activity, BarChart3, Bell, CreditCard, Home, Layers, Package, RefreshCcw, Settings, ShieldCheck, ShoppingBag, Store, TrendingUp, UserRound, X, Radar} from 'lucide-react';
 import type { StudioTab } from '@/types';
 
 type NavSection = {
@@ -43,6 +43,12 @@ const navSections: NavSection[] = [
     items: [
       { id: 'finance', label: 'Finance', icon: BarChart3 },
       { id: 'analytics', label: 'Analytics', icon: TrendingUp },
+    ],
+  },
+  {
+    label: 'AGENTS',
+    items: [
+      { id: 'opportunities', label: 'Opportunities', icon: Radar },
     ],
   },
   {
