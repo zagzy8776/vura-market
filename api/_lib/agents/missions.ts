@@ -303,7 +303,7 @@ export async function tickMissions() {
       const def = syntheticDef(stepKey);
       if (def?.synthetic) {
         try {
-          await runSynthetic(step, missionId, correlationId);
+          await runSynthetic(step as { id: string; step_key: string; input: unknown }, missionId, correlationId);
           await unlockDependents(missionId);
         } catch (e) {
           await markStepFailed(String(step.id), e instanceof Error ? e.message : 'Synthetic step failed');
