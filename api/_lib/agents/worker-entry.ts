@@ -12,6 +12,7 @@ import { analyzeProductImages } from './image-intelligence.js';
 import { analyzeEngineering } from './engineering-intelligence.js';
 import { emitCoordination } from './coordination.js';
 import { remember } from './memory.js';
+import { tickMissions } from './missions.js';
 import { sql } from '../db.js';
 import type { AgentId } from './types.js';
 
@@ -169,8 +170,9 @@ async function tick() {
   try {
     await recoverStaleLocks(15);
     await tickSchedules();
+    await tickMissions();
   } catch (e) {
-    console.error('[agent-worker] recover/schedule', e);
+    console.error('[agent-worker] recover/schedule/missions', e);
   }
 
   active += 1;
