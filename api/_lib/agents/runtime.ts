@@ -31,7 +31,8 @@ export function listTools(agentId: AgentId) {
 function canUse(agentId: AgentId, tool: AgentTool) {
   const policy = policies[agentId];
   if (!policy.allowedTools.includes(tool.name)) throw new Error(`Agent ${agentId} is not permitted to use ${tool.name}`);
-  if (policy.requireApprovalFor.includes(tool.risk)) {
+  // WRITE/DESTRUCTIVE tools cannot execute here — must go through approval queue first
+  if (tool.risk === 'write' || tool.risk === 'destructive' || policy.requireApprovalFor.includes(tool.risk)) {
     throw new Error(`Approval required for ${tool.risk} tool: ${tool.name}`);
   }
 }

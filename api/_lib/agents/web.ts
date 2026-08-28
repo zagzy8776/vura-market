@@ -1,13 +1,15 @@
-import { getEnvironment } from '../env.js';
+import { getOptionalEnvironment } from '../env.js';
 
 export type ResearchProvider = 'tavily' | 'exa' | 'firecrawl' | 'serpapi';
 
-function keyFor(provider: ResearchProvider) {
-  return getEnvironment(
+function keyFor(provider: ResearchProvider): string {
+  const key = getOptionalEnvironment(
     provider === 'tavily' ? 'TAVILY_API_KEY' :
     provider === 'exa' ? 'EXA_API_KEY' :
     provider === 'firecrawl' ? 'FIRECRAWL_API_KEY' : 'SERPAPI_API_KEY',
   );
+  if (!key) throw new Error(`${provider} is not configured`);
+  return key;
 }
 
 export async function searchWeb(provider: ResearchProvider, query: string) {

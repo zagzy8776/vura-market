@@ -32,10 +32,12 @@ export async function remember(input: {
   // Bound memory: delete oldest low-importance beyond cap
   await sql`
     DELETE FROM agent_memory WHERE id IN (
-      SELECT id FROM agent_memory
-      WHERE agent_id = ${input.agentId}
-      ORDER BY importance ASC, created_at ASC
-      OFFSET ${MAX_PER_AGENT}
+      SELECT id FROM (
+        SELECT id FROM agent_memory
+        WHERE agent_id = ${input.agentId}
+        ORDER BY importance ASC, created_at ASC
+        OFFSET ${MAX_PER_AGENT}
+      ) old_rows
     )`.catch(() => undefined);
   // Expire
   await sql`DELETE FROM agent_memory WHERE expires_at IS NOT NULL AND expires_at < now()`.catch(() => undefined);
