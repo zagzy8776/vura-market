@@ -501,7 +501,7 @@ export default function StudioOpportunities() {
           <div className={`space-y-2 lg:col-span-2 ${mobileShowDetail && selected ? 'hidden lg:block' : ''}`}>
             {filtered.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-white/15 bg-white/[0.02] px-6 py-16 text-center text-sm text-white/40">
-                No opportunities match these filters. Run a trend scan from the agents API or widen filters.
+                No opportunities yet. Open Command Center → Start Trend scan, wait a few minutes, then refresh here.
               </div>
             ) : (
               filtered.map(({ op, trendScore, commercialScore, confidence, urg }) => (
