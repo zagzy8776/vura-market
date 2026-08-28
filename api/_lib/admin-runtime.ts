@@ -7,6 +7,7 @@ import { randomUUID } from 'crypto';
 import { runAgent, getRun, getAgentPolicy, listTools } from './agents/runtime.js';
 import { runTrendIntelligence } from './agents/trend-runner.js';
 import { runProductIntelligence } from './agents/product-runner.js';
+import { analyzeProductImages } from './agents/image-intelligence.js';
 import { analyzeSales } from './agents/sales-intelligence.js';
 import { analyzeOperations } from './agents/operations-intelligence.js';
 import { scoutMarketing } from './agents/marketing-intelligence.js';
@@ -319,6 +320,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             opportunityId: body.opportunityId,
             productName: body.productName,
             category: body.category,
+            imageUrls: body.imageUrls,
+            jobType: body.jobType,
+            userNotes: body.userNotes,
           };
           const enqueued = await enqueueAgentJob({
             agentId,
@@ -351,7 +355,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           const opportunityId = typeof body.opportunityId === 'string' ? body.opportunityId.trim() : undefined;
           const productName = typeof body.productName === 'string' ? body.productName.trim() : (task || undefined);
           const category = typeof body.category === 'string' ? body.category.trim() : undefined;
-          const product = await runProductIntelligence({ agentId, runId, task }, { opportunityId, productName, category });
+          const imageUrls = Array.isArray(body.imageUrls) ? body.imageUrls.filter((u: unknown): u is string => typeof u === 'string') : [];
+          const product = imageUrls.length
+            ? await analyzeProductImages({ agentId, runId, task }, {
+                imageUrls,
+                productNameHint: productName,
+                categoryHint: category,
+                userNotes: typeof body.userNotes === 'string' ? body.userNotes : undefined,
+              })
+            : await runProductIntelligence({ agentId, runId, task }, { opportunityId, productName, category });
           const tools = listTools(agentId).map((tool) => ({ name: tool.name, description: tool.description, risk: tool.risk }));
           return json(res, 200, { requestId, policy: getAgentPolicy(agentId), tools, run: { id: runId, agentId, status: 'completed' }, ...product });
         }

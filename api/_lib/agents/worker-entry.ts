@@ -9,6 +9,7 @@ import { runProductIntelligence } from './product-runner.js';
 import { analyzeSales } from './sales-intelligence.js';
 import { analyzeOperations } from './operations-intelligence.js';
 import { scoutMarketing } from './marketing-intelligence.js';
+import { analyzeProductImages } from './image-intelligence.js';
 import type { AgentId } from './types.js';
 
 const WORKER_ID = process.env.FLY_MACHINE_ID || process.env.WORKER_ID || randomUUID().slice(0, 8);
@@ -44,12 +45,24 @@ async function executeJob(job: NonNullable<Awaited<ReturnType<typeof claimNextJo
         : undefined;
       return runTrendIntelligence(context, categories);
     }
-    case 'product-intelligence':
+    case 'product-intelligence': {
+      const imageUrls = Array.isArray(input.imageUrls)
+        ? input.imageUrls.filter((u): u is string => typeof u === 'string')
+        : [];
+      if (imageUrls.length || input.jobType === 'image_analysis') {
+        return analyzeProductImages(context, {
+          imageUrls,
+          productNameHint: typeof input.productName === 'string' ? input.productName : job.task,
+          categoryHint: typeof input.category === 'string' ? input.category : undefined,
+          userNotes: typeof input.userNotes === 'string' ? input.userNotes : undefined,
+        });
+      }
       return runProductIntelligence(context, {
         opportunityId: typeof input.opportunityId === 'string' ? input.opportunityId : undefined,
         productName: typeof input.productName === 'string' ? input.productName : job.task,
         category: typeof input.category === 'string' ? input.category : undefined,
       });
+    }
     case 'sales':
       return analyzeSales(context);
     case 'operations':

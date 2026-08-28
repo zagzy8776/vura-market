@@ -68,6 +68,41 @@ export async function generate(provider: ModelProvider, request: ModelRequest) {
   return provider === 'gemini' ? gemini(request) : openAiCompatible(provider, request);
 }
 
+/** Gemini multimodal vision — image URLs must be publicly fetchable (e.g. Cloudinary). */
+export async function generateWithImages(request: ModelRequest & { imageUrls: string[] }) {
+  const model = DEFAULT_MODELS.gemini;
+  const urls = request.imageUrls.filter((u) => typeof u === 'string' && /^https:\/\//i.test(u)).slice(0, 6);
+  if (!urls.length) throw new Error('At least one https image URL is required for vision analysis');
+  const imageParts: Array<Record<string, unknown>> = [];
+  for (const url of urls) {
+    const res = await fetch(url, { redirect: 'follow' });
+    if (!res.ok) throw new Error(`Could not fetch image (${res.status}): ${url.slice(0, 80)}`);
+    const contentType = (res.headers.get('content-type') || 'image/jpeg').split(';')[0].trim();
+    const buf = Buffer.from(await res.arrayBuffer());
+    if (buf.byteLength > 4_500_000) throw new Error('Image too large for vision analysis (max ~4.5MB)');
+    imageParts.push({
+      inline_data: {
+        mime_type: contentType.startsWith('image/') ? contentType : 'image/jpeg',
+        data: buf.toString('base64'),
+      },
+    });
+  }
+  const response = await fetch(`${ENDPOINTS.gemini}/${model}:generateContent?key=${encodeURIComponent(requireKey('gemini'))}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      systemInstruction: request.system ? { parts: [{ text: request.system }] } : undefined,
+      contents: [{ role: 'user', parts: [...imageParts, { text: request.user }] }],
+      generationConfig: { temperature: request.temperature ?? 0.1, maxOutputTokens: request.maxTokens ?? 2500 },
+    }),
+  });
+  if (!response.ok) throw new Error(`gemini vision failed (${response.status})`);
+  const data = await response.json() as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
+  const text = data.candidates?.[0]?.content?.parts?.map((part) => part.text || '').join('').trim();
+  if (!text) throw new Error('gemini vision returned no output');
+  return { provider: 'gemini' as const, model, text };
+}
+
 export async function generateWithFallback(preferred: ModelProvider[], request: ModelRequest) {
   const errors: string[] = [];
   const available = preferred.filter((provider) => Boolean(keyFor(provider)));
