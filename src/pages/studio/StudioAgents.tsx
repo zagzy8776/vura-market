@@ -13,6 +13,8 @@ type Job = {
   model?: string | null;
   started_at?: string | null;
   completed_at?: string | null;
+  result?: unknown;
+  metadata?: unknown;
 };
 
 type Notif = {
@@ -67,10 +69,18 @@ const TREND_CATEGORIES = [
   'phones',
   'Phone Accessories',
   'laptops',
+  'earphones',
   'solar',
+  'inverters',
   'Fashion',
+  'Shoes',
+  'Bags',
   'Electronics',
+  'Gaming',
   'Home Appliances',
+  'Beverages',
+  'Cars',
+  'Car Accessories',
 ];
 
 function formatWhen(iso?: string | null): string {
@@ -136,6 +146,8 @@ export default function StudioAgents() {
   const [banner, setBanner] = useState('');
   const [starting, setStarting] = useState<string | null>(null);
   const [categories, setCategories] = useState<string[]>(['phones', 'Phone Accessories']);
+  const [selectedJob, setSelectedJob] = useState<Job | null>(null);
+  const [selectedNotif, setSelectedNotif] = useState<Notif | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -346,17 +358,23 @@ export default function StudioAgents() {
             <ul className="mt-3 max-h-80 space-y-2 overflow-y-auto">
               {jobs.length === 0 && <li className="text-sm text-white/40">No jobs yet — start a Trend scan above.</li>}
               {jobs.slice(0, 40).map((j) => (
-                <li key={j.id} className="rounded-xl border border-white/5 bg-black/20 px-3 py-2.5 text-xs">
-                  <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                    <span className="font-bold text-white/85">{j.agent_id}</span>
-                    <span className={statusColor(j.status)}>{j.status}</span>
-                    <span className="text-white/30">·</span>
-                    <span className="text-white/40">{formatWhen(j.completed_at || j.started_at) || '—'}</span>
-                    {j.provider ? <span className="text-white/30">· {j.provider}</span> : null}
-                  </div>
-                  <span className="mt-0.5 block truncate text-white/50">{j.task}</span>
-                  {j.error ? <span className="mt-0.5 block text-red-300/90">{j.error}</span> : null}
-                  <span className="mt-0.5 block font-mono text-[10px] text-white/25">{j.id}</span>
+                <li key={j.id}>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedJob(j)}
+                    className="w-full rounded-xl border border-white/5 bg-black/20 px-3 py-2.5 text-left text-xs transition hover:border-vura-500/40 hover:bg-white/[0.04]"
+                  >
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                      <span className="font-bold text-white/85">{j.agent_id}</span>
+                      <span className={statusColor(j.status)}>{j.status}</span>
+                      <span className="text-white/30">·</span>
+                      <span className="text-white/40">{formatWhen(j.completed_at || j.started_at) || '—'}</span>
+                      {j.provider ? <span className="text-white/30">· {j.provider}</span> : null}
+                      <span className="ml-auto text-[10px] text-vura-300">Tap for details →</span>
+                    </div>
+                    <span className="mt-0.5 block truncate text-white/50">{j.task}</span>
+                    {j.error ? <span className="mt-0.5 block truncate text-red-300/90">{j.error}</span> : null}
+                  </button>
                 </li>
               ))}
             </ul>
@@ -385,18 +403,77 @@ export default function StudioAgents() {
             <ul className="mt-3 space-y-2">
               {notifications.length === 0 && <li className="text-sm text-white/40">No alerts yet.</li>}
               {notifications.slice(0, 15).map((n) => (
-                <li key={n.id} className="rounded-xl border border-white/5 bg-black/15 px-3 py-2 text-sm">
-                  <div className="flex flex-wrap items-baseline justify-between gap-2">
-                    <b className="text-white/85">{n.title}</b>
-                    <span className="text-[11px] text-white/35">{formatWhen(n.created_at)}</span>
-                  </div>
-                  <span className="mt-0.5 block text-xs text-white/45">{n.message}</span>
+                <li key={n.id}>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedNotif(n)}
+                    className="w-full rounded-xl border border-white/5 bg-black/15 px-3 py-2 text-left text-sm transition hover:border-vura-500/40 hover:bg-white/[0.04]"
+                  >
+                    <div className="flex flex-wrap items-baseline justify-between gap-2">
+                      <b className="text-white/85">{n.title}</b>
+                      <span className="text-[11px] text-white/35">{formatWhen(n.created_at)}</span>
+                    </div>
+                    <span className="mt-0.5 block line-clamp-2 text-xs text-white/45">{n.message}</span>
+                    <span className="mt-1 text-[10px] text-vura-300">Tap to read full alert →</span>
+                  </button>
                 </li>
               ))}
             </ul>
           </section>
         </>
       )}
+
+      {/* Job detail sheet */}
+      {selectedJob && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-3 sm:items-center" onClick={() => setSelectedJob(null)}>
+          <div
+            className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-white/10 bg-[#12151f] p-4 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-white/40">Job detail</p>
+                <h3 className="text-lg font-black text-white">{selectedJob.agent_id}</h3>
+              </div>
+              <button type="button" className="rounded-lg px-2 py-1 text-sm text-white/50 hover:bg-white/5" onClick={() => setSelectedJob(null)}>Close</button>
+            </div>
+            <dl className="mt-3 space-y-2 text-sm">
+              <div><dt className="text-[10px] uppercase text-white/35">Status</dt><dd className={statusColor(selectedJob.status)}>{selectedJob.status}</dd></div>
+              <div><dt className="text-[10px] uppercase text-white/35">When</dt><dd className="text-white/70">{formatWhen(selectedJob.completed_at || selectedJob.started_at) || '—'} {selectedJob.started_at ? `(started ${new Date(selectedJob.started_at).toLocaleString()})` : ''}</dd></div>
+              <div><dt className="text-[10px] uppercase text-white/35">Task</dt><dd className="text-white/80">{selectedJob.task}</dd></div>
+              {selectedJob.provider ? <div><dt className="text-[10px] uppercase text-white/35">Model</dt><dd className="text-white/70">{selectedJob.provider}{selectedJob.model ? ` / ${selectedJob.model}` : ''}</dd></div> : null}
+              {selectedJob.error ? <div><dt className="text-[10px] uppercase text-white/35">Error</dt><dd className="text-red-300">{selectedJob.error}</dd></div> : null}
+              <div><dt className="text-[10px] uppercase text-white/35">Run ID</dt><dd className="break-all font-mono text-[11px] text-white/40">{selectedJob.id}</dd></div>
+            </dl>
+            {selectedJob.result != null && (
+              <div className="mt-4">
+                <p className="text-[10px] font-bold uppercase text-white/35">Result / what the agent found</p>
+                <pre className="mt-2 max-h-64 overflow-auto rounded-xl border border-white/10 bg-black/40 p-3 text-[11px] leading-relaxed text-white/70 whitespace-pre-wrap">
+{typeof selectedJob.result === 'string' ? selectedJob.result : JSON.stringify(selectedJob.result, null, 2)}
+                </pre>
+              </div>
+            )}
+            <p className="mt-4 text-xs text-white/40">
+              Schedules run in the background on Fly. Approvals appear when an agent proposes a write action — you decide.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {selectedNotif && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-3 sm:items-center" onClick={() => setSelectedNotif(null)}>
+          <div className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-white/10 bg-[#12151f] p-4" onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-between gap-2">
+              <h3 className="text-lg font-black text-white">{selectedNotif.title}</h3>
+              <button type="button" className="text-sm text-white/50" onClick={() => setSelectedNotif(null)}>Close</button>
+            </div>
+            <p className="mt-1 text-[11px] text-white/40">{formatWhen(selectedNotif.created_at)} {selectedNotif.agent_id ? `· ${selectedNotif.agent_id}` : ''}</p>
+            <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-white/75">{selectedNotif.message}</p>
+            <p className="mt-4 text-xs text-white/40">Tip: open Opportunities to act on trend ideas. Product research alerts mean a brief is ready — review before listing.</p>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

@@ -428,8 +428,8 @@ const result = await runAgent({ agentId, task, providers: requestedProviders });
       const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 50));
       const status = typeof req.query.status === 'string' ? req.query.status : '';
       const rows = status
-        ? await sql`SELECT id, agent_id, task, status, attempts, error, provider, model, started_at, completed_at, metadata FROM agent_runs WHERE status = ${status} ORDER BY started_at DESC LIMIT ${limit}`
-        : await sql`SELECT id, agent_id, task, status, attempts, error, provider, model, started_at, completed_at, metadata FROM agent_runs ORDER BY started_at DESC LIMIT ${limit}`;
+        ? await sql`SELECT id, agent_id, task, status, attempts, error, provider, model, started_at, completed_at, metadata, result FROM agent_runs WHERE status = ${status} ORDER BY started_at DESC LIMIT ${limit}`
+        : await sql`SELECT id, agent_id, task, status, attempts, error, provider, model, started_at, completed_at, metadata, result FROM agent_runs ORDER BY started_at DESC LIMIT ${limit}`;
       return json(res, 200, { jobs: rows, requestId });
     }
     if (r === 'agent-memory') {

@@ -28,6 +28,7 @@ type Opportunity = {
   source: string | null;
   evidence: string | null;
   status: OpportunityStatus;
+  created_at?: string;
   createdAt: string;
 };
 
@@ -152,13 +153,15 @@ export default function StudioOpportunities() {
   }, [load]);
 
   const categories = useMemo(() => {
-    const set = new Set(rows.map((r) => r.category).filter(Boolean));
-    return ['all', ...[...set].sort()];
+    const base = ['all', 'phones', 'Phone Accessories', 'laptops', 'solar', 'inverters', 'Fashion', 'Shoes', 'Bags', 'Electronics', 'Gaming', 'Home Appliances', 'Beverages', 'Cars', 'Car Accessories'];
+    const fromData = rows.map((r) => r.category).filter(Boolean) as string[];
+    return Array.from(new Set([...base, ...fromData]));
   }, [rows]);
 
   const regions = useMemo(() => {
-    const set = new Set(rows.map((r) => parseEvidence(r.evidence).region || 'Nigeria').filter(Boolean));
-    return ['all', ...[...set].sort()];
+    const base = ['all', 'Nigeria', 'Ghana', 'Kenya', 'South Africa', 'United States', 'Canada', 'United Kingdom', 'UAE', 'China', 'Global'];
+    const fromData = rows.map((r) => parseEvidence(r.evidence).region).filter(Boolean) as string[];
+    return Array.from(new Set([...base, ...fromData]));
   }, [rows]);
 
   const enriched = useMemo(() => {
@@ -248,15 +251,17 @@ export default function StudioOpportunities() {
 
   const runProductIntel = async (opportunityId: string, productName: string, category: string) => {
     setProductBusy(true);
-    setError('');
     setProductReport(null);
     try {
       const res = await api<{
-        report?: Record<string, unknown>;
-        note?: string;
         mode?: string;
         runId?: string;
         status?: string;
+        message?: string;
+        note?: string;
+        brief?: unknown;
+        report?: unknown;
+        result?: unknown;
       }>('agents', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -268,37 +273,46 @@ export default function StudioOpportunities() {
           category,
         }),
       });
+
+      let final: Record<string, unknown> = { ...(res as object) };
       if (res.mode === 'queued' && res.runId) {
         setProductReport({
           status: 'queued',
           runId: res.runId,
-          message: 'Job queued on Fly worker. Poll run status or refresh notifications shortly.',
+          message: 'Research running on Fly… this updates automatically.',
         });
-        // light poll
-        for (let i = 0; i < 20; i++) {
-          await new Promise((r) => setTimeout(r, 3000));
-          const job = await api<{ run?: { status?: string; result?: Record<string, unknown>; error?: string } }>(
-            `agents&runId=${res.runId}`,
-          );
-          const st = job.run?.status;
-          if (st === 'completed') {
-            setProductReport(job.run?.result || { status: 'completed' });
-            return;
-          }
-          if (st === 'failed') {
-            setError(job.run?.error || 'Product intelligence job failed');
-            return;
+        for (let i = 0; i < 24; i++) {
+          await new Promise((r) => setTimeout(r, 5000));
+          try {
+            const polled = await api<{ run?: { status?: string; result?: unknown; error?: string }; mode?: string }>(
+              `agents&runId=${res.runId}`,
+            );
+            const run = polled.run;
+            if (run && (run.status === 'completed' || run.status === 'failed')) {
+              final = {
+                status: run.status,
+                runId: res.runId,
+                result: run.result,
+                error: run.error,
+              };
+              break;
+            }
+            setProductReport({
+              status: run?.status || 'running',
+              runId: res.runId,
+              message: `Still working… (${run?.status || 'running'})`,
+            });
+          } catch {
+            /* keep waiting */
           }
         }
-        setError('Job still running — check Opportunities notifications later.');
-        return;
       }
-      if (res.report) setProductReport(res.report);
-      else setError(res.note || 'Product intelligence returned no report');
+      setProductReport(final);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Product intelligence failed');
+      setProductReport({ error: e instanceof Error ? e.message : 'Product research failed' });
     } finally {
       setProductBusy(false);
+      void load();
     }
   };
 
@@ -663,10 +677,45 @@ export default function StudioOpportunities() {
                     Deep research for this opportunity. Does not publish a product.
                   </p>
                   {productReport && (
-                    <div className="mt-4 max-h-80 overflow-y-auto rounded-xl border border-white/10 bg-[#0b0d17] p-4 text-xs text-white/70">
-                      <pre className="whitespace-pre-wrap font-mono leading-5">
-                        {JSON.stringify(productReport, null, 2)}
-                      </pre>
+                    <div className="mt-4 space-y-3 rounded-xl border border-vura-500/25 bg-vura-500/5 p-4 text-sm">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-vura-200">Product AI result</p>
+                      <p className="text-xs text-white/45">
+                        Status: <b className="text-white/85">{String(productReport.status || 'done')}</b>
+                        {productReport.runId ? ` · job ${String(productReport.runId).slice(0, 8)}…` : ''}
+                      </p>
+                      {productReport.message ? (
+                        <p className="text-white/75">{String(productReport.message)}</p>
+                      ) : null}
+                      {productReport.error ? (
+                        <p className="text-red-300">{String(productReport.error)}</p>
+                      ) : null}
+                      <div className="max-h-64 overflow-y-auto rounded-lg border border-white/10 bg-black/30 p-3 text-xs leading-relaxed text-white/80 whitespace-pre-wrap">
+                        {(() => {
+                          const r = (productReport.result ?? productReport.brief ?? productReport.report ?? productReport) as unknown;
+                          if (typeof r === 'string') return r;
+                          if (r && typeof r === 'object') {
+                            const o = r as Record<string, unknown>;
+                            const lines: string[] = [];
+                            for (const key of ['summary', 'recommendation', 'title', 'note', 'confidence', 'nextSteps', 'risks']) {
+                              if (o[key] == null) continue;
+                              const val = Array.isArray(o[key]) ? (o[key] as unknown[]).map(String).join('; ') : String(o[key]);
+                              lines.push(`${key}: ${val}`);
+                            }
+                            if (lines.length) return lines.join('\n\n');
+                            return JSON.stringify(r, null, 2);
+                          }
+                          return String(r);
+                        })()}
+                      </div>
+                      <div className="rounded-lg border border-white/10 bg-black/20 p-3 text-[11px] leading-5 text-white/55">
+                        <b className="text-white/80">Suggested next steps for you</b>
+                        <ol className="mt-1 list-decimal space-y-1 pl-4">
+                          <li>Check real supplier price and stock in your market.</li>
+                          <li>Only list if margin still works after delivery.</li>
+                          <li>Use Marketing agent for content ideas — nothing auto-posts.</li>
+                          <li>Mark this opportunity Approved or Dismissed above.</li>
+                        </ol>
+                      </div>
                     </div>
                   )}
                 </div>
