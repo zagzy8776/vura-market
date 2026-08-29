@@ -63,6 +63,8 @@ export async function claimNextJob(workerId: string) {
   const candidates = await sql`
     SELECT id FROM agent_runs
     WHERE status = 'queued' AND next_run_at <= now()
+      -- Never claim mission-owned runs; those are advanced by the mission ticker.
+      AND COALESCE(metadata->>'missionId', '') = ''
     ORDER BY next_run_at ASC
     LIMIT 1`;
   if (!candidates[0]) return null;
@@ -130,7 +132,9 @@ export async function failJob(runId: string, lockToken: string, error: string, a
   return { retried: false, deadLetter: true };
 }
 
-/** Recover stuck running jobs (worker crash). */
+/** Recover stuck running jobs (worker crash). Excludes mission-owned runs,
+ *  which are recovered by the mission ticker (recoverStaleMissionSteps) to stay
+ *  on the governed mission path and avoid duplicate execution. */
 export async function recoverStaleLocks(staleMinutes = 15) {
   const rows = await sql`
     UPDATE agent_runs
@@ -142,6 +146,7 @@ export async function recoverStaleLocks(staleMinutes = 15) {
     WHERE status = 'running'
       AND locked_at IS NOT NULL
       AND locked_at < now() - make_interval(mins => ${staleMinutes})
+      AND COALESCE(metadata->>'missionId', '') = ''
     RETURNING id`;
   return rows.length;
 }

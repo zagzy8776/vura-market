@@ -208,3 +208,69 @@ describe('runAgentMissionStep (governed executor)', () => {
     expect((outcome as { error?: string }).error).toContain('provider down');
   });
 });
+
+describe('runAgentMissionStep bounded retry', () => {
+  beforeEach(() => {
+    mockLoop.mockReset();
+    mockSql.mockReset();
+    mockSql.mockResolvedValue([]);
+  });
+
+  it('resets the step to ready (retry) when a provider error occurs within maxAttempts', async () => {
+    mockLoop.mockRejectedValueOnce(new Error('provider timeout'));
+
+    const outcome = await runAgentMissionStep({
+      stepId: 'step-r1',
+      runId: 'run-r1',
+      agentId: 'marketing-intelligence',
+      stepKey: 'marketing',
+      goal: 'g',
+      role: 'Marketing Intelligence',
+      attempts: 1,
+      maxAttempts: 3,
+    });
+
+    expect(outcome.ok).toBe(false);
+    expect(outcome.retryable).toBe(true);
+    const update = mockSql.mock.calls.some((c) => {
+      const parts = Array.isArray(c[0]) ? c[0].join('') : String(c[0] ?? '');
+      return parts.includes("SET status = 'ready'");
+    });
+    expect(update).toBe(true);
+    // A retry must never write the terminal 'failed' status.
+    const failed = mockSql.mock.calls.some((c) => {
+      const parts = Array.isArray(c[0]) ? c[0].join('') : String(c[0] ?? '');
+      return parts.includes("SET status = 'failed'");
+    });
+    expect(failed).toBe(false);
+  });
+
+  it('marks the step failed terminally once maxAttempts is reached', async () => {
+    mockLoop.mockRejectedValueOnce(new Error('still failing'));
+
+    const outcome = await runAgentMissionStep({
+      stepId: 'step-r2',
+      runId: 'run-r2',
+      agentId: 'marketing-intelligence',
+      stepKey: 'marketing',
+      goal: 'g',
+      role: 'Marketing Intelligence',
+      attempts: 3,
+      maxAttempts: 3,
+    });
+
+    expect(outcome.ok).toBe(false);
+    expect(outcome.retryable).toBe(false);
+    const failed = mockSql.mock.calls.some((c) => {
+      const parts = Array.isArray(c[0]) ? c[0].join('') : String(c[0] ?? '');
+      return parts.includes("SET status = 'failed'");
+    });
+    expect(failed).toBe(true);
+    const ready = mockSql.mock.calls.some((c) => {
+      const parts = Array.isArray(c[0]) ? c[0].join('') : String(c[0] ?? '');
+      return parts.includes("SET status = 'ready'");
+    });
+    expect(ready).toBe(false);
+  });
+});
+

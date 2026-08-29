@@ -13,6 +13,7 @@ import {
 import { webSearchTool } from './web-search.js';
 import { trendCollectTool, trendScoreTool } from './trend-tools.js';
 import { productCreateProposeTool, inventoryUpdateTool, shippingUpdateTool, notificationSendTool } from './write-tools.js';
+import { runtimeReadTool } from './runtime-read.js';
 
 let registered = false;
 
@@ -29,6 +30,7 @@ export function registerBuiltinTools(): void {
   registerTool(webSearchTool);
   registerTool(trendCollectTool);
   registerTool(trendScoreTool);
+  registerTool(runtimeReadTool);
   registerTool(productCreateProposeTool);
   registerTool(inventoryUpdateTool);
   registerTool(shippingUpdateTool);

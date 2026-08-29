@@ -480,6 +480,22 @@ const result = await runAgent({ agentId, task, providers: requestedProviders });
       return json(res, 200, { ok: true, approval: updated[0], requestId });
     }
 
+    if (r === 'agent-events') {
+      const ok = await requireAdminPermission(req, res, 'dashboard.read');
+      if (!ok) return;
+      const requestId = randomUUID();
+      res.setHeader('X-Request-ID', requestId);
+      if (method !== 'GET') return json(res, 405, { error: 'Method not allowed.', requestId });
+      const runId = typeof req.query.runId === 'string' ? req.query.runId : '';
+      if (!runId) return json(res, 400, { error: 'runId is required.', requestId });
+      const rows = await sql`
+        SELECT id, run_id, event_type, tool_name, risk, input, output, error, created_at
+        FROM agent_events
+        WHERE run_id = ${runId}::uuid
+        ORDER BY created_at ASC`;
+      return json(res, 200, { events: rows, requestId });
+    }
+
     if (r === 'agent-notifications' && method === 'GET') {
       const ok = await requireAdminPermission(req, res, 'dashboard.read');
       if (!ok) return;

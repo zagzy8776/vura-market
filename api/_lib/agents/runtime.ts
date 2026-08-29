@@ -15,7 +15,7 @@ const policies: Record<AgentId, AgentPolicy> = {
   'marketing-intelligence': { allowedTools: ['web.search', 'products.search', 'product.inspect', 'analytics.read'], requireApprovalFor: ['write', 'destructive'] },
   sales: { allowedTools: ['products.search', 'product.inspect', 'inventory.read', 'orders.read', 'analytics.read'], requireApprovalFor: ['write', 'destructive'] },
   operations: { allowedTools: ['orders.read', 'inventory.read', 'products.search', 'product.inspect'], requireApprovalFor: ['write', 'destructive'] },
-  engineering: { allowedTools: ['github.read', 'runtime.read', 'runtime.test'], requireApprovalFor: ['write', 'destructive'] },
+  engineering: { allowedTools: ['runtime.read'], requireApprovalFor: ['write', 'destructive'] },
 };
 
 export function getAgentPolicy(agentId: AgentId) {

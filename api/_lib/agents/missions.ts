@@ -214,10 +214,18 @@ export async function listMissions(limit = 20) {
 
 /**
  * Run a single autonomous agent step through the governed tool loop and mark
- * it completed/failed. Creates its own agent_runs record so every executeTool
- * audit event correlates to that run. No write/destructive tool can reach the
- * model (runAgentToolLoop exposes read/draft only) and none can execute
- * (executeTool enforces approval for write/destructive).
+ * it completed / failed (or reset to `ready` for a bounded retry). Creates its
+ * own agent_runs record so every executeTool audit event correlates to that run.
+ * No write/destructive tool can reach the model (runAgentToolLoop exposes
+ * read/draft only) and none can execute (executeTool enforces approval for
+ * write/destructive).
+ *
+ * Retry: when `attempts < maxAttempts` a failure only resets the step to
+ * `ready` (it will be re-run on a later tick), so transient provider/DB
+ * errors do not kill a whole mission. Once `attempts >= maxAttempts` the step
+ * is marked `failed` terminally. Retry never applies to the synthetic approval
+ * gate (it has no agent) and never unlocks dependents, so approval-gate safety
+ * and dependency ordering are preserved.
  */
 export async function runAgentMissionStep(input: {
   stepId: string;
@@ -229,6 +237,8 @@ export async function runAgentMissionStep(input: {
   providers?: ModelProvider[];
   toolNames?: string[];
   maxTurns?: number;
+  attempts?: number;
+  maxAttempts?: number;
 }) {
   const providers = input.providers ?? (['groq', 'cerebras', 'gemini'] as ModelProvider[]);
   const context: AgentContext = {
@@ -262,15 +272,50 @@ export async function runAgentMissionStep(input: {
       usage: loop.usage,
     };
     if (loop.stoppedReason !== 'final' || !loop.text.trim()) {
-      await markStepFailed(input.stepId, `Loop did not finalize: ${loop.stoppedReason}`);
-      return { ok: false as const, reason: loop.stoppedReason };
+      const reason = `Loop did not finalize: ${loop.stoppedReason}`;
+      await markStepOutcome(input, reason);
+      return { ok: false as const, reason, retryable: shouldRetry(input) };
     }
     await markStepCompleted(input.stepId, result);
     return { ok: true as const, result };
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Mission step failed';
-    await markStepFailed(input.stepId, message);
-    return { ok: false as const, error: message };
+    await markStepOutcome(input, message);
+    return { ok: false as const, error: message, retryable: shouldRetry(input) };
+  }
+}
+
+function shouldRetry(input: { attempts?: number; maxAttempts?: number }) {
+  const attempts = input.attempts;
+  const maxAttempts = input.maxAttempts;
+  // Retry only when the caller explicitly opts in with attempts + maxAttempts
+  // and the current attempt is still within the bound. Without explicit bounds
+  // a failure is terminal (prior behavior).
+  return attempts != null && maxAttempts != null && attempts > 0 && attempts < maxAttempts;
+}
+
+/**
+ * Decide the step status on a failed run: bounded retry (reset to `ready`) or
+ * terminal `failed`. Retry is only allowed for real agent steps (never the
+ * synthetic approval gate), only up to maxAttempts, and only when the step is
+ * still in `running` state (to avoid racing a concurrent successful finalize).
+ */
+async function markStepOutcome(
+  input: { stepId: string; attempts?: number; maxAttempts?: number },
+  error: string,
+) {
+  const retry = shouldRetry(input);
+  if (retry) {
+    await sql`
+      UPDATE agent_mission_steps
+      SET status = 'ready',
+          error = ${error.slice(0, 2000)},
+          run_id = NULL,
+          completed_at = NULL,
+          started_at = NULL
+      WHERE id = ${input.stepId}::uuid AND status = 'running'`;
+  } else {
+    await markStepFailed(input.stepId, error);
   }
 }
 
@@ -352,7 +397,7 @@ export async function tickGrowthMission(missionId: string) {
   await unlockDependents(missionIdStr);
 
   const ready = await sql`
-    SELECT id, step_key, agent_id, depends_on, status, input
+    SELECT id, step_key, agent_id, depends_on, status, input, attempts, max_attempts
     FROM agent_mission_steps
     WHERE mission_id = ${missionIdStr}::uuid AND status = 'ready'
     ORDER BY sort_order ASC`;
@@ -377,7 +422,22 @@ export async function tickGrowthMission(missionId: string) {
     const runId = randomUUID();
     await sql`INSERT INTO agent_runs (id, agent_id, task, status, metadata)
               VALUES (${runId}, ${agentId}, ${`mission:${stepKey} — ${String(mission.goal)}`}, 'running', ${safeJson({ missionId: missionIdStr, correlationId, stepKey })}::jsonb)`;
-    await sql`UPDATE agent_mission_steps SET status = 'running', run_id = ${runId}::uuid, attempts = attempts + 1, started_at = COALESCE(started_at, now()) WHERE id = ${stepId}::uuid AND status = 'ready'`;
+    // Claim the step atomically: only one tick may transition ready->running.
+    // If a concurrent tick already claimed it, skip (prevents duplicate agent
+    // execution). This is the core duplicate-execution guard for missions.
+    const claimed = await sql`
+      UPDATE agent_mission_steps
+      SET status = 'running', run_id = ${runId}::uuid, attempts = attempts + 1,
+          started_at = COALESCE(started_at, now())
+      WHERE id = ${stepId}::uuid AND status = 'ready'
+      RETURNING id`;
+    if (!claimed.length) {
+      await sql`DELETE FROM agent_runs WHERE id = ${runId}::uuid`;
+      continue;
+    }
+
+    const attempts = Number(step.attempts || 0) + 1;
+    const maxAttempts = Number(step.max_attempts || 3);
 
     const outcome = await runAgentMissionStep({
       stepId,
@@ -386,11 +446,13 @@ export async function tickGrowthMission(missionId: string) {
       stepKey,
       goal: String(mission.goal),
       role: def?.role ?? 'Intelligence',
+      attempts,
+      maxAttempts,
     });
 
-    const finalStatus = outcome.ok ? 'completed' : 'failed';
+    const runStatus = outcome.ok ? 'completed' : 'failed';
     const error = outcome.ok ? null : (outcome as { error?: string }).error ?? 'Step failed';
-    await sql`UPDATE agent_runs SET status = ${finalStatus}, completed_at = now(), ${outcome.ok ? sql`result = ${safeJson(outcome.result)}::jsonb` : sql`error = ${error}`} WHERE id = ${runId}::uuid`;
+    await sql`UPDATE agent_runs SET status = ${runStatus}, completed_at = now(), ${outcome.ok ? sql`result = ${safeJson(outcome.result)}::jsonb` : sql`error = ${error}`} WHERE id = ${runId}::uuid`;
   }
 
   // Finalize mission status from step statuses.
@@ -407,4 +469,86 @@ export async function tickGrowthMission(missionId: string) {
   }
 
   return { missionStatus: final };
+}
+
+/**
+ * Recover mission steps stuck in a transient state (worker crash mid-step).
+ * Resets them to `ready` so the next tick re-runs them through the governed
+ * loop, and marks the superseded mission-owned agent_runs as failed so they are
+ * never claimed by the generic job worker (no duplicate/cross execution).
+ * Returns the number of steps recovered.
+ */
+export async function recoverStaleMissionSteps(staleMinutes = 15) {
+  const stale = await sql`
+    UPDATE agent_mission_steps
+    SET status = 'ready',
+        run_id = NULL,
+        started_at = NULL,
+        completed_at = NULL,
+        error = COALESCE(error, 'Recovered stale step (worker restart)')
+    WHERE status IN ('running', 'queued')
+      AND started_at IS NOT NULL
+      AND started_at < now() - make_interval(mins => ${staleMinutes})
+    RETURNING id, mission_id, step_key`;
+  for (const row of stale) {
+    // Supersede the orphaned mission run so it is not double-executed.
+    await sql`
+      UPDATE agent_runs
+      SET status = 'failed',
+          error = COALESCE(error, 'Superceded by mission retry'),
+          completed_at = now(),
+          lock_token = NULL,
+          locked_at = NULL
+      WHERE metadata->>'missionId' = ${String(row.mission_id)}
+        AND status IN ('running', 'queued')`;
+  }
+  return stale.length;
+}
+
+/**
+ * Advance + recover due missions. Called by the Fly worker ticker (and safe to
+ * call concurrently with the POST handler): per-step atomic ready->running
+ * claims (RETURNING id) guarantee only one worker executes each step, so
+ * mission steps are never duplicated under concurrent ticks.
+ */
+export async function tickAgentMissions(limit = 3) {
+  const recovered = await recoverStaleMissionSteps(15).catch(() => 0);
+  const due = await sql`
+    SELECT id FROM agent_missions
+    WHERE status IN ('queued', 'running')
+    ORDER BY created_at ASC
+    LIMIT ${Math.min(10, Math.max(1, limit))}`;
+  const results: Array<{ missionId: string; status: MissionStatus | 'not_found' | 'error' }> = [];
+  for (const row of due) {
+    try {
+      const r = await tickGrowthMission(String(row.id));
+      results.push({ missionId: String(row.id), status: r.missionStatus });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Mission tick failed';
+      await sql`
+        UPDATE agent_missions
+        SET error = ${message.slice(0, 2000)}
+        WHERE id = ${String(row.id)}::uuid`;
+      results.push({ missionId: String(row.id), status: 'error' });
+    }
+  }
+  if (recovered > 0) {
+    // After recovery there may be newly-ready steps to advance.
+    const due2 = await sql`
+      SELECT id FROM agent_missions
+      WHERE status IN ('queued', 'running')
+      ORDER BY created_at ASC
+      LIMIT ${Math.min(10, Math.max(1, limit))}`;
+    for (const row of due2) {
+      const idStr = String(row.id);
+      if (results.some((r) => r.missionId === idStr)) continue;
+      try {
+        const r = await tickGrowthMission(idStr);
+        results.push({ missionId: idStr, status: r.missionStatus });
+      } catch {
+        // ignore — already surfaced by the caller's next tick
+      }
+    }
+  }
+  return { recovered, ticks: results };
 }
