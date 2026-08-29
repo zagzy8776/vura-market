@@ -1,13 +1,25 @@
 /**
  * API base URL helper.
  *
- * Default: same-origin `/api/...` on Vercel so session cookies work for
- * customers AND admin (login, orders, payment confirm).
+ * Customer storefronts use same-origin `/api/...` so production custom
+ * domains stay on the Vercel API and browser sessions remain first-party.
  *
- * Optional: set VITE_API_BASE_URL=https://vura-market.fly.dev only if you
- * intentionally want the Fly gateway (requires SameSite=None cookies).
+ * `VITE_API_BASE_URL` is still supported for intentional cross-origin/admin
+ * or development deployments, but the public Vura domains always stay
+ * same-origin. This prevents a stale Fly URL from being baked into a
+ * production customer bundle and causing browser CORS failures.
  */
 export function apiBase(): string {
+  const host = typeof window !== 'undefined' ? window.location.hostname.toLowerCase() : '';
+
+  // The public storefront domains must call their own `/api` routes.
+  // Do not let a deployment-level VITE_API_BASE_URL send customer traffic
+  // to Fly, where the browser would become cross-origin and cookies/CORS
+  // can fail even though direct navigation to /api works.
+  if (host === 'vuramarket.com.ng' || host === 'www.vuramarket.com.ng') {
+    return '';
+  }
+
   const raw = (import.meta.env.VITE_API_BASE_URL as string | undefined) || '';
   return raw.trim().replace(/\/$/, '');
 }
