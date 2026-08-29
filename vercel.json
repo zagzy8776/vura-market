@@ -1,6 +1,6 @@
 {
   "framework": "vite",
-  "buildCommand": "npm run build && npm run typecheck:api",
+  "buildCommand": "npm run db:migrate && npm run build && npm run typecheck:api",
   "outputDirectory": "dist",
   "rewrites": [
     { "source": "/api/admin/:resource", "destination": "/api/admin?resource=:resource" },
