@@ -6,6 +6,14 @@ export const webSearchTool: AgentTool = {
   name: 'web.search',
   description: 'Search the public web for trends and product evidence. Returns sources with URL/title/excerpt. Never invents sources.',
   risk: 'read',
+  parameters: {
+    type: 'object',
+    properties: {
+      query: { type: 'string', description: 'The search query.' },
+      maxResults: { type: 'integer', description: 'Maximum results (default 5).' },
+    },
+    required: ['query'],
+  },
   async execute(input) {
     const query =
       input && typeof input === 'object' && typeof (input as { query?: unknown }).query === 'string'

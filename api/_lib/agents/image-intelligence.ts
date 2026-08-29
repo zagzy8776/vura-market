@@ -5,7 +5,7 @@
  * Never auto-publishes products.
  */
 import { generateWithImages } from './providers.js';
-import { researchSearch } from './research.js';
+import { executeTool } from './runtime.js';
 import type { AgentContext } from './types.js';
 
 export type Provenance =
@@ -87,14 +87,19 @@ export async function analyzeProductImages(
     };
   }
 
-  // Optional web research when name hint exists — sources never override image facts
+  // Optional web research when name hint exists — sources never override image facts.
+  // Governed read — runs through the registry's web.search tool.
   let researchBlock = 'No external research.';
   let researchSources: string[] = [];
   const hint = (input.productNameHint || '').trim();
   if (hint.length >= 3) {
     try {
-      const sources = await researchSearch({ query: `${hint} product specifications retail`, maxResults: 4 });
-      researchSources = sources.map((s) => s.url).filter(Boolean);
+      const web = (await executeTool(context.agentId, context.runId, 'web.search', {
+        query: `${hint} product specifications retail`,
+        maxResults: 4,
+      })) as { results?: Array<{ url?: string; title?: string; snippet?: string }> };
+      const sources = Array.isArray(web?.results) ? web.results : [];
+      researchSources = sources.map((s) => s.url).filter((u): u is string => Boolean(u));
       researchBlock = sources.length
         ? sources.map((s, i) => `${i + 1}. ${s.title}\n${s.url}\n${s.snippet}`).join('\n\n')
         : 'No external research results.';

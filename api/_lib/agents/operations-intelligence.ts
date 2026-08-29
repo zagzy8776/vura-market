@@ -1,8 +1,15 @@
 import { sql } from '../db.js';
+import { executeTool } from './runtime.js';
 import type { AgentContext } from './types.js';
 
-/** Operations Agent — fulfillment & payment operational snapshot. */
-export async function analyzeOperations(_context: AgentContext) {
+/**
+ * Operations Agent — fulfillment & payment operational snapshot.
+ * Recent order reads are governed: they run through the Agent Runtime's
+ * orders.read tool so every tool use is policy-checked and recorded against
+ * the owning agent run. The summary SQL is intentionally kept direct because no
+ * governed tool provides the multi-status fulfillment aggregation it needs.
+ */
+export async function analyzeOperations(context: AgentContext) {
   const [summary] = await sql`
     SELECT
       COUNT(*)::int AS total,
@@ -16,9 +23,28 @@ export async function analyzeOperations(_context: AgentContext) {
     FROM orders
     WHERE COALESCE(status, '') <> 'cancelled'`;
 
-  const recent = await sql`
-    SELECT order_number, status, payment_status, delivery_city, total_kobo, created_at
-    FROM orders ORDER BY created_at DESC LIMIT 15`;
+  // Governed read — runs through the registry's orders.read tool. Exact shape
+  // is projected back from the tool output's retained fields.
+  const ordersResult = (await executeTool(context.agentId, context.runId, 'orders.read', { limit: 15 })) as {
+    orders?: Array<{
+      order_number?: string;
+      status?: string;
+      payment_status?: string;
+      delivery_city?: string;
+      total_kobo?: number;
+      created_at?: Date | string;
+    }>;
+  };
+  const recent = Array.isArray(ordersResult?.orders)
+    ? ordersResult.orders.map((o) => ({
+        order_number: o.order_number,
+        status: o.status,
+        payment_status: o.payment_status,
+        delivery_city: o.delivery_city,
+        total_kobo: o.total_kobo,
+        created_at: o.created_at,
+      }))
+    : [];
 
   const alerts: string[] = [];
   if (summary) {

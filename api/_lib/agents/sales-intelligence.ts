@@ -1,16 +1,32 @@
 import { sql } from '../db.js';
+import { executeTool } from './runtime.js';
 import type { AgentContext } from './types.js';
 
-/** Sales Agent — DB-only insights. No customer messaging. */
-export async function analyzeSales(_context: AgentContext) {
-  const top = await sql`
-    SELECT p.name, p.brand, COUNT(o.id)::int AS orders,
-           COALESCE(SUM(o.total_kobo), 0)::bigint AS volume_kobo
-    FROM orders o JOIN products p ON p.id = o.product_id
-    WHERE COALESCE(o.status, '') <> 'cancelled'
-    GROUP BY p.id, p.name, p.brand
-    ORDER BY orders DESC LIMIT 10`;
+/**
+ * Sales Agent — DB-only insights. No customer messaging.
+ * Data access is governed: top products, payment mix, and inventory stock
+ * snapshots go through the governed Agent Runtime's executeTool() so every
+ * tool use is policy-checked and recorded against the owning agent run.
+ * Two read gaps (slow products, unpaid-order follow-up) intentionally remain
+ * direct SQL because no existing governed tool provides equivalent semantics.
+ */
+export async function analyzeSales(context: AgentContext) {
+  // Governed reads — analytics.read (top products + payment mix) and
+  // inventory.read (stock snapshot) replace the former direct SQL queries.
+  const analytics = (await executeTool(context.agentId, context.runId, 'analytics.read', {})) as {
+    topProducts?: Array<{ name?: string; brand?: string; orders?: number; volume_kobo?: number }>;
+    payments?: Array<{ payment_status?: string; count?: number }>;
+  };
+  const top = Array.isArray(analytics?.topProducts) ? analytics.topProducts : [];
 
+  const inv = (await executeTool(context.agentId, context.runId, 'inventory.read', {})) as {
+    byStatus?: Array<{ stock_status?: string; count?: number }>;
+  };
+  const stock = Array.isArray(inv?.byStatus) ? inv.byStatus : [];
+  const payments = Array.isArray(analytics?.payments) ? analytics.payments : [];
+
+  // Intentional gap #1 — no governed tool computes "active products with no
+  // orders in the last 30 days". Kept direct.
   const slow = await sql`
     SELECT p.id, p.name, p.brand, p.stock_status, p.price_kobo
     FROM products p
@@ -20,14 +36,6 @@ export async function analyzeSales(_context: AgentContext) {
       )
     ORDER BY p.updated_at DESC NULLS LAST
     LIMIT 10`;
-
-  const payments = await sql`
-    SELECT COALESCE(payment_status, 'unknown') AS payment_status, COUNT(*)::int AS count
-    FROM orders GROUP BY 1 ORDER BY count DESC`;
-
-  const stock = await sql`
-    SELECT COALESCE(stock_status, 'unknown') AS stock_status, COUNT(*)::int AS count
-    FROM products WHERE is_active = true GROUP BY 1`;
 
   const insights: string[] = [];
   if (top[0]) {
@@ -47,6 +55,9 @@ export async function analyzeSales(_context: AgentContext) {
 
   if (!insights.length) insights.push('Not enough order history yet for strong sales signals.');
 
+  // Intentional gap #2 — no governed tool returns customer contact fields
+  // (delivery_name/delivery_phone) with an IN('unpaid','pending_verification')
+  // filter. Kept direct.
   const unpaidOrders = await sql`
     SELECT order_number, delivery_name, delivery_phone, total_kobo, payment_status, created_at
     FROM orders

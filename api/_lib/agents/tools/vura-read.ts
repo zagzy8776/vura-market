@@ -19,6 +19,14 @@ export const productsSearchTool: AgentTool = {
   name: 'products.search',
   description: 'Search Vura catalog products by name, brand, or free text. Returns structured product rows only — no invented data.',
   risk: 'read',
+  parameters: {
+    type: 'object',
+    properties: {
+      q: { type: 'string', description: 'Search term for name, brand, or description.' },
+      query: { type: 'string', description: 'Alias for q.' },
+      limit: { type: 'integer', description: 'Maximum results (default 20, max 50).' },
+    },
+  },
   async execute(input) {
     const q = asString(input, 'q') || asString(input, 'query');
     const limit = Math.min(Math.max(asNumber(input, 'limit', 20), 1), 50);
@@ -52,6 +60,13 @@ export const productInspectTool: AgentTool = {
   name: 'product.inspect',
   description: 'Load a single Vura product by id or slug with images and category. Returns UNKNOWN fields as null — never invents specs.',
   risk: 'read',
+  parameters: {
+    type: 'object',
+    properties: {
+      id: { type: 'string', description: 'Product UUID.' },
+      slug: { type: 'string', description: 'Product slug.' },
+    },
+  },
   async execute(input) {
     const id = asString(input, 'id');
     const slug = asString(input, 'slug');
@@ -87,6 +102,12 @@ export const inventoryReadTool: AgentTool = {
   name: 'inventory.read',
   description: 'Read inventory snapshot: counts by stock_status and low-stock product list from Vura DB only.',
   risk: 'read',
+  parameters: {
+    type: 'object',
+    properties: {
+      limit: { type: 'integer', description: 'Maximum low-stock rows (default 30, max 100).' },
+    },
+  },
   async execute(input) {
     const limit = Math.min(Math.max(asNumber(input, 'limit', 30), 1), 100);
     const byStatus = await sql`
@@ -108,6 +129,14 @@ export const ordersReadTool: AgentTool = {
   name: 'orders.read',
   description: 'Read recent orders with payment/status fields. Does not invent customer or order data.',
   risk: 'read',
+  parameters: {
+    type: 'object',
+    properties: {
+      limit: { type: 'integer', description: 'Maximum orders (default 25, max 100).' },
+      status: { type: 'string', description: 'Exact order status filter.' },
+      paymentStatus: { type: 'string', description: 'Exact payment status filter.' },
+    },
+  },
   async execute(input) {
     const limit = Math.min(Math.max(asNumber(input, 'limit', 25), 1), 100);
     const status = asString(input, 'status');

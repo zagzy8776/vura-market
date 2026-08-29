@@ -2,10 +2,14 @@
  * Trend Intelligence Agent — discovery only.
  * Never invents evidence. Structures commercial signals from research sources
  * and optional Vura catalog context. Category-agnostic.
+ *
+ * Data access is governed: web research and catalog lookups go through the
+ * governed Agent Runtime's executeTool() so every tool use is policy-checked
+ * and recorded against the owning agent run.
  */
-import { researchSearch, type ResearchResult } from './research.js';
 import { generateWithFallback } from './providers.js';
-import { sql } from '../db.js';
+import { executeTool } from './runtime.js';
+import type { ResearchResult } from './research.js';
 import type { AgentContext, ModelProvider } from './types.js';
 
 export interface TrendCandidate {
@@ -84,17 +88,15 @@ function normalizeCandidate(raw: Record<string, unknown>, fallbackSources: strin
   };
 }
 
-async function catalogContext(categories: string[]): Promise<string> {
+async function catalogContext(context: AgentContext, categories: string[]): Promise<string> {
   try {
-    const rows = await sql`
-      SELECT p.name, p.brand, c.name AS category
-      FROM products p
-      LEFT JOIN categories c ON c.id = p.category_id
-      WHERE p.is_active = true
-      ORDER BY p.created_at DESC
-      LIMIT 40`;
-    if (!rows.length) return 'Catalog: empty or unavailable.';
-    const lines = rows.map((r) => `- ${r.brand ? `${r.brand} ` : ''}${r.name}${r.category ? ` [${r.category}]` : ''}`);
+    // Governed read — goes through the registry's products.search tool.
+    const result = (await executeTool(context.agentId, context.runId, 'products.search', {})) as {
+      products?: Array<{ name?: string; brand?: string; category?: string }>;
+    };
+    const products = Array.isArray(result?.products) ? result.products : [];
+    if (!products.length) return 'Catalog: empty or unavailable.';
+    const lines = products.map((r) => `- ${r.brand ? `${r.brand} ` : ''}${r.name ?? ''}${r.category ? ` [${r.category}]` : ''}`);
     return `Current Vura catalog sample (do not invent products beyond this list when referring to "already listed"):\n${lines.join('\n')}\nFocus categories requested: ${categories.join(', ')}`;
   } catch {
     return 'Catalog: unavailable.';
@@ -113,7 +115,11 @@ export async function discoverTrends(context: AgentContext, categories = DEFAULT
     `Look for rising search interest, new product launches, price moves, competitor activity, seasonal demand. ` +
     `Prefer signals relevant to Nigerian buyers and West African retail.`;
 
-  const sources: ResearchResult[] = await researchSearch({ query, maxResults: 5 });
+  // Governed read — runs through the registry's web.search tool.
+  const webResult = (await executeTool(context.agentId, context.runId, 'web.search', { query, maxResults: 5 })) as {
+    results?: ResearchResult[];
+  };
+  const sources: ResearchResult[] = Array.isArray(webResult?.results) ? webResult.results : [];
   const sourceUrls = sources.map((s) => s.url).filter(Boolean);
   const evidenceBlock = sources.length
     ? sources
@@ -121,7 +127,7 @@ export async function discoverTrends(context: AgentContext, categories = DEFAULT
         .join('\n\n')
     : 'NO_EXTERNAL_SOURCES_AVAILABLE';
 
-  const catalog = await catalogContext(focus);
+  const catalog = await catalogContext(context, focus);
 
   const system = [
     `You are Vura Market's Trend Intelligence agent (${context.agentId}).`,

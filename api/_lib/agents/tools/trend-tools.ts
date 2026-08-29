@@ -8,6 +8,12 @@ export const trendCollectTool: AgentTool = {
   description:
     'Run Trend Intelligence discovery for selected categories. Uses research sources only; never invents evidence. Returns structured candidates with scores and source URLs.',
   risk: 'read',
+  parameters: {
+    type: 'object',
+    properties: {
+      categories: { type: 'array', items: { type: 'string' }, description: 'Optional category slugs to limit discovery.' },
+    },
+  },
   async execute(input, context: AgentContext) {
     const categories =
       input && typeof input === 'object' && Array.isArray((input as { categories?: unknown }).categories)
@@ -30,6 +36,17 @@ export const trendScoreTool: AgentTool = {
   name: 'trend.score',
   description: 'Rank trend candidates by combined trendScore and commercialScore. Input: { candidates: [...] }.',
   risk: 'read',
+  parameters: {
+    type: 'object',
+    properties: {
+      candidates: {
+        type: 'array',
+        items: { type: 'object' },
+        description: 'Trend candidates to rank.',
+      },
+    },
+    required: ['candidates'],
+  },
   async execute(input) {
     const list =
       input && typeof input === 'object' && Array.isArray((input as { candidates?: unknown }).candidates)

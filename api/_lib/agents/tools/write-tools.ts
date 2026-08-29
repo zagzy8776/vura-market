@@ -9,6 +9,15 @@ export const productCreateProposeTool: AgentTool = {
   name: 'product.create',
   description: 'Propose creating a product draft. WRITE risk — requires human approval; does not publish.',
   risk: 'write',
+  parameters: {
+    type: 'object',
+    properties: {
+      name: { type: 'string' },
+      category: { type: 'string' },
+      priceKobo: { type: 'integer' },
+      description: { type: 'string' },
+    },
+  },
   async execute(input) {
     // Proposal only when called without approval path; actual insert happens post-approval via admin
     return {
@@ -24,6 +33,14 @@ export const inventoryUpdateTool: AgentTool = {
   name: 'inventory.update',
   description: 'Propose inventory/stock status change. WRITE — requires approval.',
   risk: 'write',
+  parameters: {
+    type: 'object',
+    properties: {
+      productId: { type: 'string' },
+      stockStatus: { type: 'string' },
+    },
+    required: ['productId', 'stockStatus'],
+  },
   async execute(input) {
     return { proposed: true, action: 'inventory.update', input, note: 'Awaiting approval' };
   },
@@ -33,6 +50,15 @@ export const shippingUpdateTool: AgentTool = {
   name: 'shipping.update',
   description: 'Propose shipping/tracking update. WRITE — requires approval.',
   risk: 'write',
+  parameters: {
+    type: 'object',
+    properties: {
+      orderId: { type: 'string' },
+      trackingNumber: { type: 'string' },
+      status: { type: 'string' },
+    },
+    required: ['orderId', 'trackingNumber'],
+  },
   async execute(input) {
     return { proposed: true, action: 'shipping.update', input, note: 'Awaiting approval' };
   },
@@ -42,6 +68,14 @@ export const notificationSendTool: AgentTool = {
   name: 'notification.send',
   description: 'Propose customer notification. WRITE — requires approval. Never auto-send.',
   risk: 'write',
+  parameters: {
+    type: 'object',
+    properties: {
+      customerId: { type: 'string' },
+      message: { type: 'string' },
+      channel: { type: 'string' },
+    },
+  },
   async execute(input) {
     return { proposed: true, action: 'notification.send', input, note: 'Human must send customer messages' };
   },

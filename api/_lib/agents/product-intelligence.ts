@@ -1,10 +1,15 @@
 /**
  * Product Intelligence Agent — deep investigation of a commercial opportunity.
  * Category-agnostic. Never invents specifications.
+ *
+ * Data access is governed: web research and catalog lookups go through the
+ * governed Agent Runtime's executeTool() so every tool use is policy-checked
+ * and recorded against the owning agent run.
  */
-import { researchSearch, type ResearchResult } from './research.js';
 import { generateWithFallback } from './providers.js';
+import { executeTool } from './runtime.js';
 import { sql } from '../db.js';
+import type { ResearchResult } from './research.js';
 import type { AgentContext, ModelProvider } from './types.js';
 
 export type EvidenceClass = 'SOURCE_CONFIRMED' | 'USER_PROVIDED' | 'INFERRED' | 'UNKNOWN';
@@ -98,20 +103,23 @@ export async function investigateProduct(
     (category ? ` in category ${category}` : '') +
     `. Specs, variants, market prices NGN, competitors, warranty, counterfeit risks, demand.`;
 
-  const sources = await researchSearch({ query, maxResults: 6 });
+  // Governed read — runs through the registry's web.search tool.
+  const webResult = (await executeTool(context.agentId, context.runId, 'web.search', { query, maxResults: 6 })) as {
+    results?: ResearchResult[];
+  };
+  const sources: ResearchResult[] = Array.isArray(webResult?.results) ? webResult.results : [];
   const sourceUrls = sources.map((s) => s.url).filter(Boolean);
 
   let catalogHit: string | null = null;
   try {
-    const pattern = `%${name.slice(0, 60)}%`;
-    const rows = await sql`
-      SELECT p.name, p.brand, p.price_kobo, p.storage, p.color, p.condition_label, c.name AS category
-      FROM products p LEFT JOIN categories c ON c.id = p.category_id
-      WHERE p.is_active = true AND (p.name ILIKE ${pattern} OR p.brand ILIKE ${pattern})
-      LIMIT 5`;
+    // Governed read — runs through the registry's products.search tool.
+    const hit = (await executeTool(context.agentId, context.runId, 'products.search', { q: name, limit: 5 })) as {
+      products?: Array<{ name?: string; brand?: string; price_kobo?: number; storage?: string; color?: string; category?: string }>;
+    };
+    const rows = Array.isArray(hit?.products) ? hit.products : [];
     if (rows.length) {
       catalogHit = rows
-        .map((r) => `${r.brand || ''} ${r.name} | ₦${Number(r.price_kobo || 0) / 100} | ${r.storage || ''} ${r.color || ''} [${r.category || ''}]`)
+        .map((r) => `${r.brand || ''} ${r.name || ''} | ₦${Number(r.price_kobo || 0) / 100} | ${r.storage || ''} ${r.color || ''} [${r.category || ''}]`)
         .join('\n');
     }
   } catch {
