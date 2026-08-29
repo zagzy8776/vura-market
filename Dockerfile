@@ -14,6 +14,8 @@ COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/package.json ./
 COPY --from=builder /app/agent-worker.mjs ./agent-worker.mjs
 COPY --from=builder /app/api ./api
+COPY --from=builder /app/db ./db
+COPY --from=builder /app/scripts ./scripts
 COPY --from=builder /app/node_modules ./node_modules
 COPY server.mjs .
 RUN addgroup -g 1001 -S nodejs && adduser -S nodejs -u 1001 && chown -R nodejs:nodejs /app
