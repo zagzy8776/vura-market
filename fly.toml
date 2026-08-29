@@ -13,6 +13,9 @@ primary_region = 'jnb'
   NODE_OPTIONS = '--max-old-space-size=384'
   AGENT_WORKER_ENABLED = 'true'
 
+[deploy]
+  release_command = 'npm run db:migrate'
+
 [http_service]
   internal_port = 3000
   force_https = true
