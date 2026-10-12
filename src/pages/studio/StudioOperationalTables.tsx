@@ -79,48 +79,145 @@ export function OperationalProducts({ products, suppliers = [], onRefresh }: { p
   </section>;
 }
 
-/** Brand pools by vertical — longest names matched first in detectBrand. */
+/** ── Brand pools by vertical (longest match wins in detectBrand) ── */
+
 const PHONE_BRANDS = [
   'Apple','Samsung','Tecno','Infinix','Itel','Xiaomi','Redmi','Poco','Oppo','Vivo','Huawei','Honor',
-  'Nokia','Google','Sony','LG','OnePlus','Realme','Motorola','Nothing','ZTE','Fairphone',
+  'Nokia','Google','Sony','LG','OnePlus','Realme','Motorola','Nothing','ZTE','Fairphone','Asus',
+  'Blackview','Doogee','Cubot','Umidigi','Sharp','Alcatel','Meizu','Coolpad','Gionee','Leagoo',
 ];
-const LAPTOP_BRANDS = ['HP','Dell','Lenovo','Asus','Acer','Microsoft','Toshiba','MSI','Razer','Apple'];
-const ACCESSORY_BRANDS = ['JBL','Oraimo','Anker','Beats','Baseus','Ugreen','Spigen','Belkin','Boat','Sony'];
-const CAMERA_BRANDS = ['Canon','Nikon','GoPro','DJI','Fujifilm','Panasonic','Sony'];
-const GAMING_BRANDS = ['Nintendo','PlayStation','Xbox','Steam Deck','Razer','Logitech'];
+
+const LAPTOP_BRANDS = [
+  'HP','Dell','Lenovo','Asus','Acer','Microsoft','Toshiba','MSI','Razer','Apple','Alienware',
+  'Gigabyte','Samsung','Huawei','LG','Framework','System76','Chuwi',
+];
+
+const ACCESSORY_BRANDS = [
+  'JBL','Oraimo','Anker','Beats','Baseus','Ugreen','Spigen','Belkin','Boat','Sony','Bose','Sennheiser',
+  'Logitech','Razer','Corsair','HyperX','Sony WH','Sony WF','Skullcandy','Jabra','Soundcore','Tribit',
+  'Remax','Hoco','Yesido','Porodo','Xiaomi','Samsung','Apple','OtterBox','Ringke','ESR','Nomad',
+];
+
+const CAMERA_BRANDS = [
+  'Canon','Nikon','GoPro','DJI','Fujifilm','Panasonic','Sony','Olympus','Leica','Instax','Polaroid',
+  'Blackmagic','Red Digital','Sigma','Tamron','Godox','Manfrotto',
+];
+
+const GAMING_BRANDS = [
+  'Nintendo','PlayStation','Xbox','Steam Deck','Razer','Logitech','Sony','Microsoft','Valve',
+  'Asus ROG','MSI','Alienware','Corsair','SteelSeries','HyperX','Thrustmaster','Mad Catz',
+];
+
 const CAR_BRANDS = [
   'Toyota','Honda','Lexus','Mercedes-Benz','Mercedes','BMW','Audi','Volkswagen','VW','Ford','Hyundai',
   'Kia','Nissan','Mazda','Peugeot','Renault','Suzuki','Mitsubishi','Chevrolet','Jeep','Land Rover',
   'Range Rover','Volvo','Porsche','Tesla','BYD','Changan','GAC','Haval','Great Wall','Isuzu',
   'Infiniti','Acura','Cadillac','Jaguar','Mini','Fiat','Skoda','Seat','Opel','Citroën','Citroen',
-  'Subaru','Genesis','Rivian','Lucid','MG','Chery','Geely','BAIC','Dongfeng','Foton',
+  'Subaru','Genesis','Rivian','Lucid','MG','Chery','Geely','BAIC','Dongfeng','Foton','Bentley',
+  'Rolls-Royce','Ferrari','Lamborghini','Maserati','Alfa Romeo','Aston Martin','Bugatti','McLaren',
+  'Dodge','Chrysler','Ram','GMC','Buick','Lincoln','Hummer','Saab','Daewoo','SsangYong','Proton',
+  'Tata','Mahindra','Perodua','Dacia','Lada','GAZ','UAZ','Wuling','NIO','XPeng','Li Auto','Zeekr',
 ];
+
+const MOTORCYCLE_BRANDS = [
+  'Yamaha','Honda','Suzuki','Kawasaki','Bajaj','TVS','Hero','Royal Enfield','KTM','Ducati',
+  'Harley-Davidson','BMW Motorrad','Triumph','Aprilia','Vespa','Piaggio','CFMoto','Benelli',
+  'Innoson','Jincheng','Haojue','Lifan','Qlink','Canny','Skygo','Ashford','Daylong',
+];
+
 const PERFUME_BRANDS = [
   'Dior','Chanel','Gucci','Versace','YSL','Yves Saint Laurent','Armani','Tom Ford','Creed','Parfums de Marly',
   'Maison Francis Kurkdjian','Byredo','Le Labo','Jo Malone','Burberry','Prada','Valentino','Givenchy',
   'Hermès','Hermes','Calvin Klein','Hugo Boss','Davidoff','Lattafa','Armaf','Afnan','Rasasi','Ajmal',
   'Al Haramain','Montale','Mancera','Initio','Xerjoff','Amouage','Roja','Kilian','Mugler','Jean Paul Gaultier',
   'Paco Rabanne','Carolina Herrera','Dolce & Gabbana','Ralph Lauren','Bath & Body Works','Victoria\'s Secret',
+  'Bvlgari','Bulgari','Cartier','Tiffany','Coach','Marc Jacobs','Viktor & Rolf','Issey Miyake','Kenzo',
+  'Lancome','Lancôme','Estée Lauder','Estee Lauder','Clinique','Giorgio Armani','Emporio Armani',
+  'Kayali','Ellis Brooklyn','Commodity','Diptyque','Acqua di Parma','Penhaligon\'s','Bond No. 9',
+  'Nasomatto','Nishane','Zoologist','Etat Libre d\'Orange','Serge Lutens','Frederic Malle','By Kilian',
+  'Swiss Arabian','Nabeel','Ard Al Zaafaran','Paris Corner','French Avenue','Fragrance World','Maison Alhambra',
 ];
+
 const FASHION_BRANDS = [
   'Nike','Adidas','Puma','New Balance','Reebok','Under Armour','Jordan','Converse','Vans','Crocs',
   'Gucci','Louis Vuitton','Prada','Balenciaga','Zara','H&M','Uniqlo','Shein','Fendi','Burberry',
+  'Off-White','Supreme','Stone Island','Moncler','Canada Goose','The North Face','Columbia','Patagonia',
+  'Levi\'s','Levis','Tommy Hilfiger','Ralph Lauren','Calvin Klein','Guess','Diesel','Armani Exchange',
+  'Lacoste','Fred Perry','Champion','Fila','Asics','Skechers','Timberland','Dr. Martens','Clarks',
+  'Birkenstock','UGG','Havaianas','Crocs','Allbirds','On Running','Hoka','Salomon','Merrell',
+  'Dior','Chanel','Hermès','Hermes','Yves Saint Laurent','YSL','Versace','Givenchy','Bottega Veneta',
+  'Celine','Loewe','Saint Laurent','Alexander McQueen','Stella McCartney','Miu Miu','Valentino',
 ];
+
 const APPLIANCE_BRANDS = [
   'LG','Samsung','Hisense','Haier','Scanfrost','Polystar','Binatone','Nexus','Maxi','Kenwood',
   'Philips','Bosch','Whirlpool','Panasonic','Sharp','Thermocool','Syinix','Century','Royal',
+  'Midea','TCL','Skyworth','Sony','Toshiba','Electrolux','Siemens','Smeg','KitchenAid','Ninja',
+  'Dyson','Xiaomi','Huawei','Breville','Cuisinart','Instant Pot','Russell Hobbs','Morphy Richards',
+  'Firman','Sumec','Firman','Honda','Yamaha','Lutian','Aima','Elepaq','Kipor','Powerhouse',
 ];
+
 const BEAUTY_BRANDS = [
-  'MAC','Fenty','Maybelline','L\'Oreal','Nivea','The Ordinary','CeraVe','Neutrogena','Dove','Vaseline',
-  'Shea Moisture','ORS','Cantu','Garnier','Revlon','e.l.f.','NYX','Rare Beauty',
+  'MAC','Fenty','Maybelline','L\'Oreal','L\'Oréal','Nivea','The Ordinary','CeraVe','Neutrogena','Dove','Vaseline',
+  'Shea Moisture','ORS','Cantu','Garnier','Revlon','e.l.f.','NYX','Rare Beauty','Charlotte Tilbury',
+  'Huda Beauty','Anastasia Beverly Hills','Too Faced','Urban Decay','NARS','Benefit','Clinique',
+  'Estée Lauder','Estee Lauder','Lancome','Lancôme','Olay','Aveeno','Cetaphil','La Roche-Posay',
+  'Vichy','Bioderma','Eucerin','Simple','St. Ives','Ponds','Pond\'s','Fair & White','Caro White',
+  'Dark & Lovely','SoftSheen','Motions','Design Essentials','Mielle','Camille Rose','Pattern',
+];
+
+const FURNITURE_BRANDS = [
+  'Ikea','Ashley','Wayfair','West Elm','Pottery Barn','Crate & Barrel','Article','Burrow',
+  'Dozy','Swoosh','Sleepwell','Mouka','Vitafoam','Foam & Fibre','Royal Foam',
+];
+
+const WATCH_BRANDS = [
+  'Rolex','Omega','Patek Philippe','Audemars Piguet','Cartier','Tag Heuer','Seiko','Casio','Citizen',
+  'Tissot','Longines','Breitling','Hublot','IWC','Panerai','Vacheron Constantin','Jaeger-LeCoultre',
+  'Fossil','Michael Kors','Daniel Wellington','Swatch','G-Shock','Apple','Samsung','Garmin','Fitbit',
+  'Huawei','Amazfit','Xiaomi','Withings','Polar','Suunto','Timex','Orient','Hamilton','Bulova',
+];
+
+const JEWELRY_BRANDS = [
+  'Tiffany','Cartier','Pandora','Swarovski','Pandora','Kay','Zales','Blue Nile','Mejuri','AUrate',
+  'Apples of Gold','Sarah and Sebastian','Monica Vinader','Missoma','Maria Black','Ariel Gordon',
+];
+
+const BABY_BRANDS = [
+  'Pampers','Huggies','Johnson\'s','Johnson and Johnson','Fisher-Price','Lego','Mattel','Hasbro',
+  'Chicco','Graco','BabyBjorn','Ergobaby','Medela','Philips Avent','Nuk','Tommee Tippee',
+  'CeraVe Baby','Aveeno Baby','Mustela','Sebamed','Molfix','Cussons Baby','Pears Baby',
+];
+
+const PET_BRANDS = [
+  'Pedigree','Whiskas','Royal Canin','Purina','Hills','Iams','Fancy Feast','Friskies','Blue Buffalo',
+  'Kong','PetSafe','Furminator','Seresto','Frontline','Advantage','Nylabone',
+];
+
+const SPORTS_BRANDS = [
+  'Nike','Adidas','Puma','Under Armour','Reebok','New Balance','Asics','Wilson','Spalding','Yonex',
+  'Head','Babolat','Decathlon','Gymshark','Lululemon','Fabletics','Peloton','Bowflex','Yeso',
+];
+
+const FOOD_BRANDS = [
+  'Nestle','Nestlé','Cadbury','Indomie','Dangote','Peak','Milo','Bournvita','Cowbell','Three Crowns',
+  'Kellogg\'s','Kelloggs','Quaker','Maggi','Knorr','Devon King\'s','Power Oil','Mamador','Gino',
+  'Coca-Cola','Pepsi','Fanta','Sprite','Red Bull','Monster','Hollandia','Chi','Chi Limited','Rite Foods',
+];
+
+const SUPERMARKET_BRANDS = [
+  'Dettol','Harpic','Air Wick','Glade','Ariel','Omo','Sunlight','Lux','Lifebuoy','Closeup','Colgate',
+  'Sensodyne','Oral-B','Listerine','Always','Kotex','Carefree','Tampax','Gillette','Nivea Men',
 ];
 
 const KNOWN_BRANDS = Array.from(new Set([
   ...PHONE_BRANDS, ...LAPTOP_BRANDS, ...ACCESSORY_BRANDS, ...CAMERA_BRANDS, ...GAMING_BRANDS,
-  ...CAR_BRANDS, ...PERFUME_BRANDS, ...FASHION_BRANDS, ...APPLIANCE_BRANDS, ...BEAUTY_BRANDS,
-])).sort((a, b) => b.length - a.length); // longest first so "Mercedes-Benz" beats "Mercedes"
+  ...CAR_BRANDS, ...MOTORCYCLE_BRANDS, ...PERFUME_BRANDS, ...FASHION_BRANDS, ...APPLIANCE_BRANDS,
+  ...BEAUTY_BRANDS, ...FURNITURE_BRANDS, ...WATCH_BRANDS, ...JEWELRY_BRANDS, ...BABY_BRANDS,
+  ...PET_BRANDS, ...SPORTS_BRANDS, ...FOOD_BRANDS, ...SUPERMARKET_BRANDS,
+])).sort((a, b) => b.length - a.length);
 
-/** Popular models sold in NG/Africa — used for name autocomplete. */
+/** Popular models — autocomplete pools */
 const PHONE_MODELS = [
   'iPhone 11','iPhone 11 Pro','iPhone 11 Pro Max','iPhone 12','iPhone 12 mini','iPhone 12 Pro','iPhone 12 Pro Max',
   'iPhone 13','iPhone 13 mini','iPhone 13 Pro','iPhone 13 Pro Max','iPhone 14','iPhone 14 Plus','iPhone 14 Pro','iPhone 14 Pro Max',
@@ -143,57 +240,81 @@ const WEARABLE_MODELS = [
   'Apple Watch Series 8','Apple Watch Series 9','Apple Watch Series 10','Apple Watch SE','Apple Watch Ultra 2',
   'Samsung Galaxy Watch 6','Samsung Galaxy Watch 7','Samsung Galaxy Watch FE','Samsung Galaxy Buds 2 Pro','Samsung Galaxy Buds FE',
   'Oraimo Watch 4','Oraimo FreePods','JBL Tune Buds','AirPods Pro','AirPods Pro 2','AirPods 3','AirPods 4',
+  'Garmin Forerunner 265','Garmin Fenix 7','Fitbit Charge 6','Fitbit Versa 4','Amazfit GTR 4','Huawei Watch GT 4',
 ];
 
 const CAR_MODELS = [
-  'Toyota Corolla','Toyota Camry','Toyota RAV4','Toyota Highlander','Toyota Hilux','Toyota Land Cruiser','Toyota Prado','Toyota Sienna','Toyota Yaris','Toyota Avalon',
-  'Honda Accord','Honda Civic','Honda CR-V','Honda Pilot','Honda HR-V','Honda Odyssey',
-  'Lexus RX 350','Lexus ES 350','Lexus GX 460','Lexus LX 570','Lexus NX 350',
-  'Mercedes-Benz C-Class','Mercedes-Benz E-Class','Mercedes-Benz S-Class','Mercedes-Benz GLE','Mercedes-Benz GLC','Mercedes-Benz G-Wagon',
-  'BMW 3 Series','BMW 5 Series','BMW X3','BMW X5','BMW X6','BMW 7 Series',
-  'Audi A4','Audi A6','Audi Q5','Audi Q7','Ford Ranger','Ford Explorer','Ford Edge','Ford F-150',
-  'Hyundai Elantra','Hyundai Tucson','Hyundai Santa Fe','Kia Sportage','Kia Sorento','Kia Rio',
-  'Nissan Altima','Nissan Pathfinder','Nissan Patrol','Nissan X-Trail','Mazda CX-5','Mazda CX-30',
-  'Peugeot 301','Peugeot 508','Suzuki Swift','Suzuki Vitara','Volkswagen Golf','Volkswagen Tiguan','Tesla Model 3','Tesla Model Y',
+  'Toyota Corolla','Toyota Camry','Toyota RAV4','Toyota Highlander','Toyota Hilux','Toyota Land Cruiser','Toyota Prado','Toyota Sienna','Toyota Yaris','Toyota Avalon','Toyota Venza','Toyota 4Runner','Toyota Tacoma','Toyota Tundra',
+  'Honda Accord','Honda Civic','Honda CR-V','Honda Pilot','Honda HR-V','Honda Odyssey','Honda Ridgeline',
+  'Lexus RX 350','Lexus ES 350','Lexus GX 460','Lexus LX 570','Lexus NX 350','Lexus IS 350','Lexus UX 250h',
+  'Mercedes-Benz C-Class','Mercedes-Benz E-Class','Mercedes-Benz S-Class','Mercedes-Benz GLE','Mercedes-Benz GLC','Mercedes-Benz G-Wagon','Mercedes-Benz A-Class','Mercedes-Benz CLA',
+  'BMW 3 Series','BMW 5 Series','BMW X3','BMW X5','BMW X6','BMW 7 Series','BMW X1','BMW X7',
+  'Audi A4','Audi A6','Audi Q5','Audi Q7','Audi A3','Audi Q3','Ford Ranger','Ford Explorer','Ford Edge','Ford F-150','Ford Escape','Ford Mustang',
+  'Hyundai Elantra','Hyundai Tucson','Hyundai Santa Fe','Hyundai Sonata','Kia Sportage','Kia Sorento','Kia Rio','Kia Telluride',
+  'Nissan Altima','Nissan Pathfinder','Nissan Patrol','Nissan X-Trail','Nissan Rogue','Mazda CX-5','Mazda CX-30','Mazda 3',
+  'Peugeot 301','Peugeot 508','Peugeot 3008','Suzuki Swift','Suzuki Vitara','Volkswagen Golf','Volkswagen Tiguan','Volkswagen Passat',
+  'Tesla Model 3','Tesla Model Y','Tesla Model S','Tesla Model X','BYD Atto 3','BYD Seal','Changan CS75','Haval H6',
+];
+
+const MOTORCYCLE_MODELS = [
+  'Yamaha YBR 125','Yamaha FZ','Yamaha MT-07','Yamaha R15','Honda CB125','Honda CBR','Honda Ace 125','Bajaj Boxer','Bajaj Pulsar','TVS Apache','Suzuki Gixxer','Royal Enfield Classic 350','KTM Duke 200','Jincheng AX100',
 ];
 
 const PERFUME_MODELS = [
-  'Dior Sauvage','Dior Homme','Miss Dior','Chanel No. 5','Chanel Bleu de Chanel','Coco Mademoiselle',
-  'Gucci Bloom','Gucci Guilty','Versace Eros','Versace Dylan Blue','YSL Y Eau de Parfum','YSL Black Opium',
-  'Armani Code','Acqua di Gio','Tom Ford Black Orchid','Tom Ford Oud Wood','Creed Aventus','Lattafa Asad',
-  'Lattafa Khamrah','Armaf Club de Nuit','Afnan 9pm','Rasasi Hawas','Jean Paul Gaultier Le Male','Paco Rabbane 1 Million',
+  'Dior Sauvage','Dior Homme','Miss Dior','Chanel No. 5','Chanel Bleu de Chanel','Coco Mademoiselle','Chance Chanel',
+  'Gucci Bloom','Gucci Guilty','Versace Eros','Versace Dylan Blue','Versace Bright Crystal','YSL Y Eau de Parfum','YSL Black Opium','YSL Libre',
+  'Armani Code','Acqua di Gio','Stronger With You','Tom Ford Black Orchid','Tom Ford Oud Wood','Tom Ford Tobacco Vanille','Creed Aventus','Creed Silver Mountain Water',
+  'Lattafa Asad','Lattafa Khamrah','Lattafa Qaed Al Fursan','Armaf Club de Nuit Intense','Armaf Club de Nuit Woman','Afnan 9pm','Afnan 9am Dive','Rasasi Hawas','Rasasi Daarej',
+  'Jean Paul Gaultier Le Male','Jean Paul Gaultier Scandal','Paco Rabanne 1 Million','Paco Rabanne Invictus','Carolina Herrera Good Girl','Mugler Angel','Mugler Alien',
 ];
 
 const FASHION_MODELS = [
-  'Nike Air Force 1','Nike Dunk Low','Nike Air Max 90','Adidas Ultraboost','Adidas Samba','Adidas Gazelle',
-  'Jordan 1 Retro High','Jordan 4 Retro','New Balance 550','New Balance 9060','Puma Suede Classic','Converse Chuck Taylor',
+  'Nike Air Force 1','Nike Dunk Low','Nike Air Max 90','Nike Air Max 97','Nike Cortez','Adidas Ultraboost','Adidas Samba','Adidas Gazelle','Adidas Superstar','Adidas Campus',
+  'Jordan 1 Retro High','Jordan 1 Low','Jordan 4 Retro','Jordan 11','New Balance 550','New Balance 9060','New Balance 574','Puma Suede Classic','Puma RS-X','Converse Chuck Taylor','Vans Old Skool',
 ];
 
 const LAPTOP_MODELS = [
-  'MacBook Air M1','MacBook Air M2','MacBook Air M3','MacBook Pro 14','MacBook Pro 16',
-  'HP Pavilion 15','HP EliteBook','Dell XPS 13','Dell Inspiron 15','Lenovo ThinkPad X1','Lenovo IdeaPad 3','Asus ROG Zephyrus','Microsoft Surface Laptop 5',
+  'MacBook Air M1','MacBook Air M2','MacBook Air M3','MacBook Pro 14','MacBook Pro 16','MacBook Pro M3',
+  'HP Pavilion 15','HP EliteBook','HP ProBook','HP Spectre','Dell XPS 13','Dell XPS 15','Dell Inspiron 15','Dell Latitude',
+  'Lenovo ThinkPad X1','Lenovo ThinkPad E14','Lenovo IdeaPad 3','Lenovo Yoga','Asus ROG Zephyrus','Asus VivoBook','Asus TUF','Microsoft Surface Laptop 5','Microsoft Surface Pro 9','Acer Aspire 5','Acer Swift',
 ];
 
-const STORAGE_OPTIONS = ['32GB','64GB','128GB','256GB','512GB','1TB','2TB'];
-const COLOR_OPTIONS = ['Black','White','Blue','Green','Gold','Silver','Purple','Pink','Red','Grey','Graphite','Titanium','Beige','Brown','Navy','Orange'];
+const APPLIANCE_MODELS = [
+  'LG Refrigerator','LG Washing Machine','LG Air Conditioner','Samsung Refrigerator','Samsung TV 55','Hisense TV 43','Hisense Refrigerator',
+  'Thermocool Generator','Scanfrost Generator','Binatone Blender','Polystar TV','Nexus Standing Fan','Century Ceiling Fan','Dyson V15','Dyson Airwrap',
+];
 
-type ProductType = 'phone' | 'wearable' | 'laptop' | 'accessory' | 'car' | 'perfume' | 'fashion' | 'appliance' | 'gaming' | 'beauty' | 'other';
+const STORAGE_OPTIONS = ['32GB','64GB','128GB','256GB','512GB','1TB','2TB','4TB'];
+const COLOR_OPTIONS = [
+  'Black','White','Blue','Green','Gold','Silver','Purple','Pink','Red','Grey','Graphite','Titanium',
+  'Beige','Brown','Navy','Orange','Yellow','Cream','Rose Gold','Space Grey','Midnight','Starlight','Ivory',
+];
+
+type ProductType =
+  | 'phone' | 'wearable' | 'laptop' | 'accessory' | 'car' | 'motorcycle'
+  | 'perfume' | 'fashion' | 'appliance' | 'gaming' | 'beauty' | 'furniture'
+  | 'watch' | 'jewelry' | 'baby' | 'pet' | 'sports' | 'food' | 'supermarket' | 'camera' | 'other';
 
 function detectBrand(name: string) {
   const n = name.toLowerCase();
-  // Alias / product-line shortcuts before generic brand scan
+  // Product-line / alias shortcuts before generic brand scan
   if (/(iphone|ipad|macbook|airpods|imac|apple watch)/.test(n)) return 'Apple';
   if (n.includes('pixel')) return 'Google';
   if (n.includes('surface')) return 'Microsoft';
   if (n.includes('redmi') || n.includes('poco')) return 'Xiaomi';
   if (n.includes('playstation') || n.includes('ps5') || n.includes('ps4')) return 'PlayStation';
-  if (/\bg-wagon\b|\bg class\b|\bg-class\b/.test(n)) return 'Mercedes-Benz';
+  if (/\bg-wagon\b|\bg class\b|\bg-class\b|\bg63\b/.test(n)) return 'Mercedes-Benz';
   if (n.includes('range rover')) return 'Land Rover';
-  if (n.includes('corolla') || n.includes('camry') || n.includes('hilux') || n.includes('prado') || n.includes('highlander')) return 'Toyota';
-  if (n.includes('civic') || n.includes('accord') || n.includes('cr-v')) return 'Honda';
+  if (n.includes('corolla') || n.includes('camry') || n.includes('hilux') || n.includes('prado') || n.includes('highlander') || n.includes('land cruiser')) return 'Toyota';
+  if (n.includes('civic') || n.includes('accord') || n.includes('cr-v') || n.includes('crv')) return 'Honda';
   if (n.includes('sauvage') || n.includes('miss dior')) return 'Dior';
   if (n.includes('bleu de chanel') || n.includes('coco mademoiselle')) return 'Chanel';
-  // Longest brand name wins (KNOWN_BRANDS pre-sorted)
+  if (n.includes('air force 1') || n.includes('air max') || n.includes('dunk low')) return 'Nike';
+  if (n.includes('ultraboost') || n.includes('samba') || n.includes('gazelle')) return 'Adidas';
+  if (n.includes('jordan ')) return 'Jordan';
+  if (n.includes('club de nuit')) return 'Armaf';
+  if (n.includes('g-shock')) return 'Casio';
+  // Longest brand name wins (KNOWN_BRANDS pre-sorted by length desc)
   for (const brand of KNOWN_BRANDS) {
     if (n.includes(brand.toLowerCase())) return brand;
   }
@@ -202,28 +323,51 @@ function detectBrand(name: string) {
 
 function detectProductType(name: string, categoryName: string): ProductType {
   const n = `${name} ${categoryName}`.toLowerCase();
+  // Devices
   if (/(phone|iphone|galaxy a|galaxy s|tecno|infinix|itel|redmi|pixel|smartphone|android)/.test(n)) return 'phone';
-  if (/(watch|buds|airpods|earbud|wearable|band|headset)/.test(n)) return 'wearable';
+  if (/(watch|buds|airpods|earbud|wearable|band|headset|fitbit|garmin)/.test(n)) return 'wearable';
   if (/(laptop|macbook|notebook|chromebook|surface)/.test(n)) return 'laptop';
-  if (/(accessory|charger|cable|case|power bank|oraimo|cover)/.test(n)) return 'accessory';
-  if (/(car|suv|sedan|truck|pickup|corolla|camry|hilux|prado|civic|accord|bmw|mercedes|toyota|honda|lexus|ford|hyundai|nissan|mazda|peugeot|tesla|g-wagon|range rover)/.test(n)) return 'car';
-  if (/(perfume|fragrance|eau de|edp|edt|cologne|parfum|sauvage|lattafa|armaf|afnan)/.test(n)) return 'perfume';
-  if (/(shoe|sneaker|hoodie|jean|dress|apparel|fashion|nike|adidas|jordan|puma)/.test(n)) return 'fashion';
-  if (/(fridge|freezer|washer|generator|microwave|tv\b|television|air condition|ac unit|inverter|appliance)/.test(n)) return 'appliance';
-  if (/(ps5|ps4|xbox|nintendo|switch|steam deck|gaming console)/.test(n)) return 'gaming';
-  if (/(serum|moisturizer|lipstick|foundation|skincare|makeup|beauty|lotion)/.test(n)) return 'beauty';
+  if (/(accessory|charger|cable|case|power bank|oraimo|cover|earphone)/.test(n)) return 'accessory';
+  if (/(camera|lens|gopro|dslr|mirrorless|drone)/.test(n)) return 'camera';
+  if (/(ps5|ps4|xbox|nintendo|switch|steam deck|gaming console|controller)/.test(n)) return 'gaming';
+  // Vehicles
+  if (/(motorcycle|motorbike|scooter|okada|bajaj|Boxer|yamaha ybr|duke |cbr|gixxer)/.test(n)) return 'motorcycle';
+  if (/(car|suv|sedan|truck|pickup|corolla|camry|hilux|prado|civic|accord|bmw|mercedes|toyota|honda|lexus|ford|hyundai|nissan|mazda|peugeot|tesla|g-wagon|range rover|vehicle|automobile)/.test(n)) return 'car';
+  // Lifestyle
+  if (/(perfume|fragrance|eau de|edp|edt|cologne|parfum|sauvage|lattafa|armaf|afnan|rasasi)/.test(n)) return 'perfume';
+  if (/(shoe|sneaker|hoodie|jean|dress|apparel|fashion|nike|adidas|jordan|puma|shirt|trouser|bag|handbag)/.test(n)) return 'fashion';
+  if (/(fridge|freezer|washer|generator|microwave|tv\b|television|air condition|ac unit|inverter|appliance|blender|fan\b|cooker)/.test(n)) return 'appliance';
+  if (/(serum|moisturizer|lipstick|foundation|skincare|makeup|beauty|lotion|cream|soap|shampoo)/.test(n)) return 'beauty';
+  if (/(sofa|bed|mattress|furniture|table|chair|wardrobe|cupboard)/.test(n)) return 'furniture';
+  if (/(rolex|omega|patek|casio|g-shock|wristwatch|\bwatch\b)/.test(n) && !/(apple watch|galaxy watch|smart ?watch)/.test(n)) return 'watch';
+  if (/(jewel|necklace|bracelet|earring|ring\b|gold chain|diamond)/.test(n)) return 'jewelry';
+  if (/(baby|diaper|pampers|stroller|crib|infant|toddler)/.test(n)) return 'baby';
+  if (/(pet|dog food|cat food|puppy|kitten|pedigree|whiskas)/.test(n)) return 'pet';
+  if (/(gym|football|basketball|tennis|sport|dumbbell|treadmill)/.test(n)) return 'sports';
+  if (/(indomie|milo|bournvita|snack|beverage|food|grocery|rice|oil|noodles)/.test(n)) return 'food';
+  if (/(detergent|bleach|tissue|toothpaste|disinfectant|cleaner)/.test(n)) return 'supermarket';
   if (categoryName) {
     const c = categoryName.toLowerCase();
-    if (c.includes('phone')) return 'phone';
-    if (c.includes('wear')) return 'wearable';
+    if (c.includes('phone') || c.includes('mobile')) return 'phone';
+    if (c.includes('wear') || c.includes('audio')) return 'wearable';
     if (c.includes('laptop') || c.includes('computer')) return 'laptop';
     if (c.includes('accessor')) return 'accessory';
+    if (c.includes('camera') || c.includes('photo')) return 'camera';
+    if (c.includes('game') || c.includes('console')) return 'gaming';
+    if (c.includes('motor') || c.includes('bike')) return 'motorcycle';
     if (c.includes('car') || c.includes('vehicle') || c.includes('auto')) return 'car';
     if (c.includes('perfume') || c.includes('fragrance') || c.includes('scent')) return 'perfume';
-    if (c.includes('fashion') || c.includes('cloth') || c.includes('shoe')) return 'fashion';
-    if (c.includes('appliance') || c.includes('home')) return 'appliance';
-    if (c.includes('game') || c.includes('console')) return 'gaming';
-    if (c.includes('beauty') || c.includes('cosmetic')) return 'beauty';
+    if (c.includes('fashion') || c.includes('cloth') || c.includes('shoe') || c.includes('apparel')) return 'fashion';
+    if (c.includes('appliance') || c.includes('electronics') || c.includes('home')) return 'appliance';
+    if (c.includes('beauty') || c.includes('cosmetic') || c.includes('skincare')) return 'beauty';
+    if (c.includes('furniture') || c.includes('furnish')) return 'furniture';
+    if (c.includes('watch') || c.includes('timepiece')) return 'watch';
+    if (c.includes('jewel')) return 'jewelry';
+    if (c.includes('baby') || c.includes('kids') || c.includes('children')) return 'baby';
+    if (c.includes('pet') || c.includes('animal')) return 'pet';
+    if (c.includes('sport') || c.includes('fitness')) return 'sports';
+    if (c.includes('food') || c.includes('grocery') || c.includes('drink')) return 'food';
+    if (c.includes('supermarket') || c.includes('household')) return 'supermarket';
   }
   return 'other';
 }
@@ -236,15 +380,17 @@ function modelSuggestions(query: string, type: ProductType): string[] {
     wearable: WEARABLE_MODELS,
     laptop: LAPTOP_MODELS,
     car: CAR_MODELS,
+    motorcycle: MOTORCYCLE_MODELS,
     perfume: PERFUME_MODELS,
     fashion: FASHION_MODELS,
+    appliance: APPLIANCE_MODELS,
   };
-  // When type is still "other", search across all pools so cars/perfumes still suggest
   const pool = poolByType[type] || [
     ...PHONE_MODELS, ...WEARABLE_MODELS, ...LAPTOP_MODELS,
-    ...CAR_MODELS, ...PERFUME_MODELS, ...FASHION_MODELS,
+    ...CAR_MODELS, ...MOTORCYCLE_MODELS, ...PERFUME_MODELS,
+    ...FASHION_MODELS, ...APPLIANCE_MODELS,
   ];
-  return pool.filter(m => m.toLowerCase().includes(q)).slice(0, 8);
+  return pool.filter(m => m.toLowerCase().includes(q)).slice(0, 10);
 }
 
 function Section({ title, hint, children }: { title: string; hint?: string; children: ReactNode }) {
@@ -394,11 +540,21 @@ function ProductModal({ product, suppliers: _suppliers, onClose, onSaved }: { pr
     productType === 'laptop' ? 'Laptop specs' :
     productType === 'accessory' ? 'Accessory details' :
     productType === 'car' ? 'Vehicle details' :
+    productType === 'motorcycle' ? 'Motorcycle details' :
     productType === 'perfume' ? 'Fragrance details' :
     productType === 'fashion' ? 'Fashion details' :
     productType === 'appliance' ? 'Appliance details' :
     productType === 'gaming' ? 'Gaming details' :
-    productType === 'beauty' ? 'Beauty details' : 'Product details';
+    productType === 'beauty' ? 'Beauty details' :
+    productType === 'furniture' ? 'Furniture details' :
+    productType === 'watch' ? 'Watch details' :
+    productType === 'jewelry' ? 'Jewelry details' :
+    productType === 'baby' ? 'Baby & kids' :
+    productType === 'pet' ? 'Pet products' :
+    productType === 'sports' ? 'Sports & fitness' :
+    productType === 'food' ? 'Food & drinks' :
+    productType === 'supermarket' ? 'Household' :
+    productType === 'camera' ? 'Camera details' : 'Product details';
 
   return (
     <Modal title={product ? 'Edit product' : 'Add product'} onClose={onClose}>
