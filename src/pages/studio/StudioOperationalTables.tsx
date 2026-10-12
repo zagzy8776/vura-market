@@ -16,7 +16,7 @@ async function api<T>(url: string, init?: RequestInit): Promise<T> {
   return b as T;
 }
 
-const field = 'mt-1 w-full rounded-xl border border-[var(--admin-border)] bg-black/20 px-3 py-2.5 text-base text-[var(--admin-text-primary)] outline-none focus:border-vura-400';
+const field = 'mt-1 w-full rounded-xl border border-[var(--admin-border)] bg-[var(--admin-input-bg)] px-3 py-2.5 text-base text-[var(--admin-text-primary)] outline-none focus:border-vura-400';
 
 export function OperationalOrders({ orders, suppliers, onRefresh }: { orders: Any[]; suppliers: Any[]; onRefresh: () => void }) {
   const [selected, setSelected] = useState<Any | null>(null);
@@ -79,9 +79,48 @@ export function OperationalProducts({ products, suppliers = [], onRefresh }: { p
   </section>;
 }
 
-const KNOWN_BRANDS = ['Apple','Samsung','Tecno','Infinix','Itel','Xiaomi','Redmi','Poco','Oppo','Vivo','Huawei','Honor','Nokia','Google','Sony','LG','HP','Dell','Lenovo','Asus','Acer','Microsoft','Toshiba','JBL','Oraimo','Anker','Beats','Canon','Nikon','Nintendo','PlayStation','Xbox','OnePlus','Realme','Motorola'];
+/** Brand pools by vertical — longest names matched first in detectBrand. */
+const PHONE_BRANDS = [
+  'Apple','Samsung','Tecno','Infinix','Itel','Xiaomi','Redmi','Poco','Oppo','Vivo','Huawei','Honor',
+  'Nokia','Google','Sony','LG','OnePlus','Realme','Motorola','Nothing','ZTE','Fairphone',
+];
+const LAPTOP_BRANDS = ['HP','Dell','Lenovo','Asus','Acer','Microsoft','Toshiba','MSI','Razer','Apple'];
+const ACCESSORY_BRANDS = ['JBL','Oraimo','Anker','Beats','Baseus','Ugreen','Spigen','Belkin','Boat','Sony'];
+const CAMERA_BRANDS = ['Canon','Nikon','GoPro','DJI','Fujifilm','Panasonic','Sony'];
+const GAMING_BRANDS = ['Nintendo','PlayStation','Xbox','Steam Deck','Razer','Logitech'];
+const CAR_BRANDS = [
+  'Toyota','Honda','Lexus','Mercedes-Benz','Mercedes','BMW','Audi','Volkswagen','VW','Ford','Hyundai',
+  'Kia','Nissan','Mazda','Peugeot','Renault','Suzuki','Mitsubishi','Chevrolet','Jeep','Land Rover',
+  'Range Rover','Volvo','Porsche','Tesla','BYD','Changan','GAC','Haval','Great Wall','Isuzu',
+  'Infiniti','Acura','Cadillac','Jaguar','Mini','Fiat','Skoda','Seat','Opel','Citroën','Citroen',
+  'Subaru','Genesis','Rivian','Lucid','MG','Chery','Geely','BAIC','Dongfeng','Foton',
+];
+const PERFUME_BRANDS = [
+  'Dior','Chanel','Gucci','Versace','YSL','Yves Saint Laurent','Armani','Tom Ford','Creed','Parfums de Marly',
+  'Maison Francis Kurkdjian','Byredo','Le Labo','Jo Malone','Burberry','Prada','Valentino','Givenchy',
+  'Hermès','Hermes','Calvin Klein','Hugo Boss','Davidoff','Lattafa','Armaf','Afnan','Rasasi','Ajmal',
+  'Al Haramain','Montale','Mancera','Initio','Xerjoff','Amouage','Roja','Kilian','Mugler','Jean Paul Gaultier',
+  'Paco Rabanne','Carolina Herrera','Dolce & Gabbana','Ralph Lauren','Bath & Body Works','Victoria\'s Secret',
+];
+const FASHION_BRANDS = [
+  'Nike','Adidas','Puma','New Balance','Reebok','Under Armour','Jordan','Converse','Vans','Crocs',
+  'Gucci','Louis Vuitton','Prada','Balenciaga','Zara','H&M','Uniqlo','Shein','Fendi','Burberry',
+];
+const APPLIANCE_BRANDS = [
+  'LG','Samsung','Hisense','Haier','Scanfrost','Polystar','Binatone','Nexus','Maxi','Kenwood',
+  'Philips','Bosch','Whirlpool','Panasonic','Sharp','Thermocool','Syinix','Century','Royal',
+];
+const BEAUTY_BRANDS = [
+  'MAC','Fenty','Maybelline','L\'Oreal','Nivea','The Ordinary','CeraVe','Neutrogena','Dove','Vaseline',
+  'Shea Moisture','ORS','Cantu','Garnier','Revlon','e.l.f.','NYX','Rare Beauty',
+];
 
-/** Popular models sold in NG/Africa — used for name autocomplete (not a world mega-list). */
+const KNOWN_BRANDS = Array.from(new Set([
+  ...PHONE_BRANDS, ...LAPTOP_BRANDS, ...ACCESSORY_BRANDS, ...CAMERA_BRANDS, ...GAMING_BRANDS,
+  ...CAR_BRANDS, ...PERFUME_BRANDS, ...FASHION_BRANDS, ...APPLIANCE_BRANDS, ...BEAUTY_BRANDS,
+])).sort((a, b) => b.length - a.length); // longest first so "Mercedes-Benz" beats "Mercedes"
+
+/** Popular models sold in NG/Africa — used for name autocomplete. */
 const PHONE_MODELS = [
   'iPhone 11','iPhone 11 Pro','iPhone 11 Pro Max','iPhone 12','iPhone 12 mini','iPhone 12 Pro','iPhone 12 Pro Max',
   'iPhone 13','iPhone 13 mini','iPhone 13 Pro','iPhone 13 Pro Max','iPhone 14','iPhone 14 Plus','iPhone 14 Pro','iPhone 14 Pro Max',
@@ -106,18 +145,55 @@ const WEARABLE_MODELS = [
   'Oraimo Watch 4','Oraimo FreePods','JBL Tune Buds','AirPods Pro','AirPods Pro 2','AirPods 3','AirPods 4',
 ];
 
-const STORAGE_OPTIONS = ['32GB','64GB','128GB','256GB','512GB','1TB'];
-const COLOR_OPTIONS = ['Black','White','Blue','Green','Gold','Silver','Purple','Pink','Red','Grey','Graphite','Titanium'];
+const CAR_MODELS = [
+  'Toyota Corolla','Toyota Camry','Toyota RAV4','Toyota Highlander','Toyota Hilux','Toyota Land Cruiser','Toyota Prado','Toyota Sienna','Toyota Yaris','Toyota Avalon',
+  'Honda Accord','Honda Civic','Honda CR-V','Honda Pilot','Honda HR-V','Honda Odyssey',
+  'Lexus RX 350','Lexus ES 350','Lexus GX 460','Lexus LX 570','Lexus NX 350',
+  'Mercedes-Benz C-Class','Mercedes-Benz E-Class','Mercedes-Benz S-Class','Mercedes-Benz GLE','Mercedes-Benz GLC','Mercedes-Benz G-Wagon',
+  'BMW 3 Series','BMW 5 Series','BMW X3','BMW X5','BMW X6','BMW 7 Series',
+  'Audi A4','Audi A6','Audi Q5','Audi Q7','Ford Ranger','Ford Explorer','Ford Edge','Ford F-150',
+  'Hyundai Elantra','Hyundai Tucson','Hyundai Santa Fe','Kia Sportage','Kia Sorento','Kia Rio',
+  'Nissan Altima','Nissan Pathfinder','Nissan Patrol','Nissan X-Trail','Mazda CX-5','Mazda CX-30',
+  'Peugeot 301','Peugeot 508','Suzuki Swift','Suzuki Vitara','Volkswagen Golf','Volkswagen Tiguan','Tesla Model 3','Tesla Model Y',
+];
 
-type ProductType = 'phone' | 'wearable' | 'laptop' | 'accessory' | 'other';
+const PERFUME_MODELS = [
+  'Dior Sauvage','Dior Homme','Miss Dior','Chanel No. 5','Chanel Bleu de Chanel','Coco Mademoiselle',
+  'Gucci Bloom','Gucci Guilty','Versace Eros','Versace Dylan Blue','YSL Y Eau de Parfum','YSL Black Opium',
+  'Armani Code','Acqua di Gio','Tom Ford Black Orchid','Tom Ford Oud Wood','Creed Aventus','Lattafa Asad',
+  'Lattafa Khamrah','Armaf Club de Nuit','Afnan 9pm','Rasasi Hawas','Jean Paul Gaultier Le Male','Paco Rabbane 1 Million',
+];
+
+const FASHION_MODELS = [
+  'Nike Air Force 1','Nike Dunk Low','Nike Air Max 90','Adidas Ultraboost','Adidas Samba','Adidas Gazelle',
+  'Jordan 1 Retro High','Jordan 4 Retro','New Balance 550','New Balance 9060','Puma Suede Classic','Converse Chuck Taylor',
+];
+
+const LAPTOP_MODELS = [
+  'MacBook Air M1','MacBook Air M2','MacBook Air M3','MacBook Pro 14','MacBook Pro 16',
+  'HP Pavilion 15','HP EliteBook','Dell XPS 13','Dell Inspiron 15','Lenovo ThinkPad X1','Lenovo IdeaPad 3','Asus ROG Zephyrus','Microsoft Surface Laptop 5',
+];
+
+const STORAGE_OPTIONS = ['32GB','64GB','128GB','256GB','512GB','1TB','2TB'];
+const COLOR_OPTIONS = ['Black','White','Blue','Green','Gold','Silver','Purple','Pink','Red','Grey','Graphite','Titanium','Beige','Brown','Navy','Orange'];
+
+type ProductType = 'phone' | 'wearable' | 'laptop' | 'accessory' | 'car' | 'perfume' | 'fashion' | 'appliance' | 'gaming' | 'beauty' | 'other';
 
 function detectBrand(name: string) {
   const n = name.toLowerCase();
+  // Alias / product-line shortcuts before generic brand scan
   if (/(iphone|ipad|macbook|airpods|imac|apple watch)/.test(n)) return 'Apple';
   if (n.includes('pixel')) return 'Google';
   if (n.includes('surface')) return 'Microsoft';
   if (n.includes('redmi') || n.includes('poco')) return 'Xiaomi';
   if (n.includes('playstation') || n.includes('ps5') || n.includes('ps4')) return 'PlayStation';
+  if (/\bg-wagon\b|\bg class\b|\bg-class\b/.test(n)) return 'Mercedes-Benz';
+  if (n.includes('range rover')) return 'Land Rover';
+  if (n.includes('corolla') || n.includes('camry') || n.includes('hilux') || n.includes('prado') || n.includes('highlander')) return 'Toyota';
+  if (n.includes('civic') || n.includes('accord') || n.includes('cr-v')) return 'Honda';
+  if (n.includes('sauvage') || n.includes('miss dior')) return 'Dior';
+  if (n.includes('bleu de chanel') || n.includes('coco mademoiselle')) return 'Chanel';
+  // Longest brand name wins (KNOWN_BRANDS pre-sorted)
   for (const brand of KNOWN_BRANDS) {
     if (n.includes(brand.toLowerCase())) return brand;
   }
@@ -130,12 +206,24 @@ function detectProductType(name: string, categoryName: string): ProductType {
   if (/(watch|buds|airpods|earbud|wearable|band|headset)/.test(n)) return 'wearable';
   if (/(laptop|macbook|notebook|chromebook|surface)/.test(n)) return 'laptop';
   if (/(accessory|charger|cable|case|power bank|oraimo|cover)/.test(n)) return 'accessory';
+  if (/(car|suv|sedan|truck|pickup|corolla|camry|hilux|prado|civic|accord|bmw|mercedes|toyota|honda|lexus|ford|hyundai|nissan|mazda|peugeot|tesla|g-wagon|range rover)/.test(n)) return 'car';
+  if (/(perfume|fragrance|eau de|edp|edt|cologne|parfum|sauvage|lattafa|armaf|afnan)/.test(n)) return 'perfume';
+  if (/(shoe|sneaker|hoodie|jean|dress|apparel|fashion|nike|adidas|jordan|puma)/.test(n)) return 'fashion';
+  if (/(fridge|freezer|washer|generator|microwave|tv\b|television|air condition|ac unit|inverter|appliance)/.test(n)) return 'appliance';
+  if (/(ps5|ps4|xbox|nintendo|switch|steam deck|gaming console)/.test(n)) return 'gaming';
+  if (/(serum|moisturizer|lipstick|foundation|skincare|makeup|beauty|lotion)/.test(n)) return 'beauty';
   if (categoryName) {
     const c = categoryName.toLowerCase();
     if (c.includes('phone')) return 'phone';
     if (c.includes('wear')) return 'wearable';
     if (c.includes('laptop') || c.includes('computer')) return 'laptop';
     if (c.includes('accessor')) return 'accessory';
+    if (c.includes('car') || c.includes('vehicle') || c.includes('auto')) return 'car';
+    if (c.includes('perfume') || c.includes('fragrance') || c.includes('scent')) return 'perfume';
+    if (c.includes('fashion') || c.includes('cloth') || c.includes('shoe')) return 'fashion';
+    if (c.includes('appliance') || c.includes('home')) return 'appliance';
+    if (c.includes('game') || c.includes('console')) return 'gaming';
+    if (c.includes('beauty') || c.includes('cosmetic')) return 'beauty';
   }
   return 'other';
 }
@@ -143,7 +231,19 @@ function detectProductType(name: string, categoryName: string): ProductType {
 function modelSuggestions(query: string, type: ProductType): string[] {
   if (!query || query.length < 1) return [];
   const q = query.toLowerCase();
-  const pool = type === 'wearable' ? WEARABLE_MODELS : PHONE_MODELS;
+  const poolByType: Partial<Record<ProductType, string[]>> = {
+    phone: PHONE_MODELS,
+    wearable: WEARABLE_MODELS,
+    laptop: LAPTOP_MODELS,
+    car: CAR_MODELS,
+    perfume: PERFUME_MODELS,
+    fashion: FASHION_MODELS,
+  };
+  // When type is still "other", search across all pools so cars/perfumes still suggest
+  const pool = poolByType[type] || [
+    ...PHONE_MODELS, ...WEARABLE_MODELS, ...LAPTOP_MODELS,
+    ...CAR_MODELS, ...PERFUME_MODELS, ...FASHION_MODELS,
+  ];
   return pool.filter(m => m.toLowerCase().includes(q)).slice(0, 8);
 }
 
@@ -189,8 +289,8 @@ function ProductModal({ product, suppliers: _suppliers, onClose, onSaved }: { pr
   const set = (k: string, v: string | boolean) => setForm(f => ({ ...f, [k]: v }));
   const categoryName = categories.find(c => c.id === form.categoryId)?.name || '';
   const productType = detectProductType(form.name, categoryName);
-  const suggestions = modelSuggestions(form.name, productType === 'wearable' ? 'wearable' : 'phone');
-  const showStorage = productType === 'phone' || productType === 'laptop' || productType === 'other';
+  const suggestions = modelSuggestions(form.name, productType);
+  const showStorage = productType === 'phone' || productType === 'laptop';
 
   const onName = (value: string) => {
     setShowSuggestions(true);
@@ -292,7 +392,13 @@ function ProductModal({ product, suppliers: _suppliers, onClose, onSaved }: { pr
     productType === 'phone' ? 'Phone specs' :
     productType === 'wearable' ? 'Wearable specs' :
     productType === 'laptop' ? 'Laptop specs' :
-    productType === 'accessory' ? 'Accessory details' : 'Product details';
+    productType === 'accessory' ? 'Accessory details' :
+    productType === 'car' ? 'Vehicle details' :
+    productType === 'perfume' ? 'Fragrance details' :
+    productType === 'fashion' ? 'Fashion details' :
+    productType === 'appliance' ? 'Appliance details' :
+    productType === 'gaming' ? 'Gaming details' :
+    productType === 'beauty' ? 'Beauty details' : 'Product details';
 
   return (
     <Modal title={product ? 'Edit product' : 'Add product'} onClose={onClose}>
