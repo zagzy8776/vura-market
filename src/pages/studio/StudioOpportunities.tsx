@@ -60,10 +60,10 @@ const STATUSES: OpportunityStatus[] = ['new', 'watching', 'investigating', 'appr
 
 const STATUS_STYLE: Record<OpportunityStatus, string> = {
   new: 'bg-sky-500/15 text-sky-300 border-sky-500/30',
-  watching: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
+  watching: 'bg-amber-500/15 text-amber-700 border-amber-500/30',
   investigating: 'bg-violet-500/15 text-violet-300 border-violet-500/30',
-  approved: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
-  dismissed: 'bg-white/10 text-[var(--admin-text-muted)] border-[var(--admin-border)]',
+  approved: 'bg-emerald-500/15 text-emerald-700 border-emerald-500/30',
+  dismissed: 'bg-[var(--admin-table-row-hover)] text-[var(--admin-text-muted)] border-[var(--admin-border)]',
 };
 
 const WORKFLOW: { id: OpportunityStatus; label: string }[] = [
@@ -106,8 +106,8 @@ function sourceList(op: Opportunity, parsed: ParsedEvidence): string[] {
 
 function scoreColor(n: number | null | undefined) {
   if (n == null || !Number.isFinite(n)) return 'text-[var(--admin-text-muted)]';
-  if (n >= 85) return 'text-emerald-300';
-  if (n >= 70) return 'text-amber-300';
+  if (n >= 85) return 'text-emerald-700';
+  if (n >= 70) return 'text-amber-700';
   return 'text-[var(--admin-text-secondary)]';
 }
 
@@ -324,18 +324,18 @@ export default function StudioOpportunities() {
             <Radar size={18} />
             <span className="text-xs font-bold uppercase tracking-wider">Agents</span>
           </div>
-          <h1 className="mt-1 text-2xl font-black tracking-tight text-white md:text-3xl">Opportunities</h1>
+          <h1 className="mt-1 text-2xl font-black tracking-tight text-[var(--admin-text-primary)] md:text-3xl">Opportunities</h1>
           <p className="mt-1 max-w-2xl text-sm leading-6 text-[var(--admin-text-muted)]">
             Human review of trend signals. Workflow:{' '}
             <span className="text-[var(--admin-text-secondary)]">NEW → WATCHING → INVESTIGATING → APPROVED / DISMISSED</span>.
-            Approving does <b className="text-white/80">not</b> publish products — Product Intelligence comes next.
+            Approving does <b className="text-[var(--admin-text-secondary)]">not</b> publish products — Product Intelligence comes next.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
             onClick={clearFilters}
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--admin-border)] bg-transparent px-4 py-2.5 text-sm font-bold text-[var(--admin-text-secondary)] hover:bg-[var(--admin-table-row-hover)] hover:text-white"
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--admin-border)] bg-transparent px-4 py-2.5 text-sm font-bold text-[var(--admin-text-secondary)] hover:bg-[var(--admin-table-row-hover)] hover:text-[var(--admin-text-primary)]"
           >
             <X size={16} />
             Clear filters
@@ -343,7 +343,7 @@ export default function StudioOpportunities() {
           <button
             type="button"
             onClick={() => void load()}
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--admin-border)] bg-white/5 px-4 py-2.5 text-sm font-bold text-white hover:bg-[var(--admin-table-row-hover)]"
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--admin-border)] bg-[var(--admin-table-row-hover)] px-4 py-2.5 text-sm font-bold text-[var(--admin-text-primary)] hover:bg-[var(--admin-table-row-hover)]"
           >
             <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
             Refresh
@@ -356,14 +356,14 @@ export default function StudioOpportunities() {
         <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--admin-text-muted)]">Pipeline</span>
         {WORKFLOW.map((step, i) => (
           <span key={step.id} className="flex items-center gap-2">
-            {i > 0 && <span className="text-white/20">→</span>}
+            {i > 0 && <span className="text-[var(--admin-text-muted)]">→</span>}
             <span className={`rounded-full border px-2.5 py-1 text-[11px] font-bold ${STATUS_STYLE[step.id]}`}>
               {step.label}
               {counts[step.id] != null ? ` · ${counts[step.id]}` : ''}
             </span>
           </span>
         ))}
-        <span className="text-white/20">/</span>
+        <span className="text-[var(--admin-text-muted)]">/</span>
         <span className={`rounded-full border px-2.5 py-1 text-[11px] font-bold ${STATUS_STYLE.dismissed}`}>
           Dismissed · {counts.dismissed ?? 0}
         </span>
@@ -379,7 +379,7 @@ export default function StudioOpportunities() {
             className={`rounded-full border px-3 py-1.5 text-xs font-bold capitalize ${
               status === s
                 ? 'border-vura-400/50 bg-vura-500/20 text-vura-200'
-                : 'border-[var(--admin-border)] bg-white/[0.03] text-[var(--admin-text-muted)] hover:text-white'
+                : 'border-[var(--admin-border)] bg-white/[0.03] text-[var(--admin-text-muted)] hover:text-[var(--admin-text-primary)]'
             }`}
           >
             {s} · {counts[s] ?? 0}
@@ -401,7 +401,7 @@ export default function StudioOpportunities() {
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
                 placeholder="Name, category, signal…"
-                className="w-full rounded-xl border border-[var(--admin-border)] bg-[var(--admin-sidebar-bg)] py-2.5 pl-9 pr-3 text-sm text-white outline-none placeholder:text-white/25 focus:border-vura-500/50"
+                className="w-full rounded-xl border border-[var(--admin-border)] bg-[var(--admin-sidebar-bg)] py-2.5 pl-9 pr-3 text-sm text-[var(--admin-text-primary)] outline-none placeholder:text-[var(--admin-text-muted)] focus:border-vura-500/50"
               />
             </div>
           </label>
@@ -411,7 +411,7 @@ export default function StudioOpportunities() {
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
-                className="w-full appearance-none rounded-xl border border-[var(--admin-border)] bg-[var(--admin-sidebar-bg)] py-2.5 pl-3 pr-9 text-sm text-white outline-none focus:border-vura-500/50"
+                className="w-full appearance-none rounded-xl border border-[var(--admin-border)] bg-[var(--admin-sidebar-bg)] py-2.5 pl-3 pr-9 text-sm text-[var(--admin-text-primary)] outline-none focus:border-vura-500/50"
               >
                 {categories.map((c) => (
                   <option key={c} value={c}>
@@ -428,7 +428,7 @@ export default function StudioOpportunities() {
               <select
                 value={urgency}
                 onChange={(e) => setUrgency(e.target.value)}
-                className="w-full appearance-none rounded-xl border border-[var(--admin-border)] bg-[var(--admin-sidebar-bg)] py-2.5 pl-3 pr-9 text-sm text-white outline-none focus:border-vura-500/50"
+                className="w-full appearance-none rounded-xl border border-[var(--admin-border)] bg-[var(--admin-sidebar-bg)] py-2.5 pl-3 pr-9 text-sm text-[var(--admin-text-primary)] outline-none focus:border-vura-500/50"
               >
                 {['all', 'high', 'medium', 'low'].map((u) => (
                   <option key={u} value={u}>
@@ -445,7 +445,7 @@ export default function StudioOpportunities() {
               <select
                 value={region}
                 onChange={(e) => setRegion(e.target.value)}
-                className="w-full appearance-none rounded-xl border border-[var(--admin-border)] bg-[var(--admin-sidebar-bg)] py-2.5 pl-3 pr-9 text-sm text-white outline-none focus:border-vura-500/50"
+                className="w-full appearance-none rounded-xl border border-[var(--admin-border)] bg-[var(--admin-sidebar-bg)] py-2.5 pl-3 pr-9 text-sm text-[var(--admin-text-primary)] outline-none focus:border-vura-500/50"
               >
                 {regions.map((r) => (
                   <option key={r} value={r}>
@@ -484,7 +484,7 @@ export default function StudioOpportunities() {
               <select
                 value={sort}
                 onChange={(e) => setSort(e.target.value as typeof sort)}
-                className="w-full appearance-none rounded-xl border border-[var(--admin-border)] bg-[var(--admin-sidebar-bg)] py-2.5 pl-3 pr-9 text-sm text-white outline-none focus:border-vura-500/50"
+                className="w-full appearance-none rounded-xl border border-[var(--admin-border)] bg-[var(--admin-sidebar-bg)] py-2.5 pl-3 pr-9 text-sm text-[var(--admin-text-primary)] outline-none focus:border-vura-500/50"
               >
                 <option value="newest">Newest</option>
                 <option value="score">Highest trend score</option>
@@ -539,11 +539,11 @@ export default function StudioOpportunities() {
                   className={`w-full rounded-2xl border p-4 text-left transition ${
                     selected?.op.id === op.id
                       ? 'border-vura-400/40 bg-vura-500/10'
-                      : 'border-[var(--admin-border)] bg-white/[0.03] hover:border-white/20'
+                      : 'border-[var(--admin-border)] bg-white/[0.03] hover:border-[var(--admin-border)]'
                   }`}
                 >
                   <div className="flex items-start justify-between gap-2">
-                    <b className="text-sm font-bold text-white">{op.name}</b>
+                    <b className="text-sm font-bold text-[var(--admin-text-primary)]">{op.name}</b>
                     <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase ${STATUS_STYLE[op.status]}`}>
                       {op.status}
                     </span>
@@ -570,7 +570,7 @@ export default function StudioOpportunities() {
               <article className="rounded-2xl border border-[var(--admin-border)] bg-white/[0.03] p-5 md:p-6">
                 <button
                   type="button"
-                  className="mb-4 inline-flex items-center gap-1.5 text-xs font-bold text-[var(--admin-text-muted)] hover:text-white lg:hidden"
+                  className="mb-4 inline-flex items-center gap-1.5 text-xs font-bold text-[var(--admin-text-muted)] hover:text-[var(--admin-text-primary)] lg:hidden"
                   onClick={() => setMobileShowDetail(false)}
                 >
                   <ArrowLeft size={14} /> Back to list
@@ -578,7 +578,7 @@ export default function StudioOpportunities() {
 
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <h2 className="text-xl font-black text-white">{selected.op.name}</h2>
+                    <h2 className="text-xl font-black text-[var(--admin-text-primary)]">{selected.op.name}</h2>
                     <p className="mt-1 text-sm text-[var(--admin-text-muted)]">
                       {selected.op.category}
                       {selected.parsed.product ? ` · ${selected.parsed.product}` : ''}
@@ -600,7 +600,7 @@ export default function StudioOpportunities() {
                       <div className="text-[10px] font-bold uppercase tracking-wider text-[var(--admin-text-muted)]">{label}</div>
                       <div
                         className={`mt-1 text-lg font-black capitalize ${
-                          typeof value === 'number' ? scoreColor(value) : 'text-white'
+                          typeof value === 'number' ? scoreColor(value) : 'text-[var(--admin-text-primary)]'
                         }`}
                       >
                         {value}
@@ -612,7 +612,7 @@ export default function StudioOpportunities() {
                 <dl className="mt-5 space-y-3 text-sm">
                   <div>
                     <dt className="text-xs font-bold uppercase tracking-wider text-[var(--admin-text-muted)]">Signal</dt>
-                    <dd className="mt-1 text-white/80">{selected.op.signal}</dd>
+                    <dd className="mt-1 text-[var(--admin-text-secondary)]">{selected.op.signal}</dd>
                   </div>
                   <div>
                     <dt className="text-xs font-bold uppercase tracking-wider text-[var(--admin-text-muted)]">Evidence</dt>
@@ -625,7 +625,7 @@ export default function StudioOpportunities() {
                   </div>
                   <div>
                     <dt className="text-xs font-bold uppercase tracking-wider text-[var(--admin-text-muted)]">Recommendation</dt>
-                    <dd className="mt-1 text-white/80">
+                    <dd className="mt-1 text-[var(--admin-text-secondary)]">
                       {selected.parsed.recommendation || 'Investigate before any listing decision.'}
                     </dd>
                   </div>
@@ -689,7 +689,7 @@ export default function StudioOpportunities() {
                       {productReport.error ? (
                         <p className="text-red-300">{String(productReport.error)}</p>
                       ) : null}
-                      <div className="max-h-64 overflow-y-auto rounded-lg border border-[var(--admin-border)] bg-black/30 p-3 text-xs leading-relaxed text-white/80 whitespace-pre-wrap">
+                      <div className="max-h-64 overflow-y-auto rounded-lg border border-[var(--admin-border)] bg-black/30 p-3 text-xs leading-relaxed text-[var(--admin-text-secondary)] whitespace-pre-wrap">
                         {(() => {
                           const r = (productReport.result ?? productReport.brief ?? productReport.report ?? productReport) as unknown;
                           if (typeof r === 'string') return r;
@@ -708,7 +708,7 @@ export default function StudioOpportunities() {
                         })()}
                       </div>
                       <div className="rounded-lg border border-[var(--admin-border)] bg-black/20 p-3 text-[11px] leading-5 text-[var(--admin-text-secondary)]">
-                        <b className="text-white/80">Suggested next steps for you</b>
+                        <b className="text-[var(--admin-text-secondary)]">Suggested next steps for you</b>
                         <ol className="mt-1 list-decimal space-y-1 pl-4">
                           <li>Check real supplier price and stock in your market.</li>
                           <li>Only list if margin still works after delivery.</li>
@@ -740,7 +740,7 @@ export default function StudioOpportunities() {
                         className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-bold disabled:opacity-40 ${
                           selected.op.status === st
                             ? STATUS_STYLE[st]
-                            : 'border-[var(--admin-border)] bg-white/5 text-[var(--admin-text-secondary)] hover:bg-[var(--admin-table-row-hover)]'
+                            : 'border-[var(--admin-border)] bg-[var(--admin-table-row-hover)] text-[var(--admin-text-secondary)] hover:bg-[var(--admin-table-row-hover)]'
                         }`}
                       >
                         {busyId === selected.op.id ? (
@@ -768,7 +768,7 @@ export default function StudioOpportunities() {
           <ul className="mt-3 space-y-2">
             {alerts.slice(0, 8).map((n) => (
               <li key={n.id} className="rounded-xl border border-[var(--admin-border)] bg-black/20 px-3 py-2 text-sm">
-                <span className="font-bold text-white/80">{n.title}</span>
+                <span className="font-bold text-[var(--admin-text-secondary)]">{n.title}</span>
                 <span className="mt-0.5 block text-xs text-[var(--admin-text-muted)]">{n.message}</span>
               </li>
             ))}

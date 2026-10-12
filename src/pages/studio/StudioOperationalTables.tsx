@@ -16,7 +16,7 @@ async function api<T>(url: string, init?: RequestInit): Promise<T> {
   return b as T;
 }
 
-const field = 'mt-1 w-full rounded-xl border border-[var(--admin-border)] bg-black/20 px-3 py-2.5 text-base text-white outline-none focus:border-vura-400';
+const field = 'mt-1 w-full rounded-xl border border-[var(--admin-border)] bg-black/20 px-3 py-2.5 text-base text-[var(--admin-text-primary)] outline-none focus:border-vura-400';
 
 export function OperationalOrders({ orders, suppliers, onRefresh }: { orders: Any[]; suppliers: Any[]; onRefresh: () => void }) {
   const [selected, setSelected] = useState<Any | null>(null);
@@ -24,7 +24,7 @@ export function OperationalOrders({ orders, suppliers, onRefresh }: { orders: An
   const rows = useMemo(() => orders.filter(o => `${o.order_number} ${o.delivery_name} ${o.product_name} ${o.buyer_email}`.toLowerCase().includes(q.toLowerCase())), [orders, q]);
   return <section>
     <Toolbar title="Orders" action={<div className="flex gap-2"><input value={q} onChange={e => setQ(e.target.value)} placeholder="Search orders…" className={field.replace('mt-1 ','')}/><button onClick={onRefresh} className="grid h-10 w-10 place-items-center rounded-xl border border-[var(--admin-border)]"><RefreshCw size={16}/></button></div>}/>
-    <div className="overflow-hidden rounded-2xl border border-[var(--admin-border)] bg-white/[.02]"><table className="w-full min-w-[900px] text-left text-sm"><thead className="border-b border-[var(--admin-border)] text-xs text-[var(--admin-text-muted)]"><tr>{['Order','Customer','Product','Payment','Sourcing','Total',''].map(h => <th key={h} className="px-4 py-3">{h}</th>)}</tr></thead><tbody>{rows.map(o => <tr key={o.id} onClick={() => setSelected(o)} className="cursor-pointer border-b border-[var(--admin-border)] hover:bg-[var(--admin-input-bg)]"><td className="px-4 py-4 font-bold">{o.order_number}</td><td className="px-4 py-4">{o.delivery_name}<small className="block text-[var(--admin-text-muted)]">{o.delivery_phone}</small></td><td className="px-4 py-4">{o.product_name}<small className="block text-[var(--admin-text-muted)]">Qty {o.quantity}</small></td><td className="px-4 py-4"><Status value={o.payment_status}/></td><td className="px-4 py-4"><Status value={o.sourcing_status || o.status}/></td><td className="px-4 py-4 font-bold">{money(o.total_kobo)}</td><td className="px-4"><ChevronRight size={16} className="text-white/25"/></td></tr>)}</tbody></table>{!rows.length && <div className="p-8 text-center text-sm text-[var(--admin-text-muted)]">No orders match your search.</div>}</div>
+    <div className="overflow-hidden rounded-2xl border border-[var(--admin-border)] bg-[var(--admin-card-bg)]"><table className="w-full min-w-[900px] text-left text-sm"><thead className="border-b border-[var(--admin-border)] text-xs text-[var(--admin-text-muted)]"><tr>{['Order','Customer','Product','Payment','Sourcing','Total',''].map(h => <th key={h} className="px-4 py-3">{h}</th>)}</tr></thead><tbody>{rows.map(o => <tr key={o.id} onClick={() => setSelected(o)} className="cursor-pointer border-b border-[var(--admin-border)] hover:bg-[var(--admin-input-bg)]"><td className="px-4 py-4 font-bold">{o.order_number}</td><td className="px-4 py-4">{o.delivery_name}<small className="block text-[var(--admin-text-muted)]">{o.delivery_phone}</small></td><td className="px-4 py-4">{o.product_name}<small className="block text-[var(--admin-text-muted)]">Qty {o.quantity}</small></td><td className="px-4 py-4"><Status value={o.payment_status}/></td><td className="px-4 py-4"><Status value={o.sourcing_status || o.status}/></td><td className="px-4 py-4 font-bold">{money(o.total_kobo)}</td><td className="px-4"><ChevronRight size={16} className="text-[var(--admin-text-muted)]"/></td></tr>)}</tbody></table>{!rows.length && <div className="p-8 text-center text-sm text-[var(--admin-text-muted)]">No orders match your search.</div>}</div>
     <OrderActionPanel order={selected} suppliers={suppliers} onClose={() => setSelected(null)} onSaved={() => { setSelected(null); onRefresh(); }}/>
   </section>;
 }
@@ -56,10 +56,10 @@ export function OperationalProducts({ products, suppliers = [], onRefresh }: { p
     }
   };
   return <section>
-    <Toolbar title="Products" action={<div className="flex flex-wrap gap-2"><input value={q} onChange={e => setQ(e.target.value)} placeholder="Search products…" className={field.replace('mt-1 ','')}/><button onClick={() => setCreating(true)} className="flex items-center gap-2 rounded-xl bg-vura-500 px-4 py-2 text-sm font-bold"><Plus size={15}/> Add product</button></div>}/>
+    <Toolbar title="Products" action={<div className="flex flex-wrap gap-2"><input value={q} onChange={e => setQ(e.target.value)} placeholder="Search products…" className={field.replace('mt-1 ','')}/><button onClick={() => setCreating(true)} className="flex items-center gap-2 rounded-xl bg-vura-500 px-4 py-2 text-sm font-bold text-white"><Plus size={15}/> Add product</button></div>}/>
     <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4">{rows.map(p => (
-      <article key={p.id} className="overflow-hidden rounded-xl border border-[var(--admin-border)] bg-white/[.02]">
-        <div className="aspect-square bg-white/5">{p.images?.[0] ? <img src={p.images[0]} alt={p.name} className="h-full w-full object-cover"/> : <div className="grid h-full place-items-center text-white/25"><Package size={22}/></div>}</div>
+      <article key={p.id} className="overflow-hidden rounded-xl border border-[var(--admin-border)] bg-[var(--admin-card-bg)]">
+        <div className="aspect-square bg-[var(--admin-table-row-hover)]">{p.images?.[0] ? <img src={p.images[0]} alt={p.name} className="h-full w-full object-cover"/> : <div className="grid h-full place-items-center text-[var(--admin-text-muted)]"><Package size={22}/></div>}</div>
         <div className="p-2.5">
           <div className="truncate text-sm font-bold leading-snug">{p.name}</div>
           <div className="mt-0.5 truncate text-[11px] text-[var(--admin-text-muted)]">{p.brand || '—'} · {p.category || 'Uncategorised'}</div>
@@ -69,7 +69,7 @@ export function OperationalProducts({ products, suppliers = [], onRefresh }: { p
           </div>
           <div className="mt-2 grid grid-cols-2 gap-1.5">
             <button type="button" onClick={() => setSelected(p)} className="flex items-center justify-center gap-1 rounded-md border border-[var(--admin-border)] py-1.5 text-[11px] font-bold hover:bg-[var(--admin-table-row-hover)]"><Pencil size={11}/> Edit</button>
-            <button type="button" disabled={deletingId === p.id} onClick={() => void remove(p)} className="flex items-center justify-center gap-1 rounded-md border border-red-400/30 bg-red-500/10 py-1.5 text-[11px] font-bold text-red-200 hover:bg-red-500/20 disabled:opacity-50"><Trash2 size={11}/>{deletingId === p.id ? '…' : 'Del'}</button>
+            <button type="button" disabled={deletingId === p.id} onClick={() => void remove(p)} className="flex items-center justify-center gap-1 rounded-md border border-red-400/30 bg-red-500/10 py-1.5 text-[11px] font-bold text-red-700 hover:bg-red-100 disabled:opacity-50"><Trash2 size={11}/>{deletingId === p.id ? '…' : 'Del'}</button>
           </div>
         </div>
       </article>
@@ -149,9 +149,9 @@ function modelSuggestions(query: string, type: ProductType): string[] {
 
 function Section({ title, hint, children }: { title: string; hint?: string; children: ReactNode }) {
   return (
-    <div className="mb-6 rounded-2xl border border-[var(--admin-border)] bg-white/[.02] p-4">
+    <div className="mb-6 rounded-2xl border border-[var(--admin-border)] bg-[var(--admin-card-bg)] p-4">
       <div className="mb-3">
-        <div className="text-sm font-semibold text-white/80">{title}</div>
+        <div className="text-sm font-semibold text-[var(--admin-text-secondary)]">{title}</div>
         {hint && <p className="mt-0.5 text-xs text-[var(--admin-text-muted)]">{hint}</p>}
       </div>
       {children}
@@ -307,7 +307,7 @@ function ProductModal({ product, suppliers: _suppliers, onClose, onSaved }: { pr
             </div>
           ))}
           {images.length < 8 && (
-            <label className="grid aspect-square cursor-pointer place-items-center rounded-xl border border-dashed border-white/20 bg-[var(--admin-card-bg)] text-center text-xs text-[var(--admin-text-muted)] hover:border-vura-400 hover:text-white">
+            <label className="grid aspect-square cursor-pointer place-items-center rounded-xl border border-dashed border-[var(--admin-border)] bg-[var(--admin-card-bg)] text-center text-xs text-[var(--admin-text-muted)] hover:border-vura-400 hover:text-[var(--admin-text-primary)]">
               <input type="file" accept="image/*" multiple className="hidden" onChange={e => { if (e.target.files) void addFiles(e.target.files); e.target.value = ''; }} />
               <span className="px-2">{uploading ? 'Uploading…' : <><ImagePlus className="mx-auto mb-1" size={18}/> Add photos</>}</span>
             </label>
@@ -334,7 +334,7 @@ function ProductModal({ product, suppliers: _suppliers, onClose, onSaved }: { pr
                     <li key={m}>
                       <button
                         type="button"
-                        className="w-full px-3 py-2 text-left text-sm text-white/90 hover:bg-[var(--admin-table-row-hover)]"
+                        className="w-full px-3 py-2 text-left text-sm text-[var(--admin-text-primary)] hover:bg-[var(--admin-table-row-hover)]"
                         onMouseDown={e => e.preventDefault()}
                         onClick={() => pickSuggestion(m)}
                       >
@@ -429,7 +429,7 @@ function ProductModal({ product, suppliers: _suppliers, onClose, onSaved }: { pr
         </div>
       </Section>
 
-      {error && <div className="mb-4 rounded-xl border border-red-400/20 bg-red-400/10 p-3 text-sm text-red-200">{error}</div>}
+      {error && <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
       <div className="sticky bottom-0 -mx-1 flex justify-end gap-2 border-t border-[var(--admin-border)] bg-[var(--admin-sidebar-bg)]/px-1 py-3">
         <button type="button" onClick={onClose} className="rounded-xl border border-[var(--admin-border)] px-4 py-2 text-sm">Cancel</button>
         <button type="button" disabled={busy || uploading} onClick={() => void save()} className="rounded-xl bg-vura-500 px-5 py-2 text-sm font-bold disabled:opacity-50">
@@ -442,18 +442,18 @@ function ProductModal({ product, suppliers: _suppliers, onClose, onSaved }: { pr
 
 export function OperationalSuppliers({ suppliers, onRefresh }: { suppliers: Any[]; onRefresh: () => void }) {
   const [selected, setSelected] = useState<Any | null>(null); const [creating, setCreating] = useState(false);
-  return <section><Toolbar title="Suppliers" action={<button onClick={()=>setCreating(true)} className="flex items-center gap-2 rounded-xl bg-vura-500 px-4 py-2 text-sm font-bold"><Plus size={15}/> Add supplier</button>}/><div className="overflow-hidden rounded-2xl border border-[var(--admin-border)] bg-white/[.02]"><table className="w-full min-w-[700px] text-left text-sm"><thead className="border-b border-[var(--admin-border)] text-xs text-[var(--admin-text-muted)]"><tr>{['Supplier','Location','Phone','Reliability',''].map(h=><th className="px-4 py-3" key={h}>{h}</th>)}</tr></thead><tbody>{suppliers.map(s=><tr key={s.id} className="border-b border-[var(--admin-border)]"><td className="px-4 py-4 font-bold">{s.name}</td><td className="px-4">{s.location||'—'}</td><td className="px-4">{s.phone||'—'}</td><td className="px-4">{s.reliability_score==null?'—':`${s.reliability_score}/5`}</td><td className="px-4"><button onClick={()=>setSelected(s)} className="text-[var(--admin-text-muted)] hover:text-white"><Pencil size={15}/></button></td></tr>)}</tbody></table></div>{(selected||creating)&&<SupplierModal supplier={selected} onClose={()=>{setSelected(null);setCreating(false)}} onSaved={()=>{setSelected(null);setCreating(false);onRefresh()}}/>}</section>;
+  return <section><Toolbar title="Suppliers" action={<button onClick={()=>setCreating(true)} className="flex items-center gap-2 rounded-xl bg-vura-500 px-4 py-2 text-sm font-bold text-white"><Plus size={15}/> Add supplier</button>}/><div className="overflow-hidden rounded-2xl border border-[var(--admin-border)] bg-[var(--admin-card-bg)]"><table className="w-full min-w-[700px] text-left text-sm"><thead className="border-b border-[var(--admin-border)] text-xs text-[var(--admin-text-muted)]"><tr>{['Supplier','Location','Phone','Reliability',''].map(h=><th className="px-4 py-3" key={h}>{h}</th>)}</tr></thead><tbody>{suppliers.map(s=><tr key={s.id} className="border-b border-[var(--admin-border)]"><td className="px-4 py-4 font-bold">{s.name}</td><td className="px-4">{s.location||'—'}</td><td className="px-4">{s.phone||'—'}</td><td className="px-4">{s.reliability_score==null?'—':`${s.reliability_score}/5`}</td><td className="px-4"><button onClick={()=>setSelected(s)} className="text-[var(--admin-text-muted)] hover:text-[var(--admin-text-primary)]"><Pencil size={15}/></button></td></tr>)}</tbody></table></div>{(selected||creating)&&<SupplierModal supplier={selected} onClose={()=>{setSelected(null);setCreating(false)}} onSaved={()=>{setSelected(null);setCreating(false);onRefresh()}}/>}</section>;
 }
 
 function SupplierModal({ supplier, onClose, onSaved }: { supplier: Any|null; onClose:()=>void; onSaved:()=>void }) {
   const [form,setForm]=useState({name:supplier?.name||'',location:supplier?.location||'',phone:supplier?.phone||'',notes:supplier?.notes||'',score:supplier?.reliability_score==null?'':String(supplier.reliability_score)}); const [busy,setBusy]=useState(false); const [error,setError]=useState('');
   const set=(k:string,v:string)=>setForm(f=>({...f,[k]:v}));
   const save=async()=>{setBusy(true);setError('');try{if(form.name.trim().length<2)throw new Error('Supplier name is required.');const body:Any={name:form.name,location:form.location,phone:form.phone,notes:form.notes,reliabilityScore:form.score};await api('/api/admin/suppliers',{method:supplier?'PATCH':'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(supplier?{supplierId:supplier.id,...body}:body)});onSaved()}catch(e){setError(e instanceof Error?e.message:'Could not save supplier.')}finally{setBusy(false)}};
-  return <Modal title={supplier?'Edit supplier':'Add supplier'} onClose={onClose}><div className="space-y-4"><Label text="Name"><input value={form.name} onChange={e=>set('name',e.target.value)} className={field}/></Label><Label text="Location"><input value={form.location} onChange={e=>set('location',e.target.value)} className={field}/></Label><Label text="Phone"><input value={form.phone} onChange={e=>set('phone',e.target.value)} className={field}/></Label><Label text="Reliability score (0–5)"><input type="number" min="0" max="5" step="0.1" value={form.score} onChange={e=>set('score',e.target.value)} className={field}/></Label><Label text="Notes"><textarea rows={4} value={form.notes} onChange={e=>set('notes',e.target.value)} className={field}/></Label></div>{error&&<div className="mt-4 rounded-xl border border-red-400/20 bg-red-400/10 p-3 text-sm text-red-200">{error}</div>}<div className="mt-6 flex justify-end gap-2"><button onClick={onClose} className="rounded-xl border border-[var(--admin-border)] px-4 py-2 text-sm">Cancel</button><button disabled={busy} onClick={()=>void save()} className="rounded-xl bg-vura-500 px-5 py-2 text-sm font-bold disabled:opacity-50">{busy?'Saving…':'Save supplier'}</button></div></Modal>;
+  return <Modal title={supplier?'Edit supplier':'Add supplier'} onClose={onClose}><div className="space-y-4"><Label text="Name"><input value={form.name} onChange={e=>set('name',e.target.value)} className={field}/></Label><Label text="Location"><input value={form.location} onChange={e=>set('location',e.target.value)} className={field}/></Label><Label text="Phone"><input value={form.phone} onChange={e=>set('phone',e.target.value)} className={field}/></Label><Label text="Reliability score (0–5)"><input type="number" min="0" max="5" step="0.1" value={form.score} onChange={e=>set('score',e.target.value)} className={field}/></Label><Label text="Notes"><textarea rows={4} value={form.notes} onChange={e=>set('notes',e.target.value)} className={field}/></Label></div>{error&&<div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}<div className="mt-6 flex justify-end gap-2"><button onClick={onClose} className="rounded-xl border border-[var(--admin-border)] px-4 py-2 text-sm">Cancel</button><button disabled={busy} onClick={()=>void save()} className="rounded-xl bg-vura-500 px-5 py-2 text-sm font-bold disabled:opacity-50">{busy?'Saving…':'Save supplier'}</button></div></Modal>;
 }
 
 function Toolbar({ title, action }: { title: string; action?: ReactNode }) { return <div className="mb-5 flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-2xl font-black tracking-tight">{title}</h2><p className="mt-1 text-sm text-[var(--admin-text-muted)]">Real operational data. Changes are server-authorized and audited.</p></div>{action}</div>; }
-function Label({text,children}:{text:string;children:ReactNode}){return <label className="block text-sm font-semibold text-white/65">{text}{children}</label>}
-function Modal({title,onClose,children}:{title:string;onClose:()=>void;children:ReactNode}){return <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/70 p-0 backdrop-blur-sm md:items-center md:p-6"><div className="max-h-[94vh] w-full max-w-4xl overflow-y-auto rounded-t-3xl border border-[var(--admin-border)] bg-[var(--admin-sidebar-bg)] p-5 shadow-2xl md:rounded-3xl md:p-6"><div className="flex items-center justify-between"><h3 className="text-xl font-black">{title}</h3><button onClick={onClose} className="grid h-9 w-9 place-items-center rounded-lg border border-[var(--admin-border)]"><X size={16}/></button></div><div className="mt-6">{children}</div></div></div>}
-function Status({ value }: { value: string }) { return <span className="rounded-full border border-[var(--admin-border)] bg-white/5 px-2.5 py-1 text-[11px] font-bold capitalize text-white/65">{String(value||'—').replaceAll('_',' ')}</span>; }
+function Label({text,children}:{text:string;children:ReactNode}){return <label className="block text-sm font-semibold text-[var(--admin-text-secondary)]">{text}{children}</label>}
+function Modal({title,onClose,children}:{title:string;onClose:()=>void;children:ReactNode}){return <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/70 p-0 backdrop-blur-sm md:items-center md:p-6"><div className="max-h-[94vh] w-full max-w-4xl overflow-y-auto rounded-t-3xl border border-[var(--admin-border)] bg-[var(--admin-card-bg)] p-5 shadow-2xl text-[var(--admin-text-primary)] md:rounded-3xl md:p-6"><div className="flex items-center justify-between"><h3 className="text-xl font-black">{title}</h3><button onClick={onClose} className="grid h-9 w-9 place-items-center rounded-lg border border-[var(--admin-border)]"><X size={16}/></button></div><div className="mt-6">{children}</div></div></div>}
+function Status({ value }: { value: string }) { return <span className="rounded-full border border-[var(--admin-border)] bg-[var(--admin-table-row-hover)] px-2.5 py-1 text-[11px] font-bold capitalize text-[var(--admin-text-secondary)]">{String(value||'—').replaceAll('_',' ')}</span>; }
 function Empty({ text }: { text: string }) { return <div className="py-16 text-center text-sm text-[var(--admin-text-muted)]"><Package className="mx-auto mb-2" size={28}/>{text}</div>; }

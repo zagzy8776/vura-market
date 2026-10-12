@@ -272,7 +272,7 @@ function Notifications({ state }: { state: ResourceState<Notification[]> }) {
         <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title — e.g. Weekend phone deals" className="mt-4 w-full rounded-xl border border-[var(--admin-border)] bg-[var(--admin-input-bg)] px-3 py-2.5 text-sm outline-none focus:border-vura-500" />
         <textarea value={body} onChange={(e) => setBody(e.target.value)} placeholder="Message — e.g. Use code VURA10 for 10% off selected phones." rows={3} className="mt-3 w-full rounded-xl border border-[var(--admin-border)] bg-[var(--admin-input-bg)] px-3 py-2.5 text-sm outline-none focus:border-vura-500" />
         <div className="mt-3 flex flex-wrap items-center gap-3">
-          <button type="button" disabled={sending || title.trim().length < 3 || body.trim().length < 3} onClick={() => void sendPromo()} className="rounded-xl bg-vura-500 px-4 py-2.5 text-sm font-bold disabled:opacity-50">
+          <button type="button" disabled={sending || title.trim().length < 3 || body.trim().length < 3} onClick={() => void sendPromo()} className="rounded-xl bg-vura-500 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-50">
             {sending ? 'Sending…' : 'Send to customers'}
           </button>
           {promoMsg && <span className="text-sm text-[var(--admin-text-muted)]">{promoMsg}</span>}
@@ -348,13 +348,13 @@ function Card({ children, className = '' }: { children: ReactNode; className?: s
 }
 function ErrorState({ error, requestId, onRetry }: { error: string; requestId?: string; onRetry?: () => void }) {
   return (
-    <div className="rounded-xl border border-red-400/20 bg-red-400/10 p-4">
-      <div className="text-sm text-red-200">
+    <div className="rounded-xl border border-red-200 bg-red-50 p-4">
+      <div className="text-sm text-red-700">
         <b>Error:</b> {error}
       </div>
-      {requestId && <div className="mt-2 text-xs text-red-300/60">Request ID: {requestId}</div>}
+      {requestId && <div className="mt-2 text-xs text-red-600/70">Request ID: {requestId}</div>}
       {onRetry && (
-        <button onClick={onRetry} className="mt-3 rounded-lg bg-red-500/20 px-3 py-1.5 text-xs font-semibold text-red-200 hover:bg-red-500/30">
+        <button onClick={onRetry} className="mt-3 rounded-lg bg-red-100 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-200">
           Retry
         </button>
       )}

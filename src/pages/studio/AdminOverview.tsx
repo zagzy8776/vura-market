@@ -14,7 +14,7 @@ export default function AdminOverview({ state, onNavigate, onRefresh }: AdminOve
       <div className="grid min-h-[50vh] place-items-center text-[var(--admin-text-muted)]">
         <div className="text-center">
           <div className="inline-block animate-spin">
-            <div className="h-8 w-8 rounded-full border-4 border-white/20 border-t-vura-500" />
+            <div className="h-8 w-8 rounded-full border-4 border-[var(--admin-border)] border-t-vura-500" />
           </div>
           <p className="mt-4 text-sm">Loading overview…</p>
         </div>
@@ -24,19 +24,19 @@ export default function AdminOverview({ state, onNavigate, onRefresh }: AdminOve
 
   if (state.state === 'error') {
     return (
-      <div className="rounded-xl border border-red-400/20 bg-red-400/10 p-6">
+      <div className="rounded-xl border border-red-200 bg-red-50 p-6">
         <div className="flex items-start gap-3">
           <AlertCircle className="mt-0.5 text-red-400" size={20} />
           <div className="flex-1">
-            <h3 className="font-semibold text-red-200">Failed to load overview</h3>
-            <p className="mt-1 text-sm text-red-300/70">{state.error}</p>
+            <h3 className="font-semibold text-red-700">Failed to load overview</h3>
+            <p className="mt-1 text-sm text-red-600/80">{state.error}</p>
             {state.requestId && (
-              <p className="mt-2 text-xs text-red-300/50">Request ID: {state.requestId}</p>
+              <p className="mt-2 text-xs text-red-600/60">Request ID: {state.requestId}</p>
             )}
             <button
               type="button"
               onClick={onRefresh}
-              className="mt-4 rounded-lg bg-red-500/20 px-3 py-2 text-sm font-semibold text-red-200 hover:bg-red-500/30"
+              className="mt-4 rounded-lg bg-red-100 px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-200"
             >
               Retry
             </button>
@@ -63,14 +63,14 @@ export default function AdminOverview({ state, onNavigate, onRefresh }: AdminOve
     <div>
       <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-black tracking-tight">Command Center</h1>
+          <h1 className="font-display text-2xl font-bold tracking-tight text-[var(--admin-text-primary)] md:text-3xl">Command Center</h1>
           <p className="mt-1 text-sm text-[var(--admin-text-muted)]">What needs you right now — and how the shop is doing</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
             onClick={() => onNavigate('products')}
-            className="flex items-center gap-2 rounded-xl bg-vura-500 px-4 py-2 text-sm font-bold"
+            className="flex items-center gap-2 rounded-xl bg-vura-500 px-4 py-2 text-sm font-bold text-white"
           >
             <Plus size={15} /> Add product
           </button>
@@ -95,7 +95,7 @@ export default function AdminOverview({ state, onNavigate, onRefresh }: AdminOve
         <div className="mb-3 flex items-center justify-between gap-2">
           <h2 className="text-lg font-bold">Needs attention</h2>
           {totalAttention === 0 && (
-            <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-2.5 py-1 text-[11px] font-bold text-emerald-300">
+            <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700">
               All clear
             </span>
           )}
@@ -131,7 +131,7 @@ export default function AdminOverview({ state, onNavigate, onRefresh }: AdminOve
           <button
             type="button"
             onClick={() => onNavigate('orders')}
-            className="flex items-center gap-1 text-xs font-bold text-[var(--admin-text-muted)] hover:text-white"
+            className="flex items-center gap-1 text-xs font-bold text-[var(--admin-text-muted)] hover:text-[var(--admin-text-primary)]"
           >
             View all <ArrowRight size={12} />
           </button>
@@ -158,9 +158,9 @@ export default function AdminOverview({ state, onNavigate, onRefresh }: AdminOve
 
 function KPICard({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="rounded-2xl border border-[var(--admin-border)] bg-[var(--admin-card-bg)] p-4 sm:p-5">
-      <p className="text-[11px] font-bold uppercase tracking-wider text-[var(--admin-text-muted)]">{label}</p>
-      <p className="mt-3 text-xl font-black sm:text-2xl">{value}</p>
+    <div className="admin-kpi-card">
+      <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--admin-text-muted)]">{label}</p>
+      <p className="mt-2 font-display text-2xl font-bold tracking-tight text-[var(--admin-text-primary)]">{value}</p>
     </div>
   );
 }
@@ -191,8 +191,8 @@ function ActionCard({
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-xl border p-4 text-left transition hover:bg-white/[.02] ${
-        active ? `${config.bg} ${config.border}` : 'border-[var(--admin-border)] bg-white/[.02]'
+      className={`rounded-xl border p-4 text-left transition hover:bg-[var(--admin-card-bg)] ${
+        active ? `${config.bg} ${config.border}` : 'border-[var(--admin-border)] bg-[var(--admin-card-bg)]'
       }`}
     >
       <div className="flex items-start justify-between gap-3">
@@ -200,9 +200,9 @@ function ActionCard({
           <p className="text-sm font-semibold">{title}</p>
           <p className="mt-1 text-xs text-[var(--admin-text-muted)]">{description}</p>
         </div>
-        <Icon className={`${active ? config.color : 'text-white/25'} shrink-0`} size={18} />
+        <Icon className={`${active ? config.color : 'text-[var(--admin-text-muted)]'} shrink-0`} size={18} />
       </div>
-      <div className="mt-3 inline-block rounded-full bg-white/10 px-2.5 py-1 text-xs font-bold">
+      <div className="mt-3 inline-block rounded-full bg-[var(--admin-table-row-hover)] px-2.5 py-1 text-xs font-bold">
         {count > 0 ? `${count} action${count === 1 ? '' : 's'}` : 'None'}
       </div>
     </button>

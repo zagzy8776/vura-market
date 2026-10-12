@@ -14,7 +14,7 @@ function Card({ children, className = '' }: { children: React.ReactNode; classNa
   return <div className={`rounded-2xl border border-[var(--admin-border)] bg-[var(--admin-card-bg)] ${className}`}>{children}</div>;
 }
 function Pill({ value }: { value: string }) {
-  return <span className="rounded-full bg-white/5 px-2.5 py-1 text-[11px] font-bold capitalize">{String(value || '—').replaceAll('_', ' ')}</span>;
+  return <span className="rounded-full bg-[var(--admin-table-row-hover)] px-2.5 py-1 text-[11px] font-bold capitalize">{String(value || '—').replaceAll('_', ' ')}</span>;
 }
 function Empty({ text }: { text: string }) {
   return <div className="py-10 text-center text-sm text-[var(--admin-text-muted)]">{text}</div>;
@@ -98,7 +98,7 @@ export function PaymentsBoard({ state, onRefresh }: { state: ResourceState<Order
                 <button type="button" disabled={busyId === x.id} onClick={() => void setPayment(x, 'paid')} className="rounded-lg bg-emerald-500/90 px-3 py-1.5 text-xs font-bold disabled:opacity-50">
                   Mark paid
                 </button>
-                <button type="button" disabled={busyId === x.id} onClick={() => void setPayment(x, 'rejected')} className="rounded-lg border border-red-400/30 bg-red-500/10 px-3 py-1.5 text-xs font-bold text-red-200 disabled:opacity-50">
+                <button type="button" disabled={busyId === x.id} onClick={() => void setPayment(x, 'rejected')} className="rounded-lg border border-red-400/30 bg-red-500/10 px-3 py-1.5 text-xs font-bold text-red-700 disabled:opacity-50">
                   Reject
                 </button>
               </div>

@@ -124,7 +124,7 @@ export default function AdminMobileDrawer({
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg p-1.5 text-stone-400 transition hover:bg-white/5 hover:text-white"
+              className="rounded-lg p-1.5 text-stone-400 transition hover:bg-white/5 hover:text-[var(--admin-text-primary)]"
               aria-label="Close sidebar"
             >
               <X size={18} />

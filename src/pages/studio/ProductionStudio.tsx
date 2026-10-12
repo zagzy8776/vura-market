@@ -68,14 +68,14 @@ export default function ProductionStudio() {
   const filteredSuppliers = useMemo(() => data.suppliers.filter(s => `${s.name} ${s.location || ''} ${s.phone || ''}`.toLowerCase().includes(query.toLowerCase())), [data.suppliers, query]);
   const filteredCustomers = useMemo(() => (data.overview?.customers || []).filter(c => `${c.name} ${c.email}`.toLowerCase().includes(query.toLowerCase())), [data.overview?.customers, query]);
 
-  return <main className="min-h-screen bg-[var(--admin-bg)] text-white">
+  return <main className="min-h-screen bg-[var(--admin-bg)] text-[var(--admin-text-primary)]">
     <div className="mx-auto flex min-h-screen max-w-[1800px]">
       <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-[var(--admin-border)] bg-[var(--admin-sidebar-bg)] p-4 lg:flex">
         <div className="flex items-center gap-3 px-2 py-3">
           <span className="grid h-10 w-10 place-items-center rounded-xl bg-vura-500 shadow-lg shadow-[#6a4cff]/25"><span className="text-lg font-black">V</span></span>
           <div><div className="font-black tracking-tight">Vura Studio</div><div className="text-[11px] text-[var(--admin-text-muted)]">Commerce operating system</div></div>
         </div>
-        <div className="mt-6 flex-1 space-y-1 overflow-y-auto">{nav.map(item => { const Icon = item.icon; return <button key={item.id} onClick={() => setTab(item.id)} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition ${tab === item.id ? 'bg-vura-500 text-white shadow-lg shadow-[#6a4cff]/25' : 'text-[var(--admin-text-secondary)] hover:bg-[var(--admin-table-row-hover)] hover:text-white'}`}><Icon size={16}/>{item.label}</button>; })}</div>
+        <div className="mt-6 flex-1 space-y-1 overflow-y-auto">{nav.map(item => { const Icon = item.icon; return <button key={item.id} onClick={() => setTab(item.id)} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition ${tab === item.id ? 'bg-vura-500 text-white shadow-lg shadow-[#6a4cff]/25' : 'text-[var(--admin-text-secondary)] hover:bg-[var(--admin-table-row-hover)] hover:text-[var(--admin-text-primary)]'}`}><Icon size={16}/>{item.label}</button>; })}</div>
         <div className="border-t border-[var(--admin-border)] pt-3 text-xs text-[var(--admin-text-muted)]"><div className="flex items-center gap-2"><ShieldCheck size={14}/> Server-authorized workspace</div></div>
       </aside>
 
@@ -87,11 +87,11 @@ export default function ProductionStudio() {
             <button onClick={() => void load()} className="grid h-10 w-10 place-items-center rounded-xl border border-[var(--admin-border)] text-[var(--admin-text-secondary)] hover:bg-[var(--admin-table-row-hover)]" aria-label="Refresh"><RefreshCw size={17} className={loading ? 'animate-spin' : ''}/></button>
             <div className="hidden md:flex items-center gap-3"><div className="text-right"><div className="text-sm font-bold">Vura Admin</div><div className="text-[11px] text-[var(--admin-text-muted)]">Owner workspace</div></div><span className="grid h-10 w-10 place-items-center rounded-full bg-vura-500/15 text-vura-200"><UserRound size={18}/></span></div>
           </div>
-          <div className="flex gap-2 overflow-x-auto px-5 pb-3 lg:hidden">{nav.map(item => <button key={item.id} onClick={() => setTab(item.id)} className={`shrink-0 rounded-lg px-3 py-2 text-xs font-bold ${tab === item.id ? 'bg-vura-500' : 'bg-white/5 text-[var(--admin-text-secondary)]'}`}>{item.label}</button>)}</div>
+          <div className="flex gap-2 overflow-x-auto px-5 pb-3 lg:hidden">{nav.map(item => <button key={item.id} onClick={() => setTab(item.id)} className={`shrink-0 rounded-lg px-3 py-2 text-xs font-bold ${tab === item.id ? 'bg-vura-500' : 'bg-[var(--admin-table-row-hover)] text-[var(--admin-text-secondary)]'}`}>{item.label}</button>)}</div>
         </header>
 
         <div className="p-5 md:p-8">
-          {error && <div className="mb-5 flex items-center gap-3 border border-red-400/20 bg-red-400/10 p-4 text-sm text-red-200"><AlertTriangle size={17}/><span className="flex-1">{error}</span><button onClick={() => setError('')}><X size={16}/></button></div>}
+          {error && <div className="mb-5 flex items-center gap-3 border border-red-200 bg-red-50 p-4 text-sm text-red-700"><AlertTriangle size={17}/><span className="flex-1">{error}</span><button onClick={() => setError('')}><X size={16}/></button></div>}
           {loading && !data.overview ? <Loading/> : <>
             {tab === 'overview' && <OverviewView data={data} onTab={setTab}/>}
             {tab === 'orders' && <OrdersView orders={filteredOrders} onRefresh={load}/>}
@@ -127,7 +127,7 @@ function OverviewView({ data, onTab }: { data: { overview: Overview | null; noti
           <div className="font-black">Recent activity</div>
           <button onClick={() => onTab('audit')} className="text-xs font-semibold text-vura-300">View audit log →</button>
         </div>
-        <div className="mt-4 divide-y divide-white/5">{(o.audit || []).slice(0, 6).map(a => <div key={a.id} className="flex items-center gap-3 py-2.5"><span className="grid h-8 w-8 place-items-center rounded-lg bg-white/5 text-vura-300"><Activity size={14}/></span><div className="min-w-0 flex-1"><div className="truncate text-sm"><b>{a.actor_name || 'System'}</b> · {a.action} {a.entity_type}{a.entity_id ? ` #${a.entity_id}` : ''}</div><div className="text-xs text-[var(--admin-text-muted)]">{date(a.created_at)}</div></div></div>)}{!o.audit?.length && <Empty text="No admin activity recorded yet."/>}</div>
+        <div className="mt-4 divide-y divide-white/5">{(o.audit || []).slice(0, 6).map(a => <div key={a.id} className="flex items-center gap-3 py-2.5"><span className="grid h-8 w-8 place-items-center rounded-lg bg-[var(--admin-table-row-hover)] text-vura-300"><Activity size={14}/></span><div className="min-w-0 flex-1"><div className="truncate text-sm"><b>{a.actor_name || 'System'}</b> · {a.action} {a.entity_type}{a.entity_id ? ` #${a.entity_id}` : ''}</div><div className="text-xs text-[var(--admin-text-muted)]">{date(a.created_at)}</div></div></div>)}{!o.audit?.length && <Empty text="No admin activity recorded yet."/>}</div>
       </Card>
       <Card className="p-5">
         <div className="font-black">Notifications</div>
@@ -163,7 +163,7 @@ function ProductsView({ products }: { products: Product[]; onRefresh: () => void
     <Header title="Products" subtitle="The full catalog including inactive items."/>
     <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       {products.map(p => <Card key={p.id} className="overflow-hidden">
-        {p.images?.[0] ? <img src={p.images[0]} alt={p.name} className="aspect-[4/3] w-full object-cover"/> : <div className="grid aspect-[4/3] w-full place-items-center bg-white/5 text-[var(--admin-text-muted)]"><Package size={28}/></div>}
+        {p.images?.[0] ? <img src={p.images[0]} alt={p.name} className="aspect-[4/3] w-full object-cover"/> : <div className="grid aspect-[4/3] w-full place-items-center bg-[var(--admin-table-row-hover)] text-[var(--admin-text-muted)]"><Package size={28}/></div>}
         <div className="p-4">
           <div className="line-clamp-1 font-bold">{p.name}</div>
           <div className="text-xs text-[var(--admin-text-muted)]">{p.brand}{p.category ? ` · ${p.category}` : ''}</div>
@@ -219,7 +219,7 @@ function Table({ headers, rows }: { headers: ReactNode[]; rows: ReactNode[][] })
 function Header({ title, subtitle }: { title: string; subtitle?: string }) { return <div><h1 className="text-2xl font-black tracking-[-.05em] md:text-4xl">{title}</h1><p className="mt-2 text-sm text-[var(--admin-text-muted)]">{subtitle}</p></div>; }
 function Card({ children, className='' }: { children: ReactNode; className?: string }) { return <div className={`rounded-2xl border border-[var(--admin-border)] bg-[var(--admin-card-bg)] ${className}`}>{children}</div>; }
 function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) { return <Card className="p-5"><div className="text-[11px] font-bold uppercase tracking-[.13em] text-[var(--admin-text-muted)]">{label}</div><div className="mt-3 text-2xl font-black tracking-tight">{value}</div>{hint && <div className="mt-1 text-xs text-vura-300">{hint}</div>}</Card>; }
-function Pill({ value }: { value: string }) { const good = ['paid','delivered','published','confirmed','available'].includes(value); const bad = ['rejected','cancelled','unavailable'].includes(value); return <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${good ? 'bg-emerald-400/10 text-emerald-300' : bad ? 'bg-red-400/10 text-red-300' : 'bg-amber-300/10 text-amber-200'}`}>{pretty(value)}</span>; }
+function Pill({ value }: { value: string }) { const good = ['paid','delivered','published','confirmed','available'].includes(value); const bad = ['rejected','cancelled','unavailable'].includes(value); return <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${good ? 'bg-emerald-50 text-emerald-700' : bad ? 'bg-red-50 text-red-300' : 'bg-amber-300/10 text-amber-200'}`}>{pretty(value)}</span>; }
 function Loading() { return <div className="grid min-h-[50vh] place-items-center text-[var(--admin-text-muted)]"><div className="flex items-center gap-2"><RefreshCw className="animate-spin" size={18}/> Loading Studio…</div></div>; }
 function Empty({ text }: { text: string }) { return <div className="py-16 text-center text-sm text-[var(--admin-text-muted)]"><Package className="mx-auto mb-2" size={28}/>{text}</div>; }
-function ClickMetric({ label, value, onClick }: { label: string; value: string; onClick: () => void }) { return <button onClick={onClick} className="flex w-full items-center gap-3 rounded-xl border border-[var(--admin-border)] bg-white/[.02] p-3 text-left hover:bg-[var(--admin-table-row-hover)]"><span className="flex-1 text-sm text-[var(--admin-text-secondary)]">{label}</span><b>{value}</b><ChevronRight size={15} className="text-white/25"/></button>; }
+function ClickMetric({ label, value, onClick }: { label: string; value: string; onClick: () => void }) { return <button onClick={onClick} className="flex w-full items-center gap-3 rounded-xl border border-[var(--admin-border)] bg-[var(--admin-card-bg)] p-3 text-left hover:bg-[var(--admin-table-row-hover)]"><span className="flex-1 text-sm text-[var(--admin-text-secondary)]">{label}</span><b>{value}</b><ChevronRight size={15} className="text-[var(--admin-text-muted)]"/></button>; }

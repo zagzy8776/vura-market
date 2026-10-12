@@ -34,7 +34,7 @@ function BarList({ items }: { items: Array<{ label: string; value: number; hint?
             <span className="truncate capitalize text-[var(--admin-text-secondary)]">{item.label.replaceAll('_', ' ')}</span>
             <span className="shrink-0 text-[var(--admin-text-muted)]">{item.hint || item.value}</span>
           </div>
-          <div className="h-2 overflow-hidden rounded-full bg-white/10">
+          <div className="h-2 overflow-hidden rounded-full bg-[var(--admin-table-row-hover)]">
             <div className="h-full rounded-full bg-vura-500" style={{ width: `${Math.max(4, (item.value / max) * 100)}%` }} />
           </div>
         </div>
@@ -79,7 +79,7 @@ export function HealthBoard({ overview, onNavigate }: { overview: ResourceState<
           <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-[var(--admin-text-muted)]">
             <ShieldCheck size={14} /> System
           </div>
-          <div className={`mt-3 text-2xl font-black ${ok ? 'text-emerald-300' : 'text-amber-200'}`}>{ok ? 'Healthy' : loading ? 'Checking…' : 'Attention'}</div>
+          <div className={`mt-3 text-2xl font-black ${ok ? 'text-emerald-700' : 'text-amber-200'}`}>{ok ? 'Healthy' : loading ? 'Checking…' : 'Attention'}</div>
           <p className="mt-1 text-xs text-[var(--admin-text-muted)]">
             {health?.database?.connected ? `DB ${health.database.responseTimeMs ?? '—'}ms` : health?.error || 'Could not reach health endpoint'}
           </p>
@@ -157,7 +157,7 @@ export function AnalyticsBoard() {
           <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
         </button>
       </div>
-      {error && <div className="mt-4 rounded-xl border border-red-400/20 bg-red-400/10 p-3 text-sm text-red-200">{error}</div>}
+      {error && <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
       {loading && !data ? (
         <div className="grid min-h-[40vh] place-items-center text-[var(--admin-text-muted)]">Loading analytics…</div>
       ) : (

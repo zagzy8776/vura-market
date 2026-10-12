@@ -70,9 +70,9 @@ export default function OrderActionPanel({ order, suppliers, onClose, onSaved }:
           <Field label="Delivery cost (kobo)"><input inputMode="numeric" value={delivery} onChange={e => setDelivery(e.target.value)}/></Field>
           <Field label="Other cost (kobo)"><input inputMode="numeric" value={other} onChange={e => setOther(e.target.value)}/></Field>
         </div>
-        <div className={`mt-5 rounded-2xl border p-4 ${profit >= 0 ? 'border-emerald-400/20 bg-emerald-400/5' : 'border-red-400/20 bg-red-400/5'}`}><div className="text-xs uppercase tracking-wider text-[var(--admin-text-muted)]">Estimated actual profit</div><div className="mt-1 text-2xl font-black">{money(profit)}</div><div className="mt-1 text-xs text-[var(--admin-text-muted)]">Calculated from order total minus recorded costs.</div></div>
+        <div className={`mt-5 rounded-2xl border p-4 ${profit >= 0 ? 'border-emerald-200 bg-emerald-400/5' : 'border-red-200 bg-red-400/5'}`}><div className="text-xs uppercase tracking-wider text-[var(--admin-text-muted)]">Estimated actual profit</div><div className="mt-1 text-2xl font-black">{money(profit)}</div><div className="mt-1 text-xs text-[var(--admin-text-muted)]">Calculated from order total minus recorded costs.</div></div>
         <div className="mt-5 flex items-center gap-2 text-xs text-[var(--admin-text-muted)]"><ShieldCheck size={14}/> Server-authorized mutation · audit/event recording</div>
-        {message && <div className="mt-4 rounded-xl border border-[var(--admin-border)] bg-white/5 p-3 text-sm">{message}</div>}
+        {message && <div className="mt-4 rounded-xl border border-[var(--admin-border)] bg-[var(--admin-table-row-hover)] p-3 text-sm">{message}</div>}
       </div>
       <footer className="border-t border-[var(--admin-border)] p-5"><button disabled={saving} onClick={() => void save()} className="flex w-full items-center justify-center gap-2 rounded-xl bg-vura-500 px-4 py-3 font-bold disabled:opacity-50"><Save size={16}/>{saving ? 'Saving…' : 'Save order changes'}</button></footer>
     </aside>

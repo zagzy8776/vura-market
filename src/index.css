@@ -212,6 +212,74 @@ img[src=""], img:not([src]) { opacity: 0; }
     color: var(--admin-text-primary);
     min-height: 100vh;
   }
+  .admin-shell h1,
+  .admin-shell h2,
+  .admin-shell h3 {
+    color: var(--admin-text-primary);
+  }
+  .admin-shell p,
+  .admin-shell span,
+  .admin-shell label,
+  .admin-shell td,
+  .admin-shell th,
+  .admin-shell small {
+    /* inherit unless component sets a token */
+  }
+  .admin-shell input,
+  .admin-shell textarea,
+  .admin-shell select {
+    background: var(--admin-input-bg);
+    border-color: var(--admin-border);
+    color: var(--admin-text-primary);
+  }
+  .admin-shell table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .admin-shell thead th {
+    background: var(--admin-table-header);
+    color: var(--admin-text-secondary);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--admin-border);
+    text-align: left;
+  }
+  .admin-shell tbody td {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--admin-border);
+    color: var(--admin-text-primary);
+    font-size: 0.875rem;
+  }
+  .admin-shell tbody tr:hover {
+    background: var(--admin-table-row-hover);
+  }
+  .admin-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    border-radius: 0.5rem;
+    padding: 0.5rem 1rem;
+    font-size: 0.8125rem;
+    font-weight: 700;
+    transition: 0.15s ease;
+  }
+  .admin-btn-primary {
+    background: var(--accent);
+    color: #fff;
+  }
+  .admin-btn-primary:hover { opacity: 0.92; }
+  .admin-btn-ghost {
+    border: 1px solid var(--admin-border);
+    background: var(--admin-card-bg);
+    color: var(--admin-text-primary);
+  }
+  .admin-btn-ghost:hover {
+    border-color: var(--admin-border-hover);
+    background: var(--admin-table-row-hover);
+  }
 }
 
 .aspect-product { aspect-ratio: 4 / 3; object-fit: cover; }
