@@ -11,32 +11,32 @@ async function api(url: string, init?: RequestInit) {
 }
 
 function Card({ children, className = '' }: { children: React.ReactNode; className?: string }) {
-  return <div className={`rounded-2xl border border-white/10 bg-white/[.025] ${className}`}>{children}</div>;
+  return <div className={`rounded-2xl border border-[var(--admin-border)] bg-[var(--admin-card-bg)] ${className}`}>{children}</div>;
 }
 function Pill({ value }: { value: string }) {
   return <span className="rounded-full bg-white/5 px-2.5 py-1 text-[11px] font-bold capitalize">{String(value || '—').replaceAll('_', ' ')}</span>;
 }
 function Empty({ text }: { text: string }) {
-  return <div className="py-10 text-center text-sm text-white/30">{text}</div>;
+  return <div className="py-10 text-center text-sm text-[var(--admin-text-muted)]">{text}</div>;
 }
 function Header({ title, subtitle }: { title: string; subtitle: string }) {
   return (
     <div>
       <h1 className="text-3xl font-black tracking-tight">{title}</h1>
-      <p className="mt-2 text-sm text-white/45">{subtitle}</p>
+      <p className="mt-2 text-sm text-[var(--admin-text-muted)]">{subtitle}</p>
     </div>
   );
 }
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <Card className="p-5">
-      <div className="text-[11px] font-bold uppercase tracking-wider text-white/30">{label}</div>
+      <div className="text-[11px] font-bold uppercase tracking-wider text-[var(--admin-text-muted)]">{label}</div>
       <div className="mt-3 text-2xl font-black">{value}</div>
     </Card>
   );
 }
 function Loading() {
-  return <div className="grid min-h-[40vh] place-items-center text-white/40">Loading…</div>;
+  return <div className="grid min-h-[40vh] place-items-center text-[var(--admin-text-muted)]">Loading…</div>;
 }
 
 export function PaymentsBoard({ state, onRefresh }: { state: ResourceState<Order[]>; onRefresh?: () => void }) {
@@ -80,15 +80,15 @@ export function PaymentsBoard({ state, onRefresh }: { state: ResourceState<Order
         <Stat label="Paid orders" value={String(paid.length)} />
         <Stat label="Paid volume" value={money(paid.reduce((n, x) => n + Number(x.total_kobo), 0))} />
       </div>
-      {msg && <p className="mt-4 text-sm text-white/50">{msg}</p>}
+      {msg && <p className="mt-4 text-sm text-[var(--admin-text-muted)]">{msg}</p>}
       <Card className="mt-6 p-5">
         <b>Verification queue</b>
         <div className="mt-4 space-y-3">
           {pending.map((x) => (
-            <div key={x.id} className="flex flex-wrap items-center justify-between gap-3 border-b border-white/5 py-3">
+            <div key={x.id} className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--admin-border)] py-3">
               <span className="min-w-0">
                 <b>{x.order_number}</b>
-                <small className="block text-white/35">
+                <small className="block text-[var(--admin-text-muted)]">
                   {x.delivery_name} · {x.product_name}
                 </small>
                 {x.transfer_reference && <small className="block text-amber-200/80">Ref: {x.transfer_reference}</small>}
@@ -142,11 +142,11 @@ export function InventoryBoard({ products, onRefresh }: { products: Product[]; o
       <Header title="Inventory" subtitle="Stock board — quick status without full product edit." />
       <div className="mt-6 flex flex-wrap gap-2">
         {(['all', 'available', 'low_stock', 'out_of_stock'] as const).map((f) => (
-          <button key={f} type="button" onClick={() => setFilter(f)} className={`rounded-full px-3 py-1.5 text-xs font-bold capitalize ${filter === f ? 'bg-vura-500' : 'border border-white/10 text-white/60'}`}>
+          <button key={f} type="button" onClick={() => setFilter(f)} className={`rounded-full px-3 py-1.5 text-xs font-bold capitalize ${filter === f ? 'bg-vura-500' : 'border border-[var(--admin-border)] text-[var(--admin-text-secondary)]'}`}>
             {f.replace('_', ' ')}
           </button>
         ))}
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search…" className="ml-auto rounded-xl border border-white/10 bg-white/[.035] px-3 py-1.5 text-sm outline-none" />
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search…" className="ml-auto rounded-xl border border-[var(--admin-border)] bg-[var(--admin-input-bg)] px-3 py-1.5 text-sm outline-none" />
       </div>
       <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {rows.map((p) => (
@@ -154,14 +154,14 @@ export function InventoryBoard({ products, onRefresh }: { products: Product[]; o
             <div className="flex justify-between gap-2">
               <div className="min-w-0">
                 <b className="block truncate">{p.name}</b>
-                <small className="text-white/40">{p.brand}</small>
+                <small className="text-[var(--admin-text-muted)]">{p.brand}</small>
               </div>
               <Pill value={p.stock_status || '—'} />
             </div>
             <div className="mt-3 text-lg font-black">{money(p.price_kobo)}</div>
             <div className="mt-3 flex flex-wrap gap-1">
               {['available', 'low_stock', 'out_of_stock'].map((s) => (
-                <button key={s} type="button" disabled={busyId === p.id || p.stock_status === s} onClick={() => void setStock(p, s)} className="rounded-md border border-white/10 px-2 py-1 text-[11px] font-bold capitalize disabled:opacity-40">
+                <button key={s} type="button" disabled={busyId === p.id || p.stock_status === s} onClick={() => void setStock(p, s)} className="rounded-md border border-[var(--admin-border)] px-2 py-1 text-[11px] font-bold capitalize disabled:opacity-40">
                   {s.replace('_', ' ')}
                 </button>
               ))}
@@ -204,7 +204,7 @@ export function SourcingBoard({ state, onRefresh }: { state: ResourceState<Order
           <thead>
             <tr>
               {['Order', 'Customer', 'Product', 'Status', 'Total', ''].map((h) => (
-                <th key={h} className="border-b border-white/10 px-4 py-3 text-left text-xs text-white/35">
+                <th key={h} className="border-b border-[var(--admin-border)] px-4 py-3 text-left text-xs text-[var(--admin-text-muted)]">
                   {h}
                 </th>
               ))}
@@ -212,7 +212,7 @@ export function SourcingBoard({ state, onRefresh }: { state: ResourceState<Order
           </thead>
           <tbody>
             {rows.map((x) => (
-              <tr key={x.id} className="border-b border-white/5">
+              <tr key={x.id} className="border-b border-[var(--admin-border)]">
                 <td className="px-4 py-3 font-bold">{x.order_number}</td>
                 <td className="px-4">{x.delivery_name}</td>
                 <td className="px-4">{x.product_name}</td>
@@ -222,10 +222,10 @@ export function SourcingBoard({ state, onRefresh }: { state: ResourceState<Order
                 <td className="px-4 font-bold">{money(x.total_kobo)}</td>
                 <td className="px-4">
                   <div className="flex gap-1">
-                    <button type="button" disabled={busyId === x.id} onClick={() => void advance(x, 'sourcing')} className="rounded-md border border-white/10 px-2 py-1 text-[11px] font-bold">
+                    <button type="button" disabled={busyId === x.id} onClick={() => void advance(x, 'sourcing')} className="rounded-md border border-[var(--admin-border)] px-2 py-1 text-[11px] font-bold">
                       Sourcing
                     </button>
-                    <button type="button" disabled={busyId === x.id} onClick={() => void advance(x, 'purchased')} className="rounded-md border border-white/10 px-2 py-1 text-[11px] font-bold">
+                    <button type="button" disabled={busyId === x.id} onClick={() => void advance(x, 'purchased')} className="rounded-md border border-[var(--admin-border)] px-2 py-1 text-[11px] font-bold">
                       Purchased
                     </button>
                   </div>
@@ -271,11 +271,11 @@ export function FulfillmentBoard({ state, onRefresh }: { state: ResourceState<Or
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <b>{x.order_number}</b>
-                <div className="mt-1 text-sm text-white/70">{x.product_name}</div>
-                <div className="mt-2 text-sm text-white/45">
+                <div className="mt-1 text-sm text-[var(--admin-text-secondary)]">{x.product_name}</div>
+                <div className="mt-2 text-sm text-[var(--admin-text-muted)]">
                   {x.delivery_name} · {x.delivery_phone}
                 </div>
-                <div className="mt-1 text-sm text-white/35">
+                <div className="mt-1 text-sm text-[var(--admin-text-muted)]">
                   {x.delivery_address}
                   {x.delivery_city ? `, ${x.delivery_city}` : ''}
                 </div>

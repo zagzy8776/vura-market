@@ -68,26 +68,26 @@ export default function ProductionStudio() {
   const filteredSuppliers = useMemo(() => data.suppliers.filter(s => `${s.name} ${s.location || ''} ${s.phone || ''}`.toLowerCase().includes(query.toLowerCase())), [data.suppliers, query]);
   const filteredCustomers = useMemo(() => (data.overview?.customers || []).filter(c => `${c.name} ${c.email}`.toLowerCase().includes(query.toLowerCase())), [data.overview?.customers, query]);
 
-  return <main className="min-h-screen bg-[#080a12] text-white">
+  return <main className="min-h-screen bg-[var(--admin-bg)] text-white">
     <div className="mx-auto flex min-h-screen max-w-[1800px]">
-      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-white/10 bg-[#0b0d17] p-4 lg:flex">
+      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-[var(--admin-border)] bg-[var(--admin-sidebar-bg)] p-4 lg:flex">
         <div className="flex items-center gap-3 px-2 py-3">
           <span className="grid h-10 w-10 place-items-center rounded-xl bg-vura-500 shadow-lg shadow-[#6a4cff]/25"><span className="text-lg font-black">V</span></span>
-          <div><div className="font-black tracking-tight">Vura Studio</div><div className="text-[11px] text-white/35">Commerce operating system</div></div>
+          <div><div className="font-black tracking-tight">Vura Studio</div><div className="text-[11px] text-[var(--admin-text-muted)]">Commerce operating system</div></div>
         </div>
-        <div className="mt-6 flex-1 space-y-1 overflow-y-auto">{nav.map(item => { const Icon = item.icon; return <button key={item.id} onClick={() => setTab(item.id)} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition ${tab === item.id ? 'bg-vura-500 text-white shadow-lg shadow-[#6a4cff]/25' : 'text-white/55 hover:bg-white/5 hover:text-white'}`}><Icon size={16}/>{item.label}</button>; })}</div>
-        <div className="border-t border-white/10 pt-3 text-xs text-white/35"><div className="flex items-center gap-2"><ShieldCheck size={14}/> Server-authorized workspace</div></div>
+        <div className="mt-6 flex-1 space-y-1 overflow-y-auto">{nav.map(item => { const Icon = item.icon; return <button key={item.id} onClick={() => setTab(item.id)} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition ${tab === item.id ? 'bg-vura-500 text-white shadow-lg shadow-[#6a4cff]/25' : 'text-[var(--admin-text-secondary)] hover:bg-[var(--admin-table-row-hover)] hover:text-white'}`}><Icon size={16}/>{item.label}</button>; })}</div>
+        <div className="border-t border-[var(--admin-border)] pt-3 text-xs text-[var(--admin-text-muted)]"><div className="flex items-center gap-2"><ShieldCheck size={14}/> Server-authorized workspace</div></div>
       </aside>
 
       <section className="min-w-0 flex-1">
-        <header className="sticky top-0 z-40 border-b border-white/10 bg-[#080a12]/90 backdrop-blur-xl">
+        <header className="sticky top-0 z-40 border-b border-[var(--admin-border)] bg-[var(--admin-bg)]/90 backdrop-blur-xl">
           <div className="flex h-[72px] items-center gap-3 px-5 md:px-8">
             <div className="lg:hidden flex items-center gap-2"><span className="grid h-9 w-9 place-items-center rounded-lg bg-vura-500 font-black">V</span><b>Studio</b></div>
-            <div className="relative max-w-2xl min-w-0 flex-1"><Search className="absolute left-3.5 top-3.5 text-white/30" size={17}/><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search orders, products, customers, suppliers…" className="w-full rounded-xl border border-white/10 bg-white/[.035] py-3 pl-10 pr-4 text-sm outline-none focus:border-vura-400"/></div>
-            <button onClick={() => void load()} className="grid h-10 w-10 place-items-center rounded-xl border border-white/10 text-white/55 hover:bg-white/5" aria-label="Refresh"><RefreshCw size={17} className={loading ? 'animate-spin' : ''}/></button>
-            <div className="hidden md:flex items-center gap-3"><div className="text-right"><div className="text-sm font-bold">Vura Admin</div><div className="text-[11px] text-white/35">Owner workspace</div></div><span className="grid h-10 w-10 place-items-center rounded-full bg-vura-500/15 text-vura-200"><UserRound size={18}/></span></div>
+            <div className="relative max-w-2xl min-w-0 flex-1"><Search className="absolute left-3.5 top-3.5 text-[var(--admin-text-muted)]" size={17}/><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search orders, products, customers, suppliers…" className="w-full rounded-xl border border-[var(--admin-border)] bg-[var(--admin-input-bg)] py-3 pl-10 pr-4 text-sm outline-none focus:border-vura-400"/></div>
+            <button onClick={() => void load()} className="grid h-10 w-10 place-items-center rounded-xl border border-[var(--admin-border)] text-[var(--admin-text-secondary)] hover:bg-[var(--admin-table-row-hover)]" aria-label="Refresh"><RefreshCw size={17} className={loading ? 'animate-spin' : ''}/></button>
+            <div className="hidden md:flex items-center gap-3"><div className="text-right"><div className="text-sm font-bold">Vura Admin</div><div className="text-[11px] text-[var(--admin-text-muted)]">Owner workspace</div></div><span className="grid h-10 w-10 place-items-center rounded-full bg-vura-500/15 text-vura-200"><UserRound size={18}/></span></div>
           </div>
-          <div className="flex gap-2 overflow-x-auto px-5 pb-3 lg:hidden">{nav.map(item => <button key={item.id} onClick={() => setTab(item.id)} className={`shrink-0 rounded-lg px-3 py-2 text-xs font-bold ${tab === item.id ? 'bg-vura-500' : 'bg-white/5 text-white/55'}`}>{item.label}</button>)}</div>
+          <div className="flex gap-2 overflow-x-auto px-5 pb-3 lg:hidden">{nav.map(item => <button key={item.id} onClick={() => setTab(item.id)} className={`shrink-0 rounded-lg px-3 py-2 text-xs font-bold ${tab === item.id ? 'bg-vura-500' : 'bg-white/5 text-[var(--admin-text-secondary)]'}`}>{item.label}</button>)}</div>
         </header>
 
         <div className="p-5 md:p-8">
@@ -127,7 +127,7 @@ function OverviewView({ data, onTab }: { data: { overview: Overview | null; noti
           <div className="font-black">Recent activity</div>
           <button onClick={() => onTab('audit')} className="text-xs font-semibold text-vura-300">View audit log →</button>
         </div>
-        <div className="mt-4 divide-y divide-white/5">{(o.audit || []).slice(0, 6).map(a => <div key={a.id} className="flex items-center gap-3 py-2.5"><span className="grid h-8 w-8 place-items-center rounded-lg bg-white/5 text-vura-300"><Activity size={14}/></span><div className="min-w-0 flex-1"><div className="truncate text-sm"><b>{a.actor_name || 'System'}</b> · {a.action} {a.entity_type}{a.entity_id ? ` #${a.entity_id}` : ''}</div><div className="text-xs text-white/35">{date(a.created_at)}</div></div></div>)}{!o.audit?.length && <Empty text="No admin activity recorded yet."/>}</div>
+        <div className="mt-4 divide-y divide-white/5">{(o.audit || []).slice(0, 6).map(a => <div key={a.id} className="flex items-center gap-3 py-2.5"><span className="grid h-8 w-8 place-items-center rounded-lg bg-white/5 text-vura-300"><Activity size={14}/></span><div className="min-w-0 flex-1"><div className="truncate text-sm"><b>{a.actor_name || 'System'}</b> · {a.action} {a.entity_type}{a.entity_id ? ` #${a.entity_id}` : ''}</div><div className="text-xs text-[var(--admin-text-muted)]">{date(a.created_at)}</div></div></div>)}{!o.audit?.length && <Empty text="No admin activity recorded yet."/>}</div>
       </Card>
       <Card className="p-5">
         <div className="font-black">Notifications</div>
@@ -144,7 +144,7 @@ function OverviewView({ data, onTab }: { data: { overview: Overview | null; noti
 function OrdersView({ orders }: { orders: Order[]; onRefresh: () => void }) {
   return <div>
     <Header title="Orders" subtitle="Every order placed on Vura. Search by customer, product, or order number."/>
-    <div className="mt-5"><Table headers={['Order','Customer','Product','Payment','Sourcing','Total']} rows={orders.map(o => [<b>{o.order_number}</b>,<div>{o.delivery_name}<small className="block text-white/35">{o.delivery_phone}</small></div>,<div>{o.product_name}<small className="block text-white/35">{o.brand}</small></div>,<Pill value={o.payment_status}/>,<Pill value={o.sourcing_status || o.status}/>,<b>{money(o.total_kobo)}</b>])}/></div>
+    <div className="mt-5"><Table headers={['Order','Customer','Product','Payment','Sourcing','Total']} rows={orders.map(o => [<b>{o.order_number}</b>,<div>{o.delivery_name}<small className="block text-[var(--admin-text-muted)]">{o.delivery_phone}</small></div>,<div>{o.product_name}<small className="block text-[var(--admin-text-muted)]">{o.brand}</small></div>,<Pill value={o.payment_status}/>,<Pill value={o.sourcing_status || o.status}/>,<b>{money(o.total_kobo)}</b>])}/></div>
   </div>;
 }
 
@@ -154,7 +154,7 @@ function PaymentsView({ orders }: { orders: Order[] }) {
   return <div>
     <Header title="Payments" subtitle="Verify transfers, audit rejected payments, and track paid orders."/>
     <div className="mt-5 grid gap-4 md:grid-cols-3"><Stat label="Awaiting verification" value={String(needsVerification.length)}/><Stat label="Paid" value={String(paid.length)}/><Stat label="Total paid" value={money(paid.reduce((a, o) => a + Number(o.total_kobo), 0))}/></div>
-    <div className="mt-6"><Card className="p-5"><div className="font-black">Awaiting verification</div><div className="mt-4 space-y-2">{needsVerification.map(o => <div key={o.id} className="flex items-center justify-between border-b border-white/5 py-2"><div><b>{o.order_number}</b><small className="block text-white/35">{o.delivery_name} · {money(o.total_kobo)}</small></div><Pill value={o.payment_status}/></div>)}{!needsVerification.length && <Empty text="No payments waiting for verification."/>}</div></Card></div>
+    <div className="mt-6"><Card className="p-5"><div className="font-black">Awaiting verification</div><div className="mt-4 space-y-2">{needsVerification.map(o => <div key={o.id} className="flex items-center justify-between border-b border-[var(--admin-border)] py-2"><div><b>{o.order_number}</b><small className="block text-[var(--admin-text-muted)]">{o.delivery_name} · {money(o.total_kobo)}</small></div><Pill value={o.payment_status}/></div>)}{!needsVerification.length && <Empty text="No payments waiting for verification."/>}</div></Card></div>
   </div>;
 }
 
@@ -163,10 +163,10 @@ function ProductsView({ products }: { products: Product[]; onRefresh: () => void
     <Header title="Products" subtitle="The full catalog including inactive items."/>
     <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       {products.map(p => <Card key={p.id} className="overflow-hidden">
-        {p.images?.[0] ? <img src={p.images[0]} alt={p.name} className="aspect-[4/3] w-full object-cover"/> : <div className="grid aspect-[4/3] w-full place-items-center bg-white/5 text-white/30"><Package size={28}/></div>}
+        {p.images?.[0] ? <img src={p.images[0]} alt={p.name} className="aspect-[4/3] w-full object-cover"/> : <div className="grid aspect-[4/3] w-full place-items-center bg-white/5 text-[var(--admin-text-muted)]"><Package size={28}/></div>}
         <div className="p-4">
           <div className="line-clamp-1 font-bold">{p.name}</div>
-          <div className="text-xs text-white/40">{p.brand}{p.category ? ` · ${p.category}` : ''}</div>
+          <div className="text-xs text-[var(--admin-text-muted)]">{p.brand}{p.category ? ` · ${p.category}` : ''}</div>
           <div className="mt-3 flex items-center justify-between"><b>{money(p.price_kobo)}</b><Pill value={p.stock_status}/></div>
         </div>
       </Card>)}
@@ -179,7 +179,7 @@ function SourcingView({ orders }: { orders: Order[] }) {
   const sourcing = orders.filter(o => o.payment_status === 'paid' && !['delivered','cancelled'].includes(o.status));
   return <div>
     <Header title="Sourcing" subtitle="Paid orders that still need purchasing and dispatch."/>
-    <div className="mt-5"><Table headers={['Order','Customer','Product','Sourcing','Total']} rows={sourcing.map(o => [<b>{o.order_number}</b>,o.delivery_name,<div>{o.product_name}<small className="block text-white/35">{o.supplier_name || 'Supplier not assigned'}</small></div>,<Pill value={o.sourcing_status || o.status}/>,<b>{money(o.total_kobo)}</b>])}/></div>
+    <div className="mt-5"><Table headers={['Order','Customer','Product','Sourcing','Total']} rows={sourcing.map(o => [<b>{o.order_number}</b>,o.delivery_name,<div>{o.product_name}<small className="block text-[var(--admin-text-muted)]">{o.supplier_name || 'Supplier not assigned'}</small></div>,<Pill value={o.sourcing_status || o.status}/>,<b>{money(o.total_kobo)}</b>])}/></div>
   </div>;
 }
 
@@ -200,26 +200,26 @@ function CustomersView({ customers }: { customers: Customer[] }) {
 function NotificationsView({ items }: { items: Notification[] }) {
   return <div>
     <Header title="Notifications" subtitle="System-generated alerts for admins and customers."/>
-    <div className="mt-5 space-y-2">{items.map(n => <Card key={n.id} className="p-4"><div className="flex items-center justify-between"><b>{n.title}</b><small className="text-white/30">{date(n.created_at)}</small></div><div className="mt-1 text-sm text-white/55">{n.body}</div>{n.user_email && <small className="mt-2 block text-xs text-white/30">For: {n.user_email}{n.order_number ? ` · ${n.order_number}` : ''}</small>}</Card>)}{!items.length && <Empty text="No notifications."/>}</div>
+    <div className="mt-5 space-y-2">{items.map(n => <Card key={n.id} className="p-4"><div className="flex items-center justify-between"><b>{n.title}</b><small className="text-[var(--admin-text-muted)]">{date(n.created_at)}</small></div><div className="mt-1 text-sm text-[var(--admin-text-secondary)]">{n.body}</div>{n.user_email && <small className="mt-2 block text-xs text-[var(--admin-text-muted)]">For: {n.user_email}{n.order_number ? ` · ${n.order_number}` : ''}</small>}</Card>)}{!items.length && <Empty text="No notifications."/>}</div>
   </div>;
 }
 
 function AuditView({ items, orderEvents }: { items: Audit[]; orderEvents: OrderEvent[] }) {
   return <div>
     <Header title="Audit log" subtitle="Administrative changes recorded with actor, entity, and before/after state."/>
-    <div className="mt-5"><Card className="p-5"><div className="font-black">Audit log</div><div className="mt-4 space-y-2">{items.map(a => <div key={a.id} className="border-b border-white/5 py-2 text-sm"><div className="flex items-center gap-3"><span className="text-xs text-white/40">{date(a.created_at)}</span><b>{a.actor_name || 'System'}</b><span className="text-white/30">{a.actor_email || ''}</span></div><div>{a.action} · {a.entity_type}{a.entity_id ? ` #${a.entity_id}` : ''}</div></div>)}{!items.length && <Empty text="No audit events yet."/>}</div></Card></div>
-    <div className="mt-6"><Card className="p-5"><div className="font-black">Order events</div><div className="mt-4 space-y-2">{orderEvents.map(e => <div key={e.id} className="border-b border-white/5 py-2 text-sm"><div className="flex items-center gap-3"><span className="text-xs text-white/40">{date(e.created_at)}</span><b>{e.actor_name || 'System'}</b></div><div>{e.event_type} · order{e.order_number ? ` ${e.order_number}` : ''}</div></div>)}{!orderEvents.length && <Empty text="No order events yet."/>}</div></Card></div>
+    <div className="mt-5"><Card className="p-5"><div className="font-black">Audit log</div><div className="mt-4 space-y-2">{items.map(a => <div key={a.id} className="border-b border-[var(--admin-border)] py-2 text-sm"><div className="flex items-center gap-3"><span className="text-xs text-[var(--admin-text-muted)]">{date(a.created_at)}</span><b>{a.actor_name || 'System'}</b><span className="text-[var(--admin-text-muted)]">{a.actor_email || ''}</span></div><div>{a.action} · {a.entity_type}{a.entity_id ? ` #${a.entity_id}` : ''}</div></div>)}{!items.length && <Empty text="No audit events yet."/>}</div></Card></div>
+    <div className="mt-6"><Card className="p-5"><div className="font-black">Order events</div><div className="mt-4 space-y-2">{orderEvents.map(e => <div key={e.id} className="border-b border-[var(--admin-border)] py-2 text-sm"><div className="flex items-center gap-3"><span className="text-xs text-[var(--admin-text-muted)]">{date(e.created_at)}</span><b>{e.actor_name || 'System'}</b></div><div>{e.event_type} · order{e.order_number ? ` ${e.order_number}` : ''}</div></div>)}{!orderEvents.length && <Empty text="No order events yet."/>}</div></Card></div>
   </div>;
 }
 
 function Table({ headers, rows }: { headers: ReactNode[]; rows: ReactNode[][] }) {
-  return <Card className="overflow-x-auto"><table className="w-full min-w-[800px] text-sm"><thead><tr>{headers.map(h => <th key={String(h)} className="border-b border-white/10 px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-white/40">{h}</th>)}</tr></thead><tbody>{rows.map((r, i) => <tr key={i} className="border-b border-white/5 last:border-b-0 hover:bg-white/[.015]">{r.map((c, j) => <td key={j} className="px-4 py-3 align-top">{c}</td>)}</tr>)}{!rows.length && <tr><td colSpan={headers.length} className="px-4 py-12 text-center text-white/30">No rows.</td></tr>}</tbody></table></Card>;
+  return <Card className="overflow-x-auto"><table className="w-full min-w-[800px] text-sm"><thead><tr>{headers.map(h => <th key={String(h)} className="border-b border-[var(--admin-border)] px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-[var(--admin-text-muted)]">{h}</th>)}</tr></thead><tbody>{rows.map((r, i) => <tr key={i} className="border-b border-[var(--admin-border)] last:border-b-0 hover:bg-white/[.015]">{r.map((c, j) => <td key={j} className="px-4 py-3 align-top">{c}</td>)}</tr>)}{!rows.length && <tr><td colSpan={headers.length} className="px-4 py-12 text-center text-[var(--admin-text-muted)]">No rows.</td></tr>}</tbody></table></Card>;
 }
 
-function Header({ title, subtitle }: { title: string; subtitle?: string }) { return <div><h1 className="text-2xl font-black tracking-[-.05em] md:text-4xl">{title}</h1><p className="mt-2 text-sm text-white/45">{subtitle}</p></div>; }
-function Card({ children, className='' }: { children: ReactNode; className?: string }) { return <div className={`rounded-2xl border border-white/10 bg-white/[.025] ${className}`}>{children}</div>; }
-function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) { return <Card className="p-5"><div className="text-[11px] font-bold uppercase tracking-[.13em] text-white/30">{label}</div><div className="mt-3 text-2xl font-black tracking-tight">{value}</div>{hint && <div className="mt-1 text-xs text-vura-300">{hint}</div>}</Card>; }
+function Header({ title, subtitle }: { title: string; subtitle?: string }) { return <div><h1 className="text-2xl font-black tracking-[-.05em] md:text-4xl">{title}</h1><p className="mt-2 text-sm text-[var(--admin-text-muted)]">{subtitle}</p></div>; }
+function Card({ children, className='' }: { children: ReactNode; className?: string }) { return <div className={`rounded-2xl border border-[var(--admin-border)] bg-[var(--admin-card-bg)] ${className}`}>{children}</div>; }
+function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) { return <Card className="p-5"><div className="text-[11px] font-bold uppercase tracking-[.13em] text-[var(--admin-text-muted)]">{label}</div><div className="mt-3 text-2xl font-black tracking-tight">{value}</div>{hint && <div className="mt-1 text-xs text-vura-300">{hint}</div>}</Card>; }
 function Pill({ value }: { value: string }) { const good = ['paid','delivered','published','confirmed','available'].includes(value); const bad = ['rejected','cancelled','unavailable'].includes(value); return <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${good ? 'bg-emerald-400/10 text-emerald-300' : bad ? 'bg-red-400/10 text-red-300' : 'bg-amber-300/10 text-amber-200'}`}>{pretty(value)}</span>; }
-function Loading() { return <div className="grid min-h-[50vh] place-items-center text-white/40"><div className="flex items-center gap-2"><RefreshCw className="animate-spin" size={18}/> Loading Studio…</div></div>; }
-function Empty({ text }: { text: string }) { return <div className="py-16 text-center text-sm text-white/30"><Package className="mx-auto mb-2" size={28}/>{text}</div>; }
-function ClickMetric({ label, value, onClick }: { label: string; value: string; onClick: () => void }) { return <button onClick={onClick} className="flex w-full items-center gap-3 rounded-xl border border-white/10 bg-white/[.02] p-3 text-left hover:bg-white/[.05]"><span className="flex-1 text-sm text-white/55">{label}</span><b>{value}</b><ChevronRight size={15} className="text-white/25"/></button>; }
+function Loading() { return <div className="grid min-h-[50vh] place-items-center text-[var(--admin-text-muted)]"><div className="flex items-center gap-2"><RefreshCw className="animate-spin" size={18}/> Loading Studio…</div></div>; }
+function Empty({ text }: { text: string }) { return <div className="py-16 text-center text-sm text-[var(--admin-text-muted)]"><Package className="mx-auto mb-2" size={28}/>{text}</div>; }
+function ClickMetric({ label, value, onClick }: { label: string; value: string; onClick: () => void }) { return <button onClick={onClick} className="flex w-full items-center gap-3 rounded-xl border border-[var(--admin-border)] bg-white/[.02] p-3 text-left hover:bg-[var(--admin-table-row-hover)]"><span className="flex-1 text-sm text-[var(--admin-text-secondary)]">{label}</span><b>{value}</b><ChevronRight size={15} className="text-white/25"/></button>; }

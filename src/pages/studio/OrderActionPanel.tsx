@@ -51,13 +51,13 @@ export default function OrderActionPanel({ order, suppliers, onClose, onSaved }:
   };
 
   return <div className="fixed inset-0 z-[80] bg-black/70 backdrop-blur-sm" onMouseDown={e => e.currentTarget === e.target && onClose()}>
-    <aside className="ml-auto flex h-full w-full max-w-xl flex-col border-l border-white/10 bg-[#0b0d17] shadow-2xl">
-      <header className="flex items-center gap-3 border-b border-white/10 px-5 py-4"><div className="min-w-0 flex-1"><div className="text-xs text-white/35">ORDER OPERATIONS</div><h2 className="truncate text-lg font-black">{order.order_number}</h2></div><button onClick={onClose} className="grid h-9 w-9 place-items-center rounded-lg border border-white/10"><X size={17}/></button></header>
+    <aside className="ml-auto flex h-full w-full max-w-xl flex-col border-l border-[var(--admin-border)] bg-[var(--admin-sidebar-bg)] shadow-2xl">
+      <header className="flex items-center gap-3 border-b border-[var(--admin-border)] px-5 py-4"><div className="min-w-0 flex-1"><div className="text-xs text-[var(--admin-text-muted)]">ORDER OPERATIONS</div><h2 className="truncate text-lg font-black">{order.order_number}</h2></div><button onClick={onClose} className="grid h-9 w-9 place-items-center rounded-lg border border-[var(--admin-border)]"><X size={17}/></button></header>
       <div className="flex-1 overflow-y-auto p-5">
-        <div className="rounded-2xl border border-white/10 bg-white/[.025] p-4">
+        <div className="rounded-2xl border border-[var(--admin-border)] bg-[var(--admin-card-bg)] p-4">
           <div className="font-bold">{order.product_name}</div>
-          <div className="mt-1 text-sm text-white/45">{order.delivery_name} · {order.delivery_phone || 'No phone'}</div>
-          <div className="mt-2 text-sm text-white/45">{order.delivery_address || 'No address recorded'}</div>
+          <div className="mt-1 text-sm text-[var(--admin-text-muted)]">{order.delivery_name} · {order.delivery_phone || 'No phone'}</div>
+          <div className="mt-2 text-sm text-[var(--admin-text-muted)]">{order.delivery_address || 'No address recorded'}</div>
           <div className="mt-3"><ContactButtons phone={order.delivery_phone} orderNumber={order.order_number} kind="order" /></div>
           <div className="mt-4 text-xl font-black">{money(order.total_kobo)}</div>
         </div>
@@ -70,13 +70,13 @@ export default function OrderActionPanel({ order, suppliers, onClose, onSaved }:
           <Field label="Delivery cost (kobo)"><input inputMode="numeric" value={delivery} onChange={e => setDelivery(e.target.value)}/></Field>
           <Field label="Other cost (kobo)"><input inputMode="numeric" value={other} onChange={e => setOther(e.target.value)}/></Field>
         </div>
-        <div className={`mt-5 rounded-2xl border p-4 ${profit >= 0 ? 'border-emerald-400/20 bg-emerald-400/5' : 'border-red-400/20 bg-red-400/5'}`}><div className="text-xs uppercase tracking-wider text-white/35">Estimated actual profit</div><div className="mt-1 text-2xl font-black">{money(profit)}</div><div className="mt-1 text-xs text-white/35">Calculated from order total minus recorded costs.</div></div>
-        <div className="mt-5 flex items-center gap-2 text-xs text-white/35"><ShieldCheck size={14}/> Server-authorized mutation · audit/event recording</div>
-        {message && <div className="mt-4 rounded-xl border border-white/10 bg-white/5 p-3 text-sm">{message}</div>}
+        <div className={`mt-5 rounded-2xl border p-4 ${profit >= 0 ? 'border-emerald-400/20 bg-emerald-400/5' : 'border-red-400/20 bg-red-400/5'}`}><div className="text-xs uppercase tracking-wider text-[var(--admin-text-muted)]">Estimated actual profit</div><div className="mt-1 text-2xl font-black">{money(profit)}</div><div className="mt-1 text-xs text-[var(--admin-text-muted)]">Calculated from order total minus recorded costs.</div></div>
+        <div className="mt-5 flex items-center gap-2 text-xs text-[var(--admin-text-muted)]"><ShieldCheck size={14}/> Server-authorized mutation · audit/event recording</div>
+        {message && <div className="mt-4 rounded-xl border border-[var(--admin-border)] bg-white/5 p-3 text-sm">{message}</div>}
       </div>
-      <footer className="border-t border-white/10 p-5"><button disabled={saving} onClick={() => void save()} className="flex w-full items-center justify-center gap-2 rounded-xl bg-vura-500 px-4 py-3 font-bold disabled:opacity-50"><Save size={16}/>{saving ? 'Saving…' : 'Save order changes'}</button></footer>
+      <footer className="border-t border-[var(--admin-border)] p-5"><button disabled={saving} onClick={() => void save()} className="flex w-full items-center justify-center gap-2 rounded-xl bg-vura-500 px-4 py-3 font-bold disabled:opacity-50"><Save size={16}/>{saving ? 'Saving…' : 'Save order changes'}</button></footer>
     </aside>
   </div>;
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) { return <label className="block text-sm"><span className="mb-1.5 block text-xs font-semibold text-white/45">{label}</span>{children}<style>{`select,input{width:100%;border-radius:10px;border:1px solid rgba(255,255,255,.1);background:#111522;color:white;padding:10px 12px;outline:none}select:focus,input:focus{border-color:#7f6aff}`}</style></label>; }
+function Field({ label, children }: { label: string; children: React.ReactNode }) { return <label className="block text-sm"><span className="mb-1.5 block text-xs font-semibold text-[var(--admin-text-muted)]">{label}</span>{children}<style>{`select,input{width:100%;border-radius:10px;border:1px solid rgba(255,255,255,.1);background:#111522;color:white;padding:10px 12px;outline:none}select:focus,input:focus{border-color:#7f6aff}`}</style></label>; }

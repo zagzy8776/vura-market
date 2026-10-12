@@ -135,26 +135,27 @@ export default function ProductionStudioOps({ tab, onTabChange }: { tab: StudioT
   const showSuppliersUi = suppliers.state === 'success' || suppliers.state === 'error';
 
   return (
-    <main className="min-h-screen bg-[#080a12] text-white">
-      <div className="mx-auto flex min-h-screen max-w-[1800px] flex-col">
-        <section className="flex-1">
-          <header className="sticky top-0 z-40 border-b border-white/10 bg-[#080a12]/90 backdrop-blur-xl">
-            <div className="flex h-[72px] items-center gap-3 px-5 md:px-8">
-              <div className="relative max-w-2xl flex-1">
-                <Search className="absolute left-3.5 top-3.5 text-white/30" size={17} />
-                <input
-                  value={q}
-                  onChange={(e) => setQ(e.target.value)}
-                  placeholder="Search orders, products, customers, suppliers…"
-                  className="w-full rounded-xl border border-white/10 bg-white/[.035] py-3 pl-10 pr-4 text-sm outline-none focus:border-vura-400"
-                />
-              </div>
-              <button onClick={() => void loadAll({ silent: true })} className="grid h-10 w-10 place-items-center rounded-xl border border-white/10" aria-label="Refresh">
-                <RefreshCw size={17} className={isLoading ? 'animate-spin' : ''} />
-              </button>
-            </div>
-          </header>
-          <div className="p-5 md:p-8">
+    <div className="mx-auto max-w-[1800px] text-[var(--admin-text-primary)]">
+      <div className="mb-6 flex items-center gap-3">
+        <div className="relative max-w-2xl flex-1">
+          <Search className="absolute left-3.5 top-3.5 text-[var(--admin-text-muted)]" size={17} />
+          <input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Search orders, products, customers, suppliers…"
+            className="admin-input w-full py-3 pl-10 pr-4"
+          />
+        </div>
+        <button
+          type="button"
+          onClick={() => void loadAll({ silent: true })}
+          className="grid h-11 w-11 place-items-center rounded-lg border border-[var(--admin-border)] bg-[var(--admin-card-bg)] text-[var(--admin-text-secondary)] transition hover:border-[var(--admin-border-hover)]"
+          aria-label="Refresh"
+        >
+          <RefreshCw size={17} className={isLoading ? 'animate-spin' : ''} />
+        </button>
+      </div>
+      <div>
             {tab === 'overview' && <AdminOverview state={overview} onNavigate={onTabChange} onRefresh={() => loadOverview()} />}
             {tab === 'orders' &&
               (orders.state === 'loading' && !showOrdersUi ? (
@@ -197,10 +198,8 @@ export default function ProductionStudioOps({ tab, onTabChange }: { tab: StudioT
             {tab === 'settings' && <SettingsBoard />}
             {tab === 'health' && <HealthBoard overview={overview} onNavigate={onTabChange} />}
             {tab === 'analytics' && <AnalyticsBoard />}
-          </div>
-        </section>
       </div>
-    </main>
+    </div>
   );
 }
 
@@ -213,7 +212,7 @@ function Customers({ customers }: { customers: Customer[] }) {
           <thead>
             <tr>
               {['Customer', 'Email', 'Orders', 'Lifetime spend'].map((x) => (
-                <th key={x} className="border-b border-white/10 px-4 py-3 text-left text-xs text-white/35">
+                <th key={x} className="border-b border-[var(--admin-border)] px-4 py-3 text-left text-xs text-[var(--admin-text-muted)]">
                   {x}
                 </th>
               ))}
@@ -221,7 +220,7 @@ function Customers({ customers }: { customers: Customer[] }) {
           </thead>
           <tbody>
             {customers.map((x) => (
-              <tr key={x.id} className="border-b border-white/5">
+              <tr key={x.id} className="border-b border-[var(--admin-border)]">
                 <td className="px-4 py-3 font-bold">{x.name}</td>
                 <td className="px-4">{x.email}</td>
                 <td className="px-4">{x.order_count}</td>
@@ -230,7 +229,7 @@ function Customers({ customers }: { customers: Customer[] }) {
             ))}
           </tbody>
         </table>
-        {!customers.length && <div className="py-12 text-center text-sm text-white/30">No customers found.</div>}
+        {!customers.length && <div className="py-12 text-center text-sm text-[var(--admin-text-muted)]">No customers found.</div>}
       </Card>
     </>
   );
@@ -269,14 +268,14 @@ function Notifications({ state }: { state: ResourceState<Notification[]> }) {
       <Header title="Notifications" subtitle="Customer alerts, order updates, and promos." />
       <Card className="mt-6 p-5">
         <b>Send promo / coupon push</b>
-        <p className="mt-1 text-sm text-white/45">Pushes to customers who enabled notifications (and logs inbox rows).</p>
-        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title — e.g. Weekend phone deals" className="mt-4 w-full rounded-xl border border-white/10 bg-[#111522] px-3 py-2.5 text-sm outline-none focus:border-vura-500" />
-        <textarea value={body} onChange={(e) => setBody(e.target.value)} placeholder="Message — e.g. Use code VURA10 for 10% off selected phones." rows={3} className="mt-3 w-full rounded-xl border border-white/10 bg-[#111522] px-3 py-2.5 text-sm outline-none focus:border-vura-500" />
+        <p className="mt-1 text-sm text-[var(--admin-text-muted)]">Pushes to customers who enabled notifications (and logs inbox rows).</p>
+        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title — e.g. Weekend phone deals" className="mt-4 w-full rounded-xl border border-[var(--admin-border)] bg-[var(--admin-input-bg)] px-3 py-2.5 text-sm outline-none focus:border-vura-500" />
+        <textarea value={body} onChange={(e) => setBody(e.target.value)} placeholder="Message — e.g. Use code VURA10 for 10% off selected phones." rows={3} className="mt-3 w-full rounded-xl border border-[var(--admin-border)] bg-[var(--admin-input-bg)] px-3 py-2.5 text-sm outline-none focus:border-vura-500" />
         <div className="mt-3 flex flex-wrap items-center gap-3">
           <button type="button" disabled={sending || title.trim().length < 3 || body.trim().length < 3} onClick={() => void sendPromo()} className="rounded-xl bg-vura-500 px-4 py-2.5 text-sm font-bold disabled:opacity-50">
             {sending ? 'Sending…' : 'Send to customers'}
           </button>
-          {promoMsg && <span className="text-sm text-white/50">{promoMsg}</span>}
+          {promoMsg && <span className="text-sm text-[var(--admin-text-muted)]">{promoMsg}</span>}
         </div>
       </Card>
       <div className="mt-6 space-y-3">
@@ -284,10 +283,10 @@ function Notifications({ state }: { state: ResourceState<Notification[]> }) {
           <Card key={x.id} className="p-4">
             <div className="flex justify-between">
               <b>{x.title}</b>
-              <small className="text-white/30">{new Date(x.created_at).toLocaleString('en-NG')}</small>
+              <small className="text-[var(--admin-text-muted)]">{new Date(x.created_at).toLocaleString('en-NG')}</small>
             </div>
-            <p className="mt-1 text-sm text-white/55">{x.body}</p>
-            <small className="text-white/30">
+            <p className="mt-1 text-sm text-[var(--admin-text-secondary)]">{x.body}</p>
+            <small className="text-[var(--admin-text-muted)]">
               {x.user_email || 'System'}
               {x.order_number ? ` · ${x.order_number}` : ''}
             </small>
@@ -311,10 +310,10 @@ function AuditView({ state }: { state: ResourceState<Overview> }) {
         <b>Admin changes</b>
         <div className="mt-4 space-y-3">
           {audit.map((x) => (
-            <div key={x.id} className="border-b border-white/5 pb-3 text-sm">
+            <div key={x.id} className="border-b border-[var(--admin-border)] pb-3 text-sm">
               <b>{x.actor_name || 'System'}</b> · {x.action} · {x.entity_type}
               {x.entity_id ? ` #${x.entity_id}` : ''}
-              <div className="text-xs text-white/35">{new Date(x.created_at).toLocaleString('en-NG')}</div>
+              <div className="text-xs text-[var(--admin-text-muted)]">{new Date(x.created_at).toLocaleString('en-NG')}</div>
             </div>
           ))}
           {!audit.length && <Empty text="No audit events." />}
@@ -324,9 +323,9 @@ function AuditView({ state }: { state: ResourceState<Overview> }) {
         <b>Order events</b>
         <div className="mt-4 space-y-3">
           {orderEvents.map((x) => (
-            <div key={x.id} className="border-b border-white/5 pb-3 text-sm">
+            <div key={x.id} className="border-b border-[var(--admin-border)] pb-3 text-sm">
               <b>{x.actor_name || 'System'}</b> · {x.event_type} · {x.order_number || x.order_id}
-              <div className="text-xs text-white/35">{new Date(x.created_at).toLocaleString('en-NG')}</div>
+              <div className="text-xs text-[var(--admin-text-muted)]">{new Date(x.created_at).toLocaleString('en-NG')}</div>
             </div>
           ))}
           {!orderEvents.length && <Empty text="No order events." />}
@@ -339,13 +338,13 @@ function AuditView({ state }: { state: ResourceState<Overview> }) {
 function Header({ title, subtitle }: { title: string; subtitle: string }) {
   return (
     <div>
-      <h1 className="text-3xl font-black tracking-tight">{title}</h1>
-      <p className="mt-2 text-sm text-white/45">{subtitle}</p>
+      <h1 className="font-display text-2xl font-bold tracking-tight text-[var(--admin-text-primary)] md:text-3xl">{title}</h1>
+      <p className="mt-2 text-sm text-[var(--admin-text-muted)]">{subtitle}</p>
     </div>
   );
 }
 function Card({ children, className = '' }: { children: ReactNode; className?: string }) {
-  return <div className={`rounded-2xl border border-white/10 bg-white/[.025] ${className}`}>{children}</div>;
+  return <div className={`admin-card ${className}`}>{children}</div>;
 }
 function ErrorState({ error, requestId, onRetry }: { error: string; requestId?: string; onRetry?: () => void }) {
   return (
@@ -372,10 +371,10 @@ function ComingSoon({ tab }: { tab: StudioTab }) {
   return (
     <div>
       <Header title={labels[tab] || 'Coming Soon'} subtitle="This feature is currently in development." />
-      <div className="mt-12 grid min-h-[50vh] place-items-center rounded-2xl border border-white/10 bg-white/[.025]">
+      <div className="mt-12 grid min-h-[50vh] place-items-center rounded-2xl border border-[var(--admin-border)] bg-[var(--admin-card-bg)]">
         <div className="text-center">
-          <Package className="mx-auto mb-4 text-white/30" size={32} />
-          <p className="text-white/50">Feature under development</p>
+          <Package className="mx-auto mb-4 text-[var(--admin-text-muted)]" size={32} />
+          <p className="text-[var(--admin-text-muted)]">Feature under development</p>
         </div>
       </div>
     </div>
@@ -383,7 +382,7 @@ function ComingSoon({ tab }: { tab: StudioTab }) {
 }
 function Empty({ text }: { text: string }) {
   return (
-    <div className="py-12 text-center text-sm text-white/30">
+    <div className="py-12 text-center text-sm text-[var(--admin-text-muted)]">
       <Package className="mx-auto mb-2" size={26} />
       {text}
     </div>
@@ -391,7 +390,7 @@ function Empty({ text }: { text: string }) {
 }
 function Loading() {
   return (
-    <div className="grid min-h-[50vh] place-items-center text-white/40">
+    <div className="grid min-h-[40vh] place-items-center text-[var(--admin-text-muted)]">
       <RefreshCw className="animate-spin" size={18} />
     </div>
   );

@@ -63,7 +63,7 @@ const STATUS_STYLE: Record<OpportunityStatus, string> = {
   watching: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
   investigating: 'bg-violet-500/15 text-violet-300 border-violet-500/30',
   approved: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
-  dismissed: 'bg-white/10 text-white/45 border-white/15',
+  dismissed: 'bg-white/10 text-[var(--admin-text-muted)] border-[var(--admin-border)]',
 };
 
 const WORKFLOW: { id: OpportunityStatus; label: string }[] = [
@@ -105,10 +105,10 @@ function sourceList(op: Opportunity, parsed: ParsedEvidence): string[] {
 }
 
 function scoreColor(n: number | null | undefined) {
-  if (n == null || !Number.isFinite(n)) return 'text-white/40';
+  if (n == null || !Number.isFinite(n)) return 'text-[var(--admin-text-muted)]';
   if (n >= 85) return 'text-emerald-300';
   if (n >= 70) return 'text-amber-300';
-  return 'text-white/70';
+  return 'text-[var(--admin-text-secondary)]';
 }
 
 export default function StudioOpportunities() {
@@ -325,9 +325,9 @@ export default function StudioOpportunities() {
             <span className="text-xs font-bold uppercase tracking-wider">Agents</span>
           </div>
           <h1 className="mt-1 text-2xl font-black tracking-tight text-white md:text-3xl">Opportunities</h1>
-          <p className="mt-1 max-w-2xl text-sm leading-6 text-white/45">
+          <p className="mt-1 max-w-2xl text-sm leading-6 text-[var(--admin-text-muted)]">
             Human review of trend signals. Workflow:{' '}
-            <span className="text-white/70">NEW → WATCHING → INVESTIGATING → APPROVED / DISMISSED</span>.
+            <span className="text-[var(--admin-text-secondary)]">NEW → WATCHING → INVESTIGATING → APPROVED / DISMISSED</span>.
             Approving does <b className="text-white/80">not</b> publish products — Product Intelligence comes next.
           </p>
         </div>
@@ -335,7 +335,7 @@ export default function StudioOpportunities() {
           <button
             type="button"
             onClick={clearFilters}
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-transparent px-4 py-2.5 text-sm font-bold text-white/60 hover:bg-white/5 hover:text-white"
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--admin-border)] bg-transparent px-4 py-2.5 text-sm font-bold text-[var(--admin-text-secondary)] hover:bg-[var(--admin-table-row-hover)] hover:text-white"
           >
             <X size={16} />
             Clear filters
@@ -343,7 +343,7 @@ export default function StudioOpportunities() {
           <button
             type="button"
             onClick={() => void load()}
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-bold text-white hover:bg-white/10"
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--admin-border)] bg-white/5 px-4 py-2.5 text-sm font-bold text-white hover:bg-[var(--admin-table-row-hover)]"
           >
             <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
             Refresh
@@ -352,8 +352,8 @@ export default function StudioOpportunities() {
       </div>
 
       {/* Pipeline legend */}
-      <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3">
-        <span className="text-[10px] font-bold uppercase tracking-wider text-white/35">Pipeline</span>
+      <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-[var(--admin-border)] bg-white/[0.02] px-4 py-3">
+        <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--admin-text-muted)]">Pipeline</span>
         {WORKFLOW.map((step, i) => (
           <span key={step.id} className="flex items-center gap-2">
             {i > 0 && <span className="text-white/20">→</span>}
@@ -379,7 +379,7 @@ export default function StudioOpportunities() {
             className={`rounded-full border px-3 py-1.5 text-xs font-bold capitalize ${
               status === s
                 ? 'border-vura-400/50 bg-vura-500/20 text-vura-200'
-                : 'border-white/10 bg-white/[0.03] text-white/50 hover:text-white'
+                : 'border-[var(--admin-border)] bg-white/[0.03] text-[var(--admin-text-muted)] hover:text-white'
             }`}
           >
             {s} · {counts[s] ?? 0}
@@ -388,30 +388,30 @@ export default function StudioOpportunities() {
       </div>
 
       {/* Filters */}
-      <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-        <div className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-white/40">
+      <div className="rounded-2xl border border-[var(--admin-border)] bg-white/[0.03] p-4">
+        <div className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[var(--admin-text-muted)]">
           <Filter size={14} /> Filters
         </div>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <label className="block text-xs text-white/40">
+          <label className="block text-xs text-[var(--admin-text-muted)]">
             Search
             <div className="relative mt-1">
-              <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
+              <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--admin-text-muted)]" />
               <input
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
                 placeholder="Name, category, signal…"
-                className="w-full rounded-xl border border-white/10 bg-[#0b0d17] py-2.5 pl-9 pr-3 text-sm text-white outline-none placeholder:text-white/25 focus:border-vura-500/50"
+                className="w-full rounded-xl border border-[var(--admin-border)] bg-[var(--admin-sidebar-bg)] py-2.5 pl-9 pr-3 text-sm text-white outline-none placeholder:text-white/25 focus:border-vura-500/50"
               />
             </div>
           </label>
-          <label className="block text-xs text-white/40">
+          <label className="block text-xs text-[var(--admin-text-muted)]">
             Category
             <div className="relative mt-1">
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
-                className="w-full appearance-none rounded-xl border border-white/10 bg-[#0b0d17] py-2.5 pl-3 pr-9 text-sm text-white outline-none focus:border-vura-500/50"
+                className="w-full appearance-none rounded-xl border border-[var(--admin-border)] bg-[var(--admin-sidebar-bg)] py-2.5 pl-3 pr-9 text-sm text-white outline-none focus:border-vura-500/50"
               >
                 {categories.map((c) => (
                   <option key={c} value={c}>
@@ -419,16 +419,16 @@ export default function StudioOpportunities() {
                   </option>
                 ))}
               </select>
-              <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-white/30" />
+              <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[var(--admin-text-muted)]" />
             </div>
           </label>
-          <label className="block text-xs text-white/40">
+          <label className="block text-xs text-[var(--admin-text-muted)]">
             Urgency
             <div className="relative mt-1">
               <select
                 value={urgency}
                 onChange={(e) => setUrgency(e.target.value)}
-                className="w-full appearance-none rounded-xl border border-white/10 bg-[#0b0d17] py-2.5 pl-3 pr-9 text-sm text-white outline-none focus:border-vura-500/50"
+                className="w-full appearance-none rounded-xl border border-[var(--admin-border)] bg-[var(--admin-sidebar-bg)] py-2.5 pl-3 pr-9 text-sm text-white outline-none focus:border-vura-500/50"
               >
                 {['all', 'high', 'medium', 'low'].map((u) => (
                   <option key={u} value={u}>
@@ -436,16 +436,16 @@ export default function StudioOpportunities() {
                   </option>
                 ))}
               </select>
-              <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-white/30" />
+              <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[var(--admin-text-muted)]" />
             </div>
           </label>
-          <label className="block text-xs text-white/40">
+          <label className="block text-xs text-[var(--admin-text-muted)]">
             Region
             <div className="relative mt-1">
               <select
                 value={region}
                 onChange={(e) => setRegion(e.target.value)}
-                className="w-full appearance-none rounded-xl border border-white/10 bg-[#0b0d17] py-2.5 pl-3 pr-9 text-sm text-white outline-none focus:border-vura-500/50"
+                className="w-full appearance-none rounded-xl border border-[var(--admin-border)] bg-[var(--admin-sidebar-bg)] py-2.5 pl-3 pr-9 text-sm text-white outline-none focus:border-vura-500/50"
               >
                 {regions.map((r) => (
                   <option key={r} value={r}>
@@ -453,10 +453,10 @@ export default function StudioOpportunities() {
                   </option>
                 ))}
               </select>
-              <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-white/30" />
+              <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[var(--admin-text-muted)]" />
             </div>
           </label>
-          <label className="block text-xs text-white/40">
+          <label className="block text-xs text-[var(--admin-text-muted)]">
             Min score ({minScore})
             <input
               type="range"
@@ -467,7 +467,7 @@ export default function StudioOpportunities() {
               className="mt-3 w-full accent-vura-500"
             />
           </label>
-          <label className="block text-xs text-white/40">
+          <label className="block text-xs text-[var(--admin-text-muted)]">
             Min confidence ({minConfidence})
             <input
               type="range"
@@ -478,25 +478,25 @@ export default function StudioOpportunities() {
               className="mt-3 w-full accent-vura-500"
             />
           </label>
-          <label className="block text-xs text-white/40 sm:col-span-2">
+          <label className="block text-xs text-[var(--admin-text-muted)] sm:col-span-2">
             Sort
             <div className="relative mt-1">
               <select
                 value={sort}
                 onChange={(e) => setSort(e.target.value as typeof sort)}
-                className="w-full appearance-none rounded-xl border border-white/10 bg-[#0b0d17] py-2.5 pl-3 pr-9 text-sm text-white outline-none focus:border-vura-500/50"
+                className="w-full appearance-none rounded-xl border border-[var(--admin-border)] bg-[var(--admin-sidebar-bg)] py-2.5 pl-3 pr-9 text-sm text-white outline-none focus:border-vura-500/50"
               >
                 <option value="newest">Newest</option>
                 <option value="score">Highest trend score</option>
                 <option value="commercial">Highest commercial potential</option>
                 <option value="confidence">Highest confidence</option>
               </select>
-              <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-white/30" />
+              <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[var(--admin-text-muted)]" />
             </div>
           </label>
         </div>
-        <p className="mt-3 text-[11px] text-white/35">
-          Showing <b className="text-white/55">{filtered.length}</b> of {rows.length} opportunities
+        <p className="mt-3 text-[11px] text-[var(--admin-text-muted)]">
+          Showing <b className="text-[var(--admin-text-secondary)]">{filtered.length}</b> of {rows.length} opportunities
         </p>
       </div>
 
@@ -507,7 +507,7 @@ export default function StudioOpportunities() {
       )}
 
       {loading ? (
-        <div className="grid place-items-center rounded-2xl border border-white/10 bg-white/[0.02] py-20 text-white/40">
+        <div className="grid place-items-center rounded-2xl border border-[var(--admin-border)] bg-white/[0.02] py-20 text-[var(--admin-text-muted)]">
           <Loader2 className="animate-spin" size={28} />
         </div>
       ) : (
@@ -515,7 +515,7 @@ export default function StudioOpportunities() {
           {/* List — hide on mobile when detail open */}
           <div className={`space-y-2 lg:col-span-2 ${mobileShowDetail && selected ? 'hidden lg:block' : ''}`}>
             {filtered.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-white/15 bg-white/[0.02] px-6 py-16 text-center text-sm text-white/40">
+              <div className="rounded-2xl border border-dashed border-[var(--admin-border)] bg-white/[0.02] px-6 py-16 text-center text-sm text-[var(--admin-text-muted)]">
                 No opportunities yet — scans create them.
                 <button
                   type="button"
@@ -539,7 +539,7 @@ export default function StudioOpportunities() {
                   className={`w-full rounded-2xl border p-4 text-left transition ${
                     selected?.op.id === op.id
                       ? 'border-vura-400/40 bg-vura-500/10'
-                      : 'border-white/10 bg-white/[0.03] hover:border-white/20'
+                      : 'border-[var(--admin-border)] bg-white/[0.03] hover:border-white/20'
                   }`}
                 >
                   <div className="flex items-start justify-between gap-2">
@@ -548,12 +548,12 @@ export default function StudioOpportunities() {
                       {op.status}
                     </span>
                   </div>
-                  <p className="mt-1 text-xs text-white/40">{op.category}</p>
+                  <p className="mt-1 text-xs text-[var(--admin-text-muted)]">{op.category}</p>
                   <div className="mt-3 flex flex-wrap gap-3 text-[11px] font-semibold">
                     <span className={scoreColor(trendScore)}>Trend {trendScore}</span>
                     <span className={scoreColor(commercialScore)}>Commercial {commercialScore}</span>
                     <span className={scoreColor(confidence)}>Conf {confidence}</span>
-                    <span className="uppercase text-white/35">{urg}</span>
+                    <span className="uppercase text-[var(--admin-text-muted)]">{urg}</span>
                   </div>
                 </button>
               ))
@@ -563,14 +563,14 @@ export default function StudioOpportunities() {
           {/* Detail */}
           <div className={`lg:col-span-3 ${!mobileShowDetail && selected ? 'hidden lg:block' : ''}`}>
             {!selected ? (
-              <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-6 py-16 text-center text-sm text-white/40">
+              <div className="rounded-2xl border border-[var(--admin-border)] bg-white/[0.02] px-6 py-16 text-center text-sm text-[var(--admin-text-muted)]">
                 Select an opportunity to review evidence and decide.
               </div>
             ) : (
-              <article className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 md:p-6">
+              <article className="rounded-2xl border border-[var(--admin-border)] bg-white/[0.03] p-5 md:p-6">
                 <button
                   type="button"
-                  className="mb-4 inline-flex items-center gap-1.5 text-xs font-bold text-white/50 hover:text-white lg:hidden"
+                  className="mb-4 inline-flex items-center gap-1.5 text-xs font-bold text-[var(--admin-text-muted)] hover:text-white lg:hidden"
                   onClick={() => setMobileShowDetail(false)}
                 >
                   <ArrowLeft size={14} /> Back to list
@@ -579,7 +579,7 @@ export default function StudioOpportunities() {
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <h2 className="text-xl font-black text-white">{selected.op.name}</h2>
-                    <p className="mt-1 text-sm text-white/45">
+                    <p className="mt-1 text-sm text-[var(--admin-text-muted)]">
                       {selected.op.category}
                       {selected.parsed.product ? ` · ${selected.parsed.product}` : ''}
                     </p>
@@ -596,8 +596,8 @@ export default function StudioOpportunities() {
                     ['Confidence', selected.confidence],
                     ['Urgency', selected.urg],
                   ].map(([label, value]) => (
-                    <div key={String(label)} className="rounded-xl border border-white/10 bg-[#0b0d17] px-3 py-3">
-                      <div className="text-[10px] font-bold uppercase tracking-wider text-white/35">{label}</div>
+                    <div key={String(label)} className="rounded-xl border border-[var(--admin-border)] bg-[var(--admin-sidebar-bg)] px-3 py-3">
+                      <div className="text-[10px] font-bold uppercase tracking-wider text-[var(--admin-text-muted)]">{label}</div>
                       <div
                         className={`mt-1 text-lg font-black capitalize ${
                           typeof value === 'number' ? scoreColor(value) : 'text-white'
@@ -611,12 +611,12 @@ export default function StudioOpportunities() {
 
                 <dl className="mt-5 space-y-3 text-sm">
                   <div>
-                    <dt className="text-xs font-bold uppercase tracking-wider text-white/35">Signal</dt>
+                    <dt className="text-xs font-bold uppercase tracking-wider text-[var(--admin-text-muted)]">Signal</dt>
                     <dd className="mt-1 text-white/80">{selected.op.signal}</dd>
                   </div>
                   <div>
-                    <dt className="text-xs font-bold uppercase tracking-wider text-white/35">Evidence</dt>
-                    <dd className="mt-1 whitespace-pre-wrap text-white/70">
+                    <dt className="text-xs font-bold uppercase tracking-wider text-[var(--admin-text-muted)]">Evidence</dt>
+                    <dd className="mt-1 whitespace-pre-wrap text-[var(--admin-text-secondary)]">
                       {selected.parsed.evidence || '—'}
                     </dd>
                     {selected.parsed.evidenceClass && (
@@ -624,12 +624,12 @@ export default function StudioOpportunities() {
                     )}
                   </div>
                   <div>
-                    <dt className="text-xs font-bold uppercase tracking-wider text-white/35">Recommendation</dt>
+                    <dt className="text-xs font-bold uppercase tracking-wider text-[var(--admin-text-muted)]">Recommendation</dt>
                     <dd className="mt-1 text-white/80">
                       {selected.parsed.recommendation || 'Investigate before any listing decision.'}
                     </dd>
                   </div>
-                  <div className="flex flex-wrap gap-4 text-xs text-white/45">
+                  <div className="flex flex-wrap gap-4 text-xs text-[var(--admin-text-muted)]">
                     <span>Region: {selected.reg}</span>
                     <span>Window: {selected.parsed.timeWindow || '—'}</span>
                     <span>Agent: {selected.op.agentId}</span>
@@ -638,10 +638,10 @@ export default function StudioOpportunities() {
                 </dl>
 
                 <div className="mt-5">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-white/35">Sources</h3>
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--admin-text-muted)]">Sources</h3>
                   <ul className="mt-2 space-y-2">
                     {sourceList(selected.op, selected.parsed).length === 0 ? (
-                      <li className="text-sm text-white/40">No source URLs recorded.</li>
+                      <li className="text-sm text-[var(--admin-text-muted)]">No source URLs recorded.</li>
                     ) : (
                       sourceList(selected.op, selected.parsed).map((url) => (
                         <li key={url}>
@@ -660,8 +660,8 @@ export default function StudioOpportunities() {
                   </ul>
                 </div>
 
-                <div className="mt-6 border-t border-white/10 pt-5">
-                  <p className="text-xs font-bold uppercase tracking-wider text-white/35">Product Intelligence</p>
+                <div className="mt-6 border-t border-[var(--admin-border)] pt-5">
+                  <p className="text-xs font-bold uppercase tracking-wider text-[var(--admin-text-muted)]">Product Intelligence</p>
                   <button
                     type="button"
                     disabled={productBusy}
@@ -673,13 +673,13 @@ export default function StudioOpportunities() {
                     {productBusy ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
                     Investigate with Product AI
                   </button>
-                  <p className="mt-2 text-[11px] text-white/35">
+                  <p className="mt-2 text-[11px] text-[var(--admin-text-muted)]">
                     Deep research for this opportunity. Does not publish a product.
                   </p>
                   {productReport && (
                     <div className="mt-4 space-y-3 rounded-xl border border-vura-500/25 bg-vura-500/5 p-4 text-sm">
                       <p className="text-[10px] font-bold uppercase tracking-wider text-vura-200">Product AI result</p>
-                      <p className="text-xs text-white/45">
+                      <p className="text-xs text-[var(--admin-text-muted)]">
                         Status: <b className="text-white/85">{String(productReport.status || 'done')}</b>
                         {productReport.runId ? ` · job ${String(productReport.runId).slice(0, 8)}…` : ''}
                       </p>
@@ -689,7 +689,7 @@ export default function StudioOpportunities() {
                       {productReport.error ? (
                         <p className="text-red-300">{String(productReport.error)}</p>
                       ) : null}
-                      <div className="max-h-64 overflow-y-auto rounded-lg border border-white/10 bg-black/30 p-3 text-xs leading-relaxed text-white/80 whitespace-pre-wrap">
+                      <div className="max-h-64 overflow-y-auto rounded-lg border border-[var(--admin-border)] bg-black/30 p-3 text-xs leading-relaxed text-white/80 whitespace-pre-wrap">
                         {(() => {
                           const r = (productReport.result ?? productReport.brief ?? productReport.report ?? productReport) as unknown;
                           if (typeof r === 'string') return r;
@@ -707,7 +707,7 @@ export default function StudioOpportunities() {
                           return String(r);
                         })()}
                       </div>
-                      <div className="rounded-lg border border-white/10 bg-black/20 p-3 text-[11px] leading-5 text-white/55">
+                      <div className="rounded-lg border border-[var(--admin-border)] bg-black/20 p-3 text-[11px] leading-5 text-[var(--admin-text-secondary)]">
                         <b className="text-white/80">Suggested next steps for you</b>
                         <ol className="mt-1 list-decimal space-y-1 pl-4">
                           <li>Check real supplier price and stock in your market.</li>
@@ -720,8 +720,8 @@ export default function StudioOpportunities() {
                   )}
                 </div>
 
-                <div className="mt-6 border-t border-white/10 pt-5">
-                  <p className="text-xs font-bold uppercase tracking-wider text-white/35">Decision workflow</p>
+                <div className="mt-6 border-t border-[var(--admin-border)] pt-5">
+                  <p className="text-xs font-bold uppercase tracking-wider text-[var(--admin-text-muted)]">Decision workflow</p>
                   <div className="mt-3 flex flex-wrap gap-2">
                     {(
                       [
@@ -740,7 +740,7 @@ export default function StudioOpportunities() {
                         className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-bold disabled:opacity-40 ${
                           selected.op.status === st
                             ? STATUS_STYLE[st]
-                            : 'border-white/10 bg-white/5 text-white/70 hover:bg-white/10'
+                            : 'border-[var(--admin-border)] bg-white/5 text-[var(--admin-text-secondary)] hover:bg-[var(--admin-table-row-hover)]'
                         }`}
                       >
                         {busyId === selected.op.id ? (
@@ -752,7 +752,7 @@ export default function StudioOpportunities() {
                       </button>
                     ))}
                   </div>
-                  <p className="mt-3 text-[11px] leading-5 text-white/35">
+                  <p className="mt-3 text-[11px] leading-5 text-[var(--admin-text-muted)]">
                     Approve means you chose this for deeper Product Intelligence later — it does not publish a product.
                   </p>
                 </div>
@@ -763,13 +763,13 @@ export default function StudioOpportunities() {
       )}
 
       {alerts.length > 0 && (
-        <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-white/40">Recent agent alerts</h3>
+        <div className="rounded-2xl border border-[var(--admin-border)] bg-white/[0.02] p-4">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--admin-text-muted)]">Recent agent alerts</h3>
           <ul className="mt-3 space-y-2">
             {alerts.slice(0, 8).map((n) => (
-              <li key={n.id} className="rounded-xl border border-white/5 bg-black/20 px-3 py-2 text-sm">
+              <li key={n.id} className="rounded-xl border border-[var(--admin-border)] bg-black/20 px-3 py-2 text-sm">
                 <span className="font-bold text-white/80">{n.title}</span>
-                <span className="mt-0.5 block text-xs text-white/40">{n.message}</span>
+                <span className="mt-0.5 block text-xs text-[var(--admin-text-muted)]">{n.message}</span>
               </li>
             ))}
           </ul>

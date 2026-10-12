@@ -4,12 +4,22 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
+/* ============================================================
+   VURA + LUSCENTS-ALIGNED ADMIN DESIGN SYSTEM
+   Warm ivory canvas · charcoal ink · champagne gold accent
+   deep purple secondary · restrained radii · soft shadows
+   Admin shell mirrors luscentperfume store-portal dashboard
+   ============================================================ */
+
+:root,
+[data-theme="light"] {
+  color-scheme: light;
   font-family: 'DM Sans', sans-serif;
-  color: #151527;
-  background: #f7f7fb;
+  color: #1c1917;
+  background: #f8f5ef;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
+
   --vura-purple: #5b2cff;
   --vura-purple-dark: #3518b9;
   --vura-ink: #151527;
@@ -17,6 +27,47 @@
   --vura-surface: #ffffff;
   --vura-soft: #f3f1ff;
   --vura-border: #e8e7f1;
+
+  --admin-sidebar-bg: #171310;
+  --admin-sidebar-border: #2a241d;
+  --admin-sidebar-text: #f5f2ec;
+  --admin-sidebar-muted: #a89f92;
+  --admin-sidebar-accent: #c9a35d;
+  --admin-bg: #f8f5ef;
+  --admin-card-bg: #ffffff;
+  --admin-border: #ede6da;
+  --admin-border-hover: #4f2d7f;
+  --admin-text-primary: #1c1917;
+  --admin-text-secondary: #44403c;
+  --admin-text-muted: #8a8177;
+  --admin-input-bg: #ffffff;
+  --admin-table-header: #f3eee5;
+  --admin-table-row-hover: #faf7f1;
+  --accent: #4f2d7f;
+  --accent-soft: #f2ecf9;
+  --champagne: #c9a35d;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --admin-sidebar-bg: #0d0b09;
+  --admin-sidebar-border: #1a1612;
+  --admin-sidebar-text: #f5f2ec;
+  --admin-sidebar-muted: #8a8177;
+  --admin-sidebar-accent: #d9b878;
+  --admin-bg: #12100e;
+  --admin-card-bg: #1c1916;
+  --admin-border: #2e2925;
+  --admin-border-hover: #a78bca;
+  --admin-text-primary: #f5f2ec;
+  --admin-text-secondary: #b6ada1;
+  --admin-text-muted: #7d756b;
+  --admin-input-bg: #1c1916;
+  --admin-table-header: #1a1714;
+  --admin-table-row-hover: #201c18;
+  --accent: #b69ae0;
+  --accent-soft: #262031;
+  --champagne: #d9b878;
 }
 
 * { box-sizing: border-box; }
@@ -27,7 +78,6 @@ button { cursor: pointer; }
 ::selection { background: #ddd5ff; color: #151527; }
 .font-display { font-family: 'Space Grotesk', sans-serif; }
 
-/* Storefront semantic tokens (light marketplace theme) */
 body.storefront,
 .storefront {
   --sf-canvas: #f7f7fb;
@@ -94,10 +144,75 @@ img[src=""], img:not([src]) { opacity: 0; }
 
 .studio-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
 .studio-scroll::-webkit-scrollbar-thumb {
-  background: rgba(255,255,255,.12);
+  background: rgba(201, 163, 93, 0.35);
   border-radius: 999px;
 }
 .studio-scroll::-webkit-scrollbar-track { background: transparent; }
+
+@layer components {
+  .admin-card {
+    background: var(--admin-card-bg);
+    border: 1px solid var(--admin-border);
+    border-radius: 0.75rem;
+    box-shadow: 0 2px 12px -4px rgba(28, 25, 23, 0.04);
+    transition: all 0.2s ease;
+  }
+  .admin-card:hover {
+    border-color: var(--admin-border-hover);
+    box-shadow: 0 8px 24px -8px rgba(28, 25, 23, 0.08);
+  }
+
+  .admin-input {
+    @apply w-full rounded-lg border px-3 py-2.5 text-sm outline-none transition;
+    background: var(--admin-input-bg);
+    border-color: var(--admin-border);
+    color: var(--admin-text-primary);
+  }
+  .admin-input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(79, 45, 127, 0.1);
+  }
+
+  .admin-badge {
+    @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em];
+  }
+
+  .admin-table {
+    @apply w-full text-left text-sm;
+  }
+  .admin-table th {
+    @apply py-3 px-4 font-bold uppercase tracking-[0.1em] text-[10px];
+    background: var(--admin-table-header);
+    color: var(--admin-text-secondary);
+    border-bottom: 1px solid var(--admin-border);
+  }
+  .admin-table td {
+    @apply py-3 px-4;
+    border-bottom: 1px solid var(--admin-border);
+    color: var(--admin-text-primary);
+  }
+  .admin-table tbody tr {
+    @apply transition-colors;
+  }
+  .admin-table tbody tr:hover {
+    background: var(--admin-table-row-hover);
+  }
+
+  .admin-kpi-card {
+    @apply rounded-xl border p-5 transition-colors;
+    background: var(--admin-card-bg);
+    border-color: var(--admin-border);
+  }
+  .admin-kpi-card:hover {
+    border-color: var(--admin-border-hover);
+  }
+
+  .admin-shell {
+    background: var(--admin-bg);
+    color: var(--admin-text-primary);
+    min-height: 100vh;
+  }
+}
 
 .aspect-product { aspect-ratio: 4 / 3; object-fit: cover; }
 

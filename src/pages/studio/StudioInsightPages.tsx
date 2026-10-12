@@ -15,13 +15,13 @@ function Header({ title, subtitle }: { title: string; subtitle: string }) {
   return (
     <div>
       <h1 className="text-3xl font-black tracking-tight">{title}</h1>
-      <p className="mt-2 text-sm text-white/45">{subtitle}</p>
+      <p className="mt-2 text-sm text-[var(--admin-text-muted)]">{subtitle}</p>
     </div>
   );
 }
 
 function Card({ children, className = '' }: { children: ReactNode; className?: string }) {
-  return <div className={`rounded-2xl border border-white/10 bg-white/[.025] ${className}`}>{children}</div>;
+  return <div className={`rounded-2xl border border-[var(--admin-border)] bg-[var(--admin-card-bg)] ${className}`}>{children}</div>;
 }
 
 function BarList({ items }: { items: Array<{ label: string; value: number; hint?: string }> }) {
@@ -31,15 +31,15 @@ function BarList({ items }: { items: Array<{ label: string; value: number; hint?
       {items.map((item) => (
         <div key={item.label}>
           <div className="mb-1 flex items-center justify-between gap-3 text-sm">
-            <span className="truncate capitalize text-white/70">{item.label.replaceAll('_', ' ')}</span>
-            <span className="shrink-0 text-white/45">{item.hint || item.value}</span>
+            <span className="truncate capitalize text-[var(--admin-text-secondary)]">{item.label.replaceAll('_', ' ')}</span>
+            <span className="shrink-0 text-[var(--admin-text-muted)]">{item.hint || item.value}</span>
           </div>
           <div className="h-2 overflow-hidden rounded-full bg-white/10">
             <div className="h-full rounded-full bg-vura-500" style={{ width: `${Math.max(4, (item.value / max) * 100)}%` }} />
           </div>
         </div>
       ))}
-      {!items.length && <div className="py-8 text-center text-sm text-white/30">No data yet.</div>}
+      {!items.length && <div className="py-8 text-center text-sm text-[var(--admin-text-muted)]">No data yet.</div>}
     </div>
   );
 }
@@ -70,22 +70,22 @@ export function HealthBoard({ overview, onNavigate }: { overview: ResourceState<
     <>
       <div className="flex flex-wrap items-end justify-between gap-3">
         <Header title="Health & Alerts" subtitle="Database, queue pressure, and the work that should not wait." />
-        <button type="button" onClick={() => void load()} className="grid h-10 w-10 place-items-center rounded-xl border border-white/10" aria-label="Refresh health">
+        <button type="button" onClick={() => void load()} className="grid h-10 w-10 place-items-center rounded-xl border border-[var(--admin-border)]" aria-label="Refresh health">
           <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
         </button>
       </div>
       <div className="mt-6 grid gap-4 md:grid-cols-3">
         <Card className="p-5">
-          <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-white/30">
+          <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-[var(--admin-text-muted)]">
             <ShieldCheck size={14} /> System
           </div>
           <div className={`mt-3 text-2xl font-black ${ok ? 'text-emerald-300' : 'text-amber-200'}`}>{ok ? 'Healthy' : loading ? 'Checking…' : 'Attention'}</div>
-          <p className="mt-1 text-xs text-white/40">
+          <p className="mt-1 text-xs text-[var(--admin-text-muted)]">
             {health?.database?.connected ? `DB ${health.database.responseTimeMs ?? '—'}ms` : health?.error || 'Could not reach health endpoint'}
           </p>
         </Card>
         <Card className="p-5">
-          <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-white/30">
+          <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-[var(--admin-text-muted)]">
             <Wallet size={14} /> Payments waiting
           </div>
           <div className="mt-3 text-2xl font-black">{attention?.pendingPayment ?? '—'}</div>
@@ -94,7 +94,7 @@ export function HealthBoard({ overview, onNavigate }: { overview: ResourceState<
           </button>
         </Card>
         <Card className="p-5">
-          <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-white/30">
+          <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-[var(--admin-text-muted)]">
             <AlertTriangle size={14} /> To fulfill / low stock
           </div>
           <div className="mt-3 text-2xl font-black">
@@ -108,7 +108,7 @@ export function HealthBoard({ overview, onNavigate }: { overview: ResourceState<
       </div>
       <Card className="mt-6 p-5">
         <b>What this page watches</b>
-        <ul className="mt-3 space-y-2 text-sm text-white/55">
+        <ul className="mt-3 space-y-2 text-sm text-[var(--admin-text-secondary)]">
           <li>Neon database ping from the admin health endpoint.</li>
           <li>Unpaid / pending transfers that block sourcing.</li>
           <li>Paid orders not yet delivered, and products marked low or out of stock.</li>
@@ -153,13 +153,13 @@ export function AnalyticsBoard() {
     <>
       <div className="flex flex-wrap items-end justify-between gap-3">
         <Header title="Analytics" subtitle="Last 14 days of orders, mix, and what people search for." />
-        <button type="button" onClick={() => void load()} className="grid h-10 w-10 place-items-center rounded-xl border border-white/10" aria-label="Refresh analytics">
+        <button type="button" onClick={() => void load()} className="grid h-10 w-10 place-items-center rounded-xl border border-[var(--admin-border)]" aria-label="Refresh analytics">
           <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
         </button>
       </div>
       {error && <div className="mt-4 rounded-xl border border-red-400/20 bg-red-400/10 p-3 text-sm text-red-200">{error}</div>}
       {loading && !data ? (
-        <div className="grid min-h-[40vh] place-items-center text-white/40">Loading analytics…</div>
+        <div className="grid min-h-[40vh] place-items-center text-[var(--admin-text-muted)]">Loading analytics…</div>
       ) : (
         <>
           <Card className="mt-6 p-5">
@@ -168,10 +168,10 @@ export function AnalyticsBoard() {
               {(data?.daily || []).map((d) => (
                 <div key={d.label} className="flex min-w-0 flex-1 flex-col items-center gap-1">
                   <div className="w-full rounded-t bg-vura-500/90" style={{ height: `${Math.max(6, (d.orders / orderMax) * 100)}%` }} title={`${d.label}: ${d.orders} orders`} />
-                  <span className="hidden text-[10px] text-white/30 sm:block">{d.label}</span>
+                  <span className="hidden text-[10px] text-[var(--admin-text-muted)] sm:block">{d.label}</span>
                 </div>
               ))}
-              {!data?.daily.length && <div className="w-full py-10 text-center text-sm text-white/30">No orders in this window.</div>}
+              {!data?.daily.length && <div className="w-full py-10 text-center text-sm text-[var(--admin-text-muted)]">No orders in this window.</div>}
             </div>
           </Card>
           <div className="mt-6 grid gap-5 xl:grid-cols-2">
@@ -267,19 +267,19 @@ export function SettingsBoard() {
     <>
       <Header title="Settings" subtitle="Payout account and the WhatsApp number customers reach you on." />
       {loading ? (
-        <div className="grid min-h-[30vh] place-items-center text-white/40">Loading settings\u2026</div>
+        <div className="grid min-h-[30vh] place-items-center text-[var(--admin-text-muted)]">Loading settings\u2026</div>
       ) : (
         <Card className="mt-6 p-5">
           <div className="grid gap-4 md:grid-cols-2">
             {SETTING_FIELDS.map((field) => (
               <label key={field.key} className="block text-sm">
-                <span className="mb-1.5 block text-xs font-semibold text-white/45">{field.label}</span>
+                <span className="mb-1.5 block text-xs font-semibold text-[var(--admin-text-muted)]">{field.label}</span>
                 <input
                   value={form[field.key] || ''}
                   onChange={(e) => setForm((prev) => ({ ...prev, [field.key]: e.target.value }))}
-                  className="w-full rounded-[10px] border border-white/10 bg-[#111522] px-3 py-2.5 outline-none focus:border-vura-500"
+                  className="w-full rounded-[10px] border border-[var(--admin-border)] bg-[var(--admin-input-bg)] px-3 py-2.5 outline-none focus:border-vura-500"
                 />
-                <span className="mt-1 block text-[11px] text-white/30">{field.hint}</span>
+                <span className="mt-1 block text-[11px] text-[var(--admin-text-muted)]">{field.hint}</span>
               </label>
             ))}
           </div>
@@ -287,9 +287,9 @@ export function SettingsBoard() {
             <button type="button" disabled={saving} onClick={() => void save()} className="rounded-xl bg-vura-500 px-4 py-2.5 text-sm font-bold disabled:opacity-50">
               {saving ? 'Saving\u2026' : 'Save settings'}
             </button>
-            {msg && <span className="text-sm text-white/50">{msg}</span>}
+            {msg && <span className="text-sm text-[var(--admin-text-muted)]">{msg}</span>}
           </div>
-          <p className="mt-4 flex items-center gap-2 text-xs text-white/35">
+          <p className="mt-4 flex items-center gap-2 text-xs text-[var(--admin-text-muted)]">
             <Activity size={13} /> Changes are written to platform_settings and recorded in the audit log.
           </p>
         </Card>

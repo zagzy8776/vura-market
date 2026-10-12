@@ -11,7 +11,7 @@ interface AdminOverviewProps {
 export default function AdminOverview({ state, onNavigate, onRefresh }: AdminOverviewProps) {
   if (state.state === 'loading') {
     return (
-      <div className="grid min-h-[50vh] place-items-center text-white/40">
+      <div className="grid min-h-[50vh] place-items-center text-[var(--admin-text-muted)]">
         <div className="text-center">
           <div className="inline-block animate-spin">
             <div className="h-8 w-8 rounded-full border-4 border-white/20 border-t-vura-500" />
@@ -48,7 +48,7 @@ export default function AdminOverview({ state, onNavigate, onRefresh }: AdminOve
 
   if (state.state !== 'success' || !state.data) {
     return (
-      <div className="text-center text-white/50">
+      <div className="text-center text-[var(--admin-text-muted)]">
         <p>No data available</p>
       </div>
     );
@@ -64,7 +64,7 @@ export default function AdminOverview({ state, onNavigate, onRefresh }: AdminOve
       <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-3xl font-black tracking-tight">Command Center</h1>
-          <p className="mt-1 text-sm text-white/45">What needs you right now — and how the shop is doing</p>
+          <p className="mt-1 text-sm text-[var(--admin-text-muted)]">What needs you right now — and how the shop is doing</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <button
@@ -77,7 +77,7 @@ export default function AdminOverview({ state, onNavigate, onRefresh }: AdminOve
           <button
             type="button"
             onClick={() => onNavigate('orders')}
-            className="flex items-center gap-2 rounded-xl border border-white/10 px-4 py-2 text-sm font-bold hover:bg-white/5"
+            className="flex items-center gap-2 rounded-xl border border-[var(--admin-border)] px-4 py-2 text-sm font-bold hover:bg-[var(--admin-table-row-hover)]"
           >
             <ShoppingBag size={15} /> Orders
           </button>
@@ -131,12 +131,12 @@ export default function AdminOverview({ state, onNavigate, onRefresh }: AdminOve
           <button
             type="button"
             onClick={() => onNavigate('orders')}
-            className="flex items-center gap-1 text-xs font-bold text-white/45 hover:text-white"
+            className="flex items-center gap-1 text-xs font-bold text-[var(--admin-text-muted)] hover:text-white"
           >
             View all <ArrowRight size={12} />
           </button>
         </div>
-        <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/[.025]">
+        <div className="overflow-hidden rounded-2xl border border-[var(--admin-border)] bg-[var(--admin-card-bg)]">
           {recent.length > 0 ? (
             <div className="divide-y divide-white/5">
               {recent.map((order) => (
@@ -144,10 +144,10 @@ export default function AdminOverview({ state, onNavigate, onRefresh }: AdminOve
               ))}
             </div>
           ) : (
-            <div className="p-10 text-center text-white/40">
+            <div className="p-10 text-center text-[var(--admin-text-muted)]">
               <Package className="mx-auto mb-2 opacity-40" size={28} />
               <p className="text-sm">No orders yet</p>
-              <p className="mt-1 text-xs text-white/30">New orders will show up here</p>
+              <p className="mt-1 text-xs text-[var(--admin-text-muted)]">New orders will show up here</p>
             </div>
           )}
         </div>
@@ -158,8 +158,8 @@ export default function AdminOverview({ state, onNavigate, onRefresh }: AdminOve
 
 function KPICard({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[.025] p-4 sm:p-5">
-      <p className="text-[11px] font-bold uppercase tracking-wider text-white/40">{label}</p>
+    <div className="rounded-2xl border border-[var(--admin-border)] bg-[var(--admin-card-bg)] p-4 sm:p-5">
+      <p className="text-[11px] font-bold uppercase tracking-wider text-[var(--admin-text-muted)]">{label}</p>
       <p className="mt-3 text-xl font-black sm:text-2xl">{value}</p>
     </div>
   );
@@ -192,13 +192,13 @@ function ActionCard({
       type="button"
       onClick={onClick}
       className={`rounded-xl border p-4 text-left transition hover:bg-white/[.02] ${
-        active ? `${config.bg} ${config.border}` : 'border-white/10 bg-white/[.02]'
+        active ? `${config.bg} ${config.border}` : 'border-[var(--admin-border)] bg-white/[.02]'
       }`}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold">{title}</p>
-          <p className="mt-1 text-xs text-white/50">{description}</p>
+          <p className="mt-1 text-xs text-[var(--admin-text-muted)]">{description}</p>
         </div>
         <Icon className={`${active ? config.color : 'text-white/25'} shrink-0`} size={18} />
       </div>
@@ -214,17 +214,17 @@ function RecentOrderRow({ order, onClick }: { order: OverviewRecentOrder; onClic
     <button
       type="button"
       onClick={onClick}
-      className="flex w-full items-center justify-between gap-3 p-4 text-left hover:bg-white/[.03]"
+      className="flex w-full items-center justify-between gap-3 p-4 text-left hover:bg-[var(--admin-card-bg)]"
     >
       <div className="min-w-0">
         <p className="truncate text-sm font-bold">{order.order_number}</p>
-        <p className="mt-0.5 truncate text-xs text-white/45">
+        <p className="mt-0.5 truncate text-xs text-[var(--admin-text-muted)]">
           {order.product_name || 'Product'} · {order.delivery_name || 'Customer'}
         </p>
       </div>
       <div className="shrink-0 text-right">
         <p className="text-sm font-bold">{money(order.total_kobo)}</p>
-        <p className="mt-0.5 text-[11px] capitalize text-white/40">
+        <p className="mt-0.5 text-[11px] capitalize text-[var(--admin-text-muted)]">
           {String(order.payment_status || order.status || '—').replaceAll('_', ' ')}
         </p>
       </div>
