@@ -2,6 +2,7 @@ import { readFile, readdir } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { join } from 'node:path';
 import { Pool } from '@neondatabase/serverless';
+import { migrationSqlInsideRunner } from './migration-sql.js';
 
 type AppliedMigration = { version: string; filename: string; checksum: string };
 
@@ -69,7 +70,9 @@ try {
     try {
       // Use the PostgreSQL client for multi-statement migration files.
       // The Neon HTTP tagged-template helper executes a single statement per request.
-      await client.query(contents);
+      // Keep the SQL and checksum in ONE transaction, even if the file
+      // originally contained BEGIN/COMMIT lines.
+      await client.query(migrationSqlInsideRunner(contents));
       await client.query(
         'INSERT INTO schema_migrations(version, filename, checksum) VALUES ($1, $2, $3)',
         [version, filename, checksum],

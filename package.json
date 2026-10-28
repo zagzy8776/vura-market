@@ -22,7 +22,9 @@
     "db:fix-v13": "tsx scripts/fix-v13-mismatch.ts",
     "db:fix-migrations": "tsx scripts/fix-migration-versions.ts",
     "build:worker": "esbuild api/_lib/agents/worker-entry.ts --bundle --platform=node --format=esm --outfile=agent-worker.mjs",
-    "build:fly": "vite build && npm run build:worker"
+    "build:fly": "vite build && npm run build:worker",
+    "jobs:run": "tsx scripts/jobs-runner.ts",
+    "infra:check": "tsx scripts/check-infrastructure.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",

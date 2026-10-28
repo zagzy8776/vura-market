@@ -14,6 +14,7 @@ import { tickAgentMissions } from './missions.js';
 import { emitCoordination } from './coordination.js';
 import { remember } from './memory.js';
 import { sql } from '../db.js';
+import { tickCommerceOutbox } from '../commerce-outbox.js';
 import type { AgentId } from './types.js';
 
 const WORKER_ID = process.env.FLY_MACHINE_ID || process.env.WORKER_ID || randomUUID().slice(0, 8);
@@ -23,6 +24,7 @@ const JOB_TIMEOUT_MS = Number(process.env.AGENT_JOB_TIMEOUT_MS || 120_000);
 
 let active = 0;
 let stopped = false;
+let lastCommerceTick = 0;
 
 async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -168,6 +170,10 @@ async function executeJob(job: NonNullable<Awaited<ReturnType<typeof claimNextJo
 async function tick() {
   if (stopped || active >= CONCURRENCY) return;
   try {
+    if (process.env.COMMERCE_OUTBOX_ENABLED === 'true' && Date.now() - lastCommerceTick > 60000) {
+      lastCommerceTick = Date.now();
+      await tickCommerceOutbox().catch(e => console.error('[commerce-worker]', e));
+    }
     await recoverStaleLocks(15);
     await tickSchedules();
     await tickAgentMissions(3).catch((e) => {

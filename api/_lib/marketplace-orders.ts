@@ -102,12 +102,15 @@ export async function marketplaceOrders(req: VercelRequest, res: VercelResponse,
       `;
       const order = results[0];
       if (!order) return json(res, 503, { error: 'Could not create this request.' });
+      // The outbox trigger owns notification delivery when the worker is enabled.
+      if (process.env.COMMERCE_OUTBOX_ENABLED !== 'true') {
       try {
         await notifyParty(String(order.seller_id), 'marketplace.order.request',
           'A customer wants to buy your product',
           'A buyer wants ' + order.quantity + ' × ' + order.listing_title + '. Open My Shop to confirm availability.',
           String(order.id), '/sell/orders');
       } catch { /* The durable order still exists and is visible in My Shop. */ }
+      }
       return json(res, 201, { order });
     }
     if (req.method === 'PATCH') {
@@ -126,9 +129,11 @@ export async function marketplaceOrders(req: VercelRequest, res: VercelResponse,
           INSERT INTO marketplace_order_events(request_id,actor_id,event_type,message)
           VALUES (${id}::uuid,${user.id}::uuid,'cancelled','Buyer cancelled the request.')
         `;
+        if (process.env.COMMERCE_OUTBOX_ENABLED !== 'true') {
         try { await notifyParty(String(cancelled[0].seller_id), 'marketplace.order.cancelled',
           'Buyer cancelled the request','Order #' + cancelled[0].order_number + ' was cancelled.', id,'/sell/orders'); }
         catch { /* no change to order status */ }
+        }
         return json(res, 200, { order: cancelled[0] });
       }
       if (!['accept','decline','unavailable'].includes(action))
@@ -138,6 +143,7 @@ export async function marketplaceOrders(req: VercelRequest, res: VercelResponse,
       `;
       const order = rows[0];
       if (!order) return json(res, 404, { error: 'Request not found.' });
+      if (process.env.COMMERCE_OUTBOX_ENABLED !== 'true') {
       const approved = order.status === 'seller_accepted';
       try { await notifyParty(String(order.buyer_id),
         approved ? 'marketplace.order.accepted' : 'marketplace.order.closed',
@@ -145,6 +151,7 @@ export async function marketplaceOrders(req: VercelRequest, res: VercelResponse,
         approved ? 'The seller confirmed ' + order.listing_title + ' is available. No payment is required yet; secure payment is not enabled for community orders.'
                  : 'Order #' + order.order_number + ' cannot proceed. You have not been charged.',
         id, '/market-orders'); } catch { /* Order state remains recorded. */ }
+      }
       return json(res, 200, { order });
     }
     return json(res, 405, { error: 'Method not allowed.' });
