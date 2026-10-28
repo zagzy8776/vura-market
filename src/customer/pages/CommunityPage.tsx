@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { ArrowLeft, ArrowRight, MapPin, MessageCircle, PackageSearch, Search, Store } from 'lucide-react';
+import { ArrowLeft, ArrowRight, MapPin, MessageCircle, PackageSearch, Search, ShoppingBag, Store } from 'lucide-react';
 import { money } from '@/lib/money';
 import { Link } from '../router';
 import { sellerApi, type SellerListing } from '../lib/sellerApi';
@@ -80,7 +80,10 @@ export function CommunityListingPage({ id }: { id: string }) {
           <div className="mt-5"><p className="text-xs uppercase tracking-widest text-[#9399a8]">Sold by</p>
             <Link to={'/shop/'+item.seller_id} className="mt-2 inline-flex items-center gap-2 font-bold text-vura-500"><Store size={18}/>{item.shop_name}</Link>
             <p className="mt-2 flex items-center gap-2 text-sm text-[#808798]"><MapPin size={16}/>{item.city}, {item.state_code}{item.campus?' · '+item.campus:''}</p></div>
-          {phone&&<a target="_blank" rel="noopener noreferrer" href={'https://wa.me/'+phone+'?text='+message} className="mt-7 flex w-full items-center justify-center gap-2 rounded-xl bg-vura-500 px-5 py-4 text-sm font-bold text-white"><MessageCircle size={19}/> Chat with seller on WhatsApp</a>}
+          {import.meta.env.VITE_COMMUNITY_ORDER_REQUESTS_ENABLED === 'true'
+            ? <Link to={'/buy/'+item.id} className="mt-7 flex w-full items-center justify-center gap-2 rounded-xl bg-vura-500 px-5 py-4 text-sm font-black text-white"><ShoppingBag size={19}/> Request to buy · Confirm with seller</Link>
+            : <div className="mt-7 rounded-xl border border-[#e5e4ee] bg-[#f6f4ff] px-4 py-3 text-center text-xs font-bold text-vura-500">Secure Vura buying is being prepared. Do not pay someone who claims to be Vura.</div>}
+          {phone&&<a target="_blank" rel="noopener noreferrer" href={'https://wa.me/'+phone+'?text='+message} className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-[#ddd8f7] bg-white px-5 py-4 text-sm font-bold text-vura-500"><MessageCircle size={19}/> Chat with seller on WhatsApp</a>}
           <p className="mt-4 text-xs leading-5 text-[#888f9e]">Community sales are arranged directly with sellers, outside Vura checkout. Listing approval is not a product or payment guarantee. Inspect goods and verify the seller before paying.</p>
         </div>
       </div>}

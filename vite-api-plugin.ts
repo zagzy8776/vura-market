@@ -8,6 +8,7 @@ const COMMERCE_ROUTES: Record<string, string> = {
   '/api/analytics': 'analytics',
   '/api/seller': 'seller',
   '/api/marketplace': 'marketplace',
+  '/api/market-orders': 'market_orders',
   '/api/wishlist': 'wishlist',
   '/api/delivery/quote': 'delivery_quote',
   '/api/couriers/webhook': 'courier_webhook',

@@ -3,6 +3,7 @@ import { sql, json } from './_lib/db.js';
 import { getSessionUser, requireUser } from './_lib/auth.js';
 import { getCourierProvider } from './_lib/courier.js';
 import { handleSeller, handleMarketplace } from './_lib/marketplace.js';
+import { marketplaceOrders } from './_lib/marketplace-orders.js';
 
 export const config = { api: { bodyParser: false } };
 
@@ -264,6 +265,7 @@ async function courierWebhookHandler(req: VercelRequest, res: VercelResponse) {
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const fn = typeof req.query.fn === 'string' ? req.query.fn : '';
+  if (fn === 'market_orders') return marketplaceOrders(req, res, req.method === 'GET' ? {} : (await readJsonBody(req)) || {});
   if (fn === 'seller') return handleSeller(req, res, req.method === 'GET' ? {} : (await readJsonBody(req)) || {});
   if (fn === 'marketplace') return handleMarketplace(req, res);
   if (fn === 'analytics') return analyticsHandler(req, res);

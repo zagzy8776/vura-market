@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { ArrowLeft, ArrowRight, Camera, Clock3, Copy, MapPin, Package, Pause, Pencil, Plus, Store, Trash2, UploadCloud, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Camera, Clock3, Copy, MapPin, Package, Pause, Pencil, Plus, Bell, Store, Trash2, UploadCloud, X } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { uploadFilesToCloudinary } from '@/lib/cloudinary';
 import { money } from '@/lib/money';
@@ -52,6 +52,8 @@ export function SellerDashboard() {
         <div><p className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-vura-500"><Store size={16}/> Your selling space</p>
           <h1 className="mt-2 font-display text-3xl font-black tracking-tight sm:text-4xl">{shop?.shop_name || 'My Vura shop'}</h1>
           <p className="mt-2 text-sm text-[#757d8c]">Your listings and enquiries. Your shop stays separate from Vura administration.</p></div>
+        {import.meta.env.VITE_COMMUNITY_ORDER_REQUESTS_ENABLED === 'true' &&
+          <Link to="/sell/orders" className="inline-flex items-center gap-2 rounded-xl border border-[#ddd7ef] bg-white px-5 py-3 text-sm font-bold text-vura-500"><Bell size={18}/> Customer requests</Link>}
         <Link to="/sell/new" className="inline-flex items-center gap-2 rounded-xl bg-vura-500 px-5 py-3 font-black text-white shadow-lg shadow-vura-500/20"><Plus size={19}/> Post a product</Link>
       </header>
       <div className="mt-7 grid grid-cols-3 gap-2 sm:gap-4">

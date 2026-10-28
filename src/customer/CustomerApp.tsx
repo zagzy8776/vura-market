@@ -11,6 +11,8 @@ import { track } from './lib/analytics';
 import { setSiteJsonLd } from './lib/seo';
 import type { CategoryPublic } from '@/types';
 
+const CommunityBuyPage = lazy(() => import('./pages/MarketOrdersPage').then(m => ({ default: m.CommunityBuyPage })));
+const MarketOrdersPage = lazy(() => import('./pages/MarketOrdersPage').then(m => ({ default: m.MarketOrdersPage })));
 const SellerDashboard = lazy(() => import('./pages/SellPage').then((m) => ({ default: m.SellerDashboard })));
 const PostPage = lazy(() => import('./pages/SellPage').then((m) => ({ default: m.PostPage })));
 const CommunityPage = lazy(() => import('./pages/CommunityPage').then((m) => ({ default: m.CommunityPage })));
@@ -36,6 +38,11 @@ function RouteView({ categories }: { categories: CategoryPublic[] }) {
   const router = useRouter();
   const path = router.path.replace(/\/+$/, '') || '/';
 
+  if (path === '/sell/orders') return <MarketOrdersPage side="seller" />;
+  if (path === '/market-orders') return <MarketOrdersPage side="buyer" />;
+  if (path.startsWith('/buy/')) return import.meta.env.VITE_COMMUNITY_ORDER_REQUESTS_ENABLED === 'true'
+    ? <CommunityBuyPage id={path.slice('/buy/'.length)} />
+    : <NotFoundPage />;
   if (path === '/sell') return <SellerDashboard />;
   if (path === '/sell/new') return <PostPage categories={categories} />;
   if (path === '/marketplace') return <CommunityPage />;

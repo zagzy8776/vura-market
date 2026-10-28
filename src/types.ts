@@ -11,6 +11,7 @@ export type AppUser = {
   name: string;
   email: string;
   role: 'customer' | 'admin';
+  phone?: string | null;
 };
 
 export type Category = {

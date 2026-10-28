@@ -16,6 +16,10 @@
       "destination": "/api/commerce?fn=marketplace"
     },
     {
+      "source": "/api/market-orders",
+      "destination": "/api/commerce?fn=market_orders"
+    },
+    {
       "source": "/api/analytics",
       "destination": "/api/commerce?fn=analytics"
     },
