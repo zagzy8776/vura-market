@@ -30,10 +30,10 @@ export const sellerApi = {
   change(id: string, action: 'pause' | 'resume') { return request('/api/seller', { method: 'PATCH', body: JSON.stringify({ id, action }) }); },
   remove(id: string) { return request('/api/seller', { method: 'DELETE', body: JSON.stringify({ id }) }); },
   states() { return request<{ states: NigeriaState[] }>('/api/locations'); },
-  browse(query: { q?: string; state?: string; sellerId?: string; id?: string } = {}) {
+  browse(query: { q?: string; state?: string; sellerId?: string; id?: string; page?: number } = {}) {
     const params = new URLSearchParams();
-    Object.entries(query).forEach(([key, value]) => { if (value) params.set(key, value); });
-    return request<{ listings: SellerListing[] }>('/api/marketplace' + (params.size ? '?' + params.toString() : ''));
+    Object.entries(query).forEach(([key, value]) => { if (value) params.set(key, String(value)); });
+    return request<{ listings: SellerListing[]; total: number; page: number }>('/api/marketplace' + (params.size ? '?' + params.toString() : ''));
   },
   moderation() { return request<{ listings: SellerListing[] }>('/api/admin/seller-listings'); },
   review(id: string, status: 'approved' | 'rejected') {

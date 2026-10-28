@@ -22,17 +22,19 @@ export function CommunityPage({ sellerId }: { sellerId?: string }) {
   const [q, setQ] = useState('');
   const [search, setSearch] = useState('');
   const [state, setState] = useState('');
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   useEffect(() => { void sellerApi.states().then(r => setStates(r.states)).catch(() => undefined); }, []);
   useEffect(() => {
     let active = true; setLoading(true); setError('');
-    sellerApi.browse({ sellerId, q: search, state }).then(r => { if(active) setItems(r.listings); })
+    sellerApi.browse({ sellerId, q: search, state, page }).then(r => { if(active) {setItems(r.listings); setTotal(r.total);} })
       .catch(e => { if(active)setError((e as Error).message); })
       .finally(() => { if(active)setLoading(false); });
     return () => { active=false; };
-  }, [sellerId, search, state]);
-  const submit = (e: FormEvent) => { e.preventDefault(); setSearch(q.trim()); };
+  }, [sellerId, search, state, page]);
+  const submit = (e: FormEvent) => { e.preventDefault(); setPage(1); setSearch(q.trim()); };
   return <main id="main" className="min-h-[75vh] bg-[#f7f7fb] text-[#17182a]">
     <section className="bg-white px-4 py-10 md:px-6 md:py-14">
       <div className="mx-auto max-w-6xl"><p className="text-xs font-bold uppercase tracking-widest text-vura-500">{sellerId?'Seller storefront':'Vura community marketplace'}</p>
@@ -45,14 +47,15 @@ export function CommunityPage({ sellerId }: { sellerId?: string }) {
     <div className="mx-auto max-w-6xl px-4 py-7 md:px-6">
       <form onSubmit={submit} className="grid gap-3 rounded-2xl border border-[#e5e6ed] bg-white p-3 shadow-sm sm:grid-cols-[1fr_190px_auto]">
         <label className="flex items-center gap-2 rounded-xl bg-[#f7f7fb] px-3"><Search size={18} className="text-[#838b9e]"/><input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search products…" aria-label="Search community products" className="w-full bg-transparent py-3 text-sm outline-none"/></label>
-        <select value={state} onChange={e=>setState(e.target.value)} aria-label="Filter by state" className="rounded-xl border border-[#eeeeF3] bg-white px-3 py-3 text-sm"><option value="">All states</option>{states.map(s=><option key={s.id} value={s.code}>{s.name}</option>)}</select>
+        <select value={state} onChange={e=>{setPage(1);setState(e.target.value);}} aria-label="Filter by state" className="rounded-xl border border-[#eeeeF3] bg-white px-3 py-3 text-sm"><option value="">All states</option>{states.map(s=><option key={s.id} value={s.code}>{s.name}</option>)}</select>
         <button type="submit" className="rounded-xl bg-[#17182a] px-5 py-3 text-sm font-bold text-white">Search</button>
       </form>
-      <div className="mt-8 flex items-center justify-between gap-2"><h2 className="font-display text-xl font-black">{sellerId?'Products from this seller':'Community listings'}</h2><span className="text-sm text-[#858c9c]">{items.length} shown</span></div>
+      <div className="mt-8 flex items-center justify-between gap-2"><h2 className="font-display text-xl font-black">{sellerId?'Products from this seller':'Community listings'}</h2><span className="text-sm text-[#858c9c]">{total} results</span></div>
       {error&&<p role="alert" className="mt-5 rounded-xl bg-red-50 p-4 text-sm text-red-700">{error}</p>}
       {loading?<p className="mt-8 text-sm text-[#7d8395]">Finding listings…</p>:
         items.length?<div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">{items.map(item=><ProductCard key={item.id} item={item}/>)}</div>:
         <div className="mt-5 rounded-2xl border border-dashed border-[#d8d7e7] bg-white py-16 text-center"><PackageSearch size={38} className="mx-auto text-vura-400"/><h3 className="mt-3 text-lg font-bold">Nothing listed here yet</h3><p className="mt-2 text-sm text-[#848b9a]">Try another search or check back as sellers join Vura.</p></div>}
+      {total>48&&<div className="mt-7 flex items-center justify-center gap-4"><button className="rounded-xl border border-[#e4e3ed] bg-white px-5 py-3 text-sm font-bold disabled:opacity-40" disabled={page<=1} onClick={()=>{setPage(p=>p-1);window.scrollTo({top:0,behavior:'smooth'});}}>Previous</button><span className="text-sm font-bold">Page {page}</span><button className="rounded-xl border border-[#e4e3ed] bg-white px-5 py-3 text-sm font-bold disabled:opacity-40" disabled={page*48>=total} onClick={()=>{setPage(p=>p+1);window.scrollTo({top:0,behavior:'smooth'});}}>Next</button></div>}
     </div>
   </main>;
 }
