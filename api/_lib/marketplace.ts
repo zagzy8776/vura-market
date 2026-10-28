@@ -1,6 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { sql, json, publicReadSql } from './db.js';
-import { publicCacheGet, publicCacheSet, catalogueCacheKey } from './public-cache.js';
+import { sql, json } from './db.js';
 import { requireUser, requireAdminPermission } from './auth.js';
 import { recordAudit } from './audit.js';
 
@@ -134,19 +133,11 @@ export async function handleMarketplace(req: VercelRequest, res: VercelResponse)
     const id = str(req.query.id, 80);
     const sellerId = str(req.query.sellerId, 80);
     const q = str(req.query.q, 100);
-    const rawPage = Number(req.query.page);
-    const page = id ? 1 : (Number.isInteger(rawPage) && rawPage > 0 ? Math.min(100000, rawPage) : 1);
+    const page = id ? 1 : Math.min(100000, Math.max(1, Number(req.query.page) || 1));
     const state = str(req.query.state, 2).toUpperCase();
     if (id && !UUID.test(id)) return json(res, 400, { error: 'Invalid listing.' });
     if (sellerId && !UUID.test(sellerId)) return json(res, 400, { error: 'Invalid seller.' });
-    // Only short-lived public discovery lists are eligible for Redis or replicas.
-    // Individual listing checks bypass the cache and always use primary Postgres.
-    const cacheKey = !id ? catalogueCacheKey({ sellerId, q, state, page }) : null;
-    if (cacheKey) {
-      const cached = await publicCacheGet<{listings: unknown[]; total: number; page: number}>(cacheKey);
-      if (cached) return json(res, 200, cached);
-    }
-    const rows = await (id ? sql : publicReadSql)`
+    const rows = await sql`
       SELECT l.id, l.seller_id, l.title, l.description, l.price_kobo, l.condition_label,
              l.quantity, l.images, l.created_at, COUNT(*) OVER()::int AS total, s.shop_name, s.state_code, s.city, s.campus,
              s.whatsapp, c.name AS category_name
@@ -161,9 +152,7 @@ export async function handleMarketplace(req: VercelRequest, res: VercelResponse)
       ORDER BY l.created_at DESC LIMIT ${id ? 1 : 48} OFFSET ${(page - 1) * 48}
     `;
     if (id && !rows.length) return json(res, 404, { error: 'Listing not available.' });
-    const result = { listings: rows, total: Number(rows[0]?.total || 0), page };
-    if (cacheKey) await publicCacheSet(cacheKey, result, 20);
-    return json(res, 200, result);
+    return json(res, 200, { listings: rows, total: Number(rows[0]?.total || 0), page });
   } catch {
     return json(res, 500, { error: 'Marketplace listings are temporarily unavailable.' });
   }
