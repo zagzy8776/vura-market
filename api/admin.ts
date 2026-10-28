@@ -3,6 +3,7 @@ import handler from './_lib/admin-runtime.js';
 import { applySecurityHeaders } from './_lib/http.js';
 import { requireAdmin, requireAdminPermission } from './_lib/auth.js';
 import { handleAgentMissions } from './_lib/agents/mission-handlers.js';
+import { handleMarketplaceModeration } from './_lib/marketplace.js';
 
 function resource(req: VercelRequest) {
   const value = req.query.resource;
@@ -15,6 +16,10 @@ function resource(req: VercelRequest) {
  * go through admin-runtime.
  */
 export default async function adminEntry(req: VercelRequest, res: VercelResponse) {
+  if (resource(req) === 'seller-listings') {
+    applySecurityHeaders(res);
+    return handleMarketplaceModeration(req, res);
+  }
   if (resource(req) === 'agent-missions') {
     applySecurityHeaders(res);
     const admin = await requireAdmin(req, res);

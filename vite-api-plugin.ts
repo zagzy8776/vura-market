@@ -7,6 +7,8 @@ const COMMERCE_HANDLER = '/api/commerce.ts';
 const COMMERCE_ROUTES: Record<string, string> = {
   '/api/analytics': 'analytics',
   '/api/wishlist': 'wishlist',
+  '/api/seller': 'seller',
+  '/api/marketplace': 'marketplace',
   '/api/delivery/quote': 'delivery_quote',
   '/api/couriers/webhook': 'courier_webhook',
 };
@@ -69,7 +71,7 @@ export function apiRoutesPlugin(): Plugin {
 
         let body: unknown = undefined;
         let rawBody: string | undefined = undefined;
-        if (req.method === 'POST' || req.method === 'PUT' || req.method === 'PATCH') {
+        if (req.method === 'POST' || req.method === 'PUT' || req.method === 'PATCH' || req.method === 'DELETE') {
           const chunks: Buffer[] = [];
           for await (const chunk of req) chunks.push(chunk as Buffer);
           const raw = Buffer.concat(chunks).toString();

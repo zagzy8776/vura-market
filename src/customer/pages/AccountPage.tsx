@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Bell, Heart, LogOut, PackageSearch, User } from 'lucide-react';
+import { Bell, Heart, LogOut, PackageSearch, Store, User } from 'lucide-react';
 import { Link, useRouter } from '../router';
 import { useAuth } from '@/context/AuthContext';
 import { useWishlist } from '../context/WishlistContext';
@@ -47,7 +47,7 @@ export function AccountPage({ tab }: { tab: AccountTab }) {
           <p className="text-xs font-bold uppercase tracking-[0.16em] text-vura-300">My Vura</p>
           <h1 className="mt-1 font-display text-3xl font-black tracking-tight text-hi">Hello, {user.name.split(' ')[0]}</h1>
         </div>
-        <Button variant="ghost" onClick={() => void signOut().then(() => router.navigate('/'))}><LogOut size={15} /> Sign out</Button>
+        <div className="flex flex-wrap gap-2"><Link to="/sell" className="inline-flex items-center gap-2 rounded-xl bg-vura-500 px-4 py-2.5 text-sm font-bold text-white"><Store size={16}/> My shop</Link><Button variant="ghost" onClick={() => void signOut().then(() => router.navigate('/'))}><LogOut size={15} /> Sign out</Button></div>
       </header>
 
       <nav aria-label="Account sections" className="mt-8 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">

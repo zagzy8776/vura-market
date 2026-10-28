@@ -8,6 +8,7 @@ import {
   Package,
   Search,
   ShoppingCart,
+  SquarePen,
   User,
   X,
 } from 'lucide-react';
@@ -16,14 +17,12 @@ import { Link, useRouter } from '../router';
 import type { CategoryPublic } from '@/types';
 import { SearchBox } from './SearchBox';
 import { Drawer, IconButton } from './ui';
-import { useCart } from '../context/CartContext';
 
 export function Header({ categories }: { categories: CategoryPublic[] }) {
   const router = useRouter();
   const { user } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
-  const cartContext = useCart();
 
   useEffect(() => {
     const onRouteChange = () => {
@@ -109,17 +108,12 @@ export function Header({ categories }: { categories: CategoryPublic[] }) {
             </Link>
 
             <Link
-              to="/cart"
-              ariaLabel={`Cart${cartContext.count ? `, ${cartContext.count} items` : ''}`}
-              className="relative flex flex-col items-center gap-0.5 rounded-xl px-2.5 py-1.5 text-[#5f6678] transition hover:bg-[#f3f1ff] hover:text-vura-500"
+              to="/sell/new"
+              ariaLabel="Post a product for sale"
+              className="flex flex-col items-center gap-0.5 rounded-xl px-2.5 py-1.5 text-vura-500 transition hover:bg-[#f3f1ff]"
             >
-              <ShoppingCart size={18} aria-hidden />
-              <span className="text-[10px] font-bold">Cart</span>
-              {cartContext.count > 0 && (
-                <span className="absolute right-0.5 top-0.5 grid h-[18px] min-w-[18px] place-items-center rounded-full bg-vura-500 px-1 text-[10px] font-bold text-white">
-                  {cartContext.count > 99 ? '99+' : cartContext.count}
-                </span>
-              )}
+              <SquarePen size={20} aria-hidden />
+              <span className="text-[10px] font-bold">Post</span>
             </Link>
           </div>
         </div>
@@ -140,6 +134,9 @@ export function Header({ categories }: { categories: CategoryPublic[] }) {
           {(
             [
               ['/', 'Home'],
+              ['/marketplace', 'Community marketplace'],
+              ['/sell', 'My shop'],
+              ['/sell/new', 'Post a product'],
               ['/deals', 'Deals'],
               ['/new', 'New arrivals'],
               ['/track', 'Track order'],

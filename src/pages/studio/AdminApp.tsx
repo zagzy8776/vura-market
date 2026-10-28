@@ -3,19 +3,20 @@ import { Eye, EyeOff, ShieldAlert, Menu, Moon, Sun, Bell } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import ProductionStudioOps from './ProductionStudioOps';
 import FinanceView from './FinanceView';
+import StudioSellerListings from './StudioSellerListings';
 import AdminSidebar from '@/components/AdminSidebar';
 import AdminMobileDrawer from '@/components/AdminMobileDrawer';
 import type { StudioTab } from '@/types';
 
 const VALID_TABS: StudioTab[] = [
-  'overview', 'health', 'orders', 'payments', 'products', 'inventory',
+  'overview', 'health', 'orders', 'payments', 'products', 'seller-listings', 'inventory',
   'sourcing', 'suppliers', 'delivery', 'customers', 'notifications',
   'opportunities', 'agents', 'finance', 'analytics', 'audit', 'settings',
 ];
 
 const TAB_LABELS: Record<StudioTab, string> = {
   overview: 'Overview', health: 'Health & Alerts', orders: 'Orders',
-  payments: 'Payments', products: 'Products', inventory: 'Inventory',
+  payments: 'Payments', products: 'Products', 'seller-listings': 'Seller reviews', inventory: 'Inventory',
   sourcing: 'Sourcing', suppliers: 'Suppliers', delivery: 'Fulfillment',
   customers: 'Customers', notifications: 'Notifications',
   opportunities: 'Opportunities', agents: 'Command Center', finance: 'Finance',
@@ -159,7 +160,7 @@ export default function AdminApp() {
         </header>
 
         <main className="p-4 pb-24 sm:p-6 lg:p-8 lg:pb-8">
-          {tab === 'finance' ? <FinanceView /> : <ProductionStudioOps tab={tab} onTabChange={onTabChange} />}
+          {tab === 'finance' ? <FinanceView /> : tab === 'seller-listings' ? <StudioSellerListings /> : <ProductionStudioOps tab={tab} onTabChange={onTabChange} />}
         </main>
       </div>
 

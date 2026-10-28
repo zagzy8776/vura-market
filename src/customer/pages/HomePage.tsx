@@ -135,6 +135,7 @@ export function HomePage({ categories }: { categories: CategoryPublic[] }) {
                   Explore Deals
                 </Button>
               </Link>
+              <Link to="/marketplace" className="inline-flex items-center rounded-xl border border-[#d9d4ff] bg-white px-5 py-3 text-sm font-bold text-vura-500 transition hover:bg-[#f5f2ff]">Browse community</Link>
             </div>
             <div className="mt-8 flex flex-wrap gap-x-6 gap-y-3 text-sm font-semibold text-[#5f6678]">
               <span className="flex items-center gap-2">

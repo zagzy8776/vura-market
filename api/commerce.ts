@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { sql, json } from './_lib/db.js';
 import { getSessionUser, requireUser } from './_lib/auth.js';
 import { getCourierProvider } from './_lib/courier.js';
+import { handleSeller, handleMarketplace } from './_lib/marketplace.js';
 
 export const config = { api: { bodyParser: false } };
 
@@ -267,5 +268,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (fn === 'wishlist') return wishlistHandler(req, res);
   if (fn === 'delivery_quote') return deliveryQuoteHandler(req, res);
   if (fn === 'courier_webhook') return courierWebhookHandler(req, res);
+  if (fn === 'seller') return handleSeller(req, res, req.method === 'GET' ? {} : ((await readJsonBody(req)) || {}));
+  if (fn === 'marketplace') return handleMarketplace(req, res);
   return json(res, 404, { error: 'Not found.' });
 }
