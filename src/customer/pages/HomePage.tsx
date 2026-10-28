@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { Link } from '../router';
 import { storefrontApi } from '../lib/api';
+import { sellerApi, type SellerListing } from '../lib/sellerApi';
 import type { CategoryPublic, StorefrontProduct } from '@/types';
 import { ProductCard } from '../components/ProductCard';
 import { Button, ErrorState, ProductCardSkeleton } from '../components/ui';
@@ -63,6 +64,7 @@ const FALLBACK_CATEGORIES = [
 export function HomePage({ categories }: { categories: CategoryPublic[] }) {
   const [deals, setDeals] = useState<StorefrontProduct[] | null>(null);
   const [recommended, setRecommended] = useState<StorefrontProduct[] | null>(null);
+  const [community, setCommunity] = useState<SellerListing[]>([]);
   const [localCategories, setLocalCategories] = useState<CategoryPublic[]>([]);
   const [failed, setFailed] = useState(false);
 
@@ -90,6 +92,12 @@ export function HomePage({ categories }: { categories: CategoryPublic[] }) {
     return () => {
       cancelled = true;
     };
+  }, []);
+
+  useEffect(() => {
+    let live = true;
+    sellerApi.browse().then(r => { if (live) setCommunity(r.listings.slice(0, 4)); }).catch(() => undefined);
+    return () => { live = false; };
   }, []);
 
   const categoryCards = useMemo(() => {
@@ -228,6 +236,26 @@ export function HomePage({ categories }: { categories: CategoryPublic[] }) {
               })}
         </div>
       </section>
+
+      {community.length > 0 && (
+        <section className="mx-auto max-w-7xl px-4 py-8 md:px-6">
+          <div className="mb-6 flex items-end justify-between gap-2">
+            <div><p className="text-xs font-bold uppercase tracking-widest text-vura-500">Nigerians selling on Vura</p><h2 className="mt-1 font-display text-xl font-bold text-[#151527] sm:text-2xl">From community sellers</h2></div>
+            <Link to="/marketplace" className="shrink-0 text-sm font-bold text-vura-500">See all</Link>
+          </div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {community.map(item => (
+              <Link key={item.id} to={'/listing/' + item.id} className="overflow-hidden rounded-2xl border border-[#e8e7f1] bg-white shadow-sm transition hover:shadow-lg">
+                <div className="aspect-[4/3] bg-[#f2f1f8]">{item.images?.[0] && <img src={item.images[0]} loading="lazy" alt={item.title} className="h-full w-full object-cover" />}</div>
+                <div className="p-3 sm:p-4"><p className="line-clamp-2 min-h-10 text-sm font-bold text-[#151527]">{item.title}</p>
+                  <p className="mt-1 font-black text-vura-500">{money(item.price_kobo)}</p>
+                  <p className="mt-1 truncate text-xs text-[#878e9e]">{item.shop_name} · {item.city}</p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section className="mx-auto max-w-7xl px-4 py-6 md:px-6">
         <div className="mb-6 flex items-end justify-between">
