@@ -160,7 +160,7 @@ export default function AdminApp() {
         </header>
 
         <main className="p-4 pb-24 sm:p-6 lg:p-8 lg:pb-8">
-          {tab === 'finance' ? <FinanceView /> : tab === 'seller-listings' ? <StudioSellerListings /> : <ProductionStudioOps tab={tab} onTabChange={onTabChange} />}
+          {tab === 'seller-listings' ? <StudioSellerListings /> : tab === 'finance' ? <FinanceView /> : <ProductionStudioOps tab={tab} onTabChange={onTabChange} />}
         </main>
       </div>
 

@@ -3,25 +3,67 @@
   "buildCommand": "npm run build && npm run typecheck:api",
   "outputDirectory": "dist",
   "rewrites": [
-    { "source": "/api/admin/:resource", "destination": "/api/admin?resource=:resource" },
-    { "source": "/api/analytics", "destination": "/api/commerce?fn=analytics" },
-    { "source": "/api/wishlist", "destination": "/api/commerce?fn=wishlist" },
-    { "source": "/api/seller", "destination": "/api/commerce?fn=seller" },
-    { "source": "/api/marketplace", "destination": "/api/commerce?fn=marketplace" },
-    { "source": "/api/delivery/quote", "destination": "/api/commerce?fn=delivery_quote" },
-    { "source": "/api/couriers/webhook", "destination": "/api/commerce?fn=courier_webhook" },
-    { "source": "/((?!api/).*)", "destination": "/index.html" }
+    {
+      "source": "/api/admin/:resource",
+      "destination": "/api/admin?resource=:resource"
+    },
+    {
+      "source": "/api/seller",
+      "destination": "/api/commerce?fn=seller"
+    },
+    {
+      "source": "/api/marketplace",
+      "destination": "/api/commerce?fn=marketplace"
+    },
+    {
+      "source": "/api/analytics",
+      "destination": "/api/commerce?fn=analytics"
+    },
+    {
+      "source": "/api/wishlist",
+      "destination": "/api/commerce?fn=wishlist"
+    },
+    {
+      "source": "/api/delivery/quote",
+      "destination": "/api/commerce?fn=delivery_quote"
+    },
+    {
+      "source": "/api/couriers/webhook",
+      "destination": "/api/commerce?fn=courier_webhook"
+    },
+    {
+      "source": "/((?!api/).*)",
+      "destination": "/index.html"
+    }
   ],
   "headers": [
     {
       "source": "/(.*)",
       "headers": [
-        { "key": "X-Content-Type-Options", "value": "nosniff" },
-        { "key": "X-Frame-Options", "value": "DENY" },
-        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
-        { "key": "Permissions-Policy", "value": "camera=(), microphone=(), geolocation=(), payment=()" },
-        { "key": "Strict-Transport-Security", "value": "max-age=31536000; includeSubDomains; preload" },
-        { "key": "Content-Security-Policy", "value": "default-src 'self'; base-uri 'self'; frame-ancestors 'none'; object-src 'none'; script-src 'self' https://cdn.onesignal.com https://onesignal.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https://res.cloudinary.com; connect-src 'self' https://vura-market.fly.dev https://*.fly.dev https://api.cloudinary.com https://onesignal.com https://*.onesignal.com https://cdn.onesignal.com; worker-src 'self' blob:; frame-src https://onesignal.com; form-action 'self'; upgrade-insecure-requests" }
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "Permissions-Policy",
+          "value": "camera=(), microphone=(), geolocation=(), payment=()"
+        },
+        {
+          "key": "Strict-Transport-Security",
+          "value": "max-age=31536000; includeSubDomains; preload"
+        },
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'self'; base-uri 'self'; frame-ancestors 'none'; object-src 'none'; script-src 'self' https://cdn.onesignal.com https://onesignal.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https://res.cloudinary.com; connect-src 'self' https://vura-market.fly.dev https://*.fly.dev https://api.cloudinary.com https://onesignal.com https://*.onesignal.com https://cdn.onesignal.com; worker-src 'self' blob:; frame-src https://onesignal.com; form-action 'self'; upgrade-insecure-requests"
+        }
       ]
     }
   ]

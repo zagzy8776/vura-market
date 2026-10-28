@@ -9,6 +9,7 @@ import {
   Search,
   ShoppingCart,
   SquarePen,
+  Store,
   User,
   X,
 } from 'lucide-react';
@@ -109,10 +110,10 @@ export function Header({ categories }: { categories: CategoryPublic[] }) {
 
             <Link
               to="/sell/new"
-              ariaLabel="Post a product for sale"
-              className="flex flex-col items-center gap-0.5 rounded-xl px-2.5 py-1.5 text-vura-500 transition hover:bg-[#f3f1ff]"
+              ariaLabel="Post a product to Vura"
+              className="relative flex flex-col items-center gap-0.5 rounded-xl bg-vura-500 px-3 py-1.5 text-white transition hover:bg-vura-600"
             >
-              <SquarePen size={20} aria-hidden />
+              <SquarePen size={18} aria-hidden />
               <span className="text-[10px] font-bold">Post</span>
             </Link>
           </div>
@@ -134,9 +135,9 @@ export function Header({ categories }: { categories: CategoryPublic[] }) {
           {(
             [
               ['/', 'Home'],
-              ['/marketplace', 'Community marketplace'],
-              ['/sell', 'My shop'],
+              ['/marketplace', 'Community market'],
               ['/sell/new', 'Post a product'],
+              ['/sell', 'My shop'],
               ['/deals', 'Deals'],
               ['/new', 'New arrivals'],
               ['/track', 'Track order'],

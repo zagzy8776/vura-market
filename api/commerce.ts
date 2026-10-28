@@ -264,11 +264,11 @@ async function courierWebhookHandler(req: VercelRequest, res: VercelResponse) {
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const fn = typeof req.query.fn === 'string' ? req.query.fn : '';
+  if (fn === 'seller') return handleSeller(req, res, req.method === 'GET' ? {} : (await readJsonBody(req)) || {});
+  if (fn === 'marketplace') return handleMarketplace(req, res);
   if (fn === 'analytics') return analyticsHandler(req, res);
   if (fn === 'wishlist') return wishlistHandler(req, res);
   if (fn === 'delivery_quote') return deliveryQuoteHandler(req, res);
   if (fn === 'courier_webhook') return courierWebhookHandler(req, res);
-  if (fn === 'seller') return handleSeller(req, res, req.method === 'GET' ? {} : ((await readJsonBody(req)) || {}));
-  if (fn === 'marketplace') return handleMarketplace(req, res);
   return json(res, 404, { error: 'Not found.' });
 }

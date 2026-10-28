@@ -11,11 +11,11 @@ import { track } from './lib/analytics';
 import { setSiteJsonLd } from './lib/seo';
 import type { CategoryPublic } from '@/types';
 
-const HomePage = lazy(() => import('./pages/HomePage').then((m) => ({ default: m.HomePage })));
 const SellerDashboard = lazy(() => import('./pages/SellPage').then((m) => ({ default: m.SellerDashboard })));
 const PostPage = lazy(() => import('./pages/SellPage').then((m) => ({ default: m.PostPage })));
 const CommunityPage = lazy(() => import('./pages/CommunityPage').then((m) => ({ default: m.CommunityPage })));
 const CommunityListingPage = lazy(() => import('./pages/CommunityPage').then((m) => ({ default: m.CommunityListingPage })));
+const HomePage = lazy(() => import('./pages/HomePage').then((m) => ({ default: m.HomePage })));
 const CatalogPage = lazy(() => import('./pages/CatalogPage').then((m) => ({ default: m.CatalogPage })));
 const CategoriesPage = lazy(() => import('./pages/CategoriesPage').then((m) => ({ default: m.CategoriesPage })));
 const ProductPage = lazy(() => import('./pages/ProductPage').then((m) => ({ default: m.ProductPage })));
@@ -36,11 +36,11 @@ function RouteView({ categories }: { categories: CategoryPublic[] }) {
   const router = useRouter();
   const path = router.path.replace(/\/+$/, '') || '/';
 
-  if (path === '/sell/new') return <PostPage categories={categories} />;
   if (path === '/sell') return <SellerDashboard />;
+  if (path === '/sell/new') return <PostPage categories={categories} />;
   if (path === '/marketplace') return <CommunityPage />;
-  if (path.startsWith('/shop/')) return <CommunityPage sellerId={path.slice('/shop/'.length)} />;
   if (path.startsWith('/listing/')) return <CommunityListingPage id={path.slice('/listing/'.length)} />;
+  if (path.startsWith('/shop/')) return <CommunityPage sellerId={path.slice('/shop/'.length)} />;
 
   if (path === '/categories') {
     return <CategoriesPage categories={categories} />;

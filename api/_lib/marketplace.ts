@@ -17,7 +17,7 @@ export function validateListing(body: Data): string | null {
   if (str(body.description, 3000).length > 3000) return 'Description must be under 3000 characters.';
   if (!Number.isSafeInteger(body.priceKobo) || (body.priceKobo as number) < 10000 || (body.priceKobo as number) > 100000000000) return 'Enter a valid price in naira.';
   if (!Number.isInteger(body.quantity) || (body.quantity as number) < 1 || (body.quantity as number) > 100000) return 'Enter a valid available quantity.';
-  if (!CONDITIONS.has(body.condition)) return 'Choose a product condition.';
+  if (!CONDITIONS.has(str(body.condition, 32))) return 'Choose a product condition.';
   if (!UUID.test(str(body.categoryId, 80))) return 'Choose a category.';
   if (str(body.shopName, 100).length < 2 || str(body.shopName, 100).length > 100) return 'Enter your shop name.';
   if (!PHONE.test(str(body.whatsapp, 20))) return 'Enter your WhatsApp number with country code, e.g. 2348012345678.';
@@ -64,15 +64,12 @@ export async function handleSeller(req: VercelRequest, res: VercelResponse, body
   try {
     if (req.method === 'GET') {
       const page = Math.min(100000, Math.max(1, Number(req.query.page) || 1));
-      const targetId = str(req.query.id, 80);
-      if (targetId && !UUID.test(targetId)) return json(res, 400, { error: 'Invalid listing.' });
       const [counts, profile, listings] = await Promise.all([
         sql`SELECT count(*)::int AS total FROM marketplace_listings WHERE seller_id=${user.id} AND status <> 'removed'`,
         sql`SELECT shop_name, whatsapp, state_code, city, campus FROM marketplace_sellers WHERE user_id=${user.id}`,
         sql`SELECT id, title, description, price_kobo, condition_label, quantity, images, status, category_id, created_at, updated_at
                FROM marketplace_listings WHERE seller_id=${user.id} AND status <> 'removed'
-               AND (${targetId || null}::uuid IS NULL OR id=${targetId || null}::uuid)
-               ORDER BY created_at DESC LIMIT 24 OFFSET ${targetId ? 0 : (page - 1) * 24}`,
+               ORDER BY created_at DESC LIMIT 24 OFFSET ${(page - 1) * 24}`,
       ]);
       return json(res, 200, { profile: profile[0] || null, listings, total: counts[0]?.total || 0, page });
     }

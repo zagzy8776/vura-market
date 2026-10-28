@@ -167,6 +167,7 @@ export type StudioTab =
   | 'payments'
   | 'products'
   | 'seller-listings'
+  | 'seller-listings'
   | 'inventory'
   | 'sourcing'
   | 'suppliers'
