@@ -105,7 +105,7 @@ async function main() {
   const { retryEmailDeliveries } = await import('../api/_lib/email.js');
   console.log(await retryEmailDeliveries());
   if (process.env.COMMERCE_OUTBOX_ENABLED === 'true') {
-    const { tickCommerceOutbox } = await import('../api/_lib/commerce-outbox.js');
+    const { tickCommerceOutbox } = await import('./commerce-outbox.js');
     console.log('commerce outbox:', await tickCommerceOutbox());
   }
 }

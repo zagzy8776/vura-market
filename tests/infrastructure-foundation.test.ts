@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 vi.mock('../api/_lib/db.js', () => ({ sql: vi.fn() }));
 vi.mock('../api/_lib/notifications.js', () => ({ notifyUser: vi.fn() }));
 import { catalogueCacheKey, publicCacheConfigured } from '../api/_lib/public-cache.js';
-import { commerceWorkerEnabled, notificationCopy } from '../api/_lib/commerce-outbox.js';
+import { commerceWorkerEnabled, notificationCopy } from '../scripts/commerce-outbox.js';
 
 describe('infrastructure boundaries', () => {
  it('creates stable cache keys from public filters', () => {
