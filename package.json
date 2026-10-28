@@ -24,7 +24,8 @@
     "build:worker": "esbuild api/_lib/agents/worker-entry.ts --bundle --platform=node --format=esm --outfile=agent-worker.mjs",
     "build:fly": "vite build && npm run build:worker",
     "jobs:run": "tsx scripts/jobs-runner.ts",
-    "infra:check": "tsx scripts/check-infrastructure.ts"
+    "infra:check": "tsx scripts/check-infrastructure.ts",
+    "commerce:jobs": "tsx scripts/run-commerce-jobs.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",

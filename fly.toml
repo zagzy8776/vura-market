@@ -14,7 +14,7 @@ primary_region = 'jnb'
   AGENT_WORKER_ENABLED = 'true'
 
 [deploy]
-  release_command = 'npm run db:migrate'
+  release_command = "sh -c 'if [ \"$ALLOW_RELEASE_MIGRATIONS\" = \"true\" ]; then npm run db:migrate; else echo \"Skipping automatic migrations; ALLOW_RELEASE_MIGRATIONS not enabled\"; fi'"
 
 [http_service]
   internal_port = 3000

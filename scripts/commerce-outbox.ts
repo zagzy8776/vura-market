@@ -53,7 +53,19 @@ export async function tickCommerceOutbox() {
       const msg=notificationCopy(String(job.event_type),rows[0]);
       if (!msg) throw new Error('Unknown notification event');
       const safe=msg.body.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-      await notifyUser({
+      // Earlier API versions may already have notified the recipient directly.
+      // Do not send a duplicate push/email for the same business transition.
+      const legacy: Record<string,string> = {
+        requested:'marketplace.order.request',
+        accepted:'marketplace.order.accepted',
+        declined:'marketplace.order.closed',
+        cancelled:'marketplace.order.cancelled',
+      };
+      const legacyType=legacy[String(job.event_type)];
+      const existing=legacyType ? await sql`
+        SELECT id FROM notifications WHERE user_id=${job.recipient_id}
+          AND type=${legacyType+'.'+job.request_id} LIMIT 1` : [];
+      if (!existing.length) await notifyUser({
         userId:String(job.recipient_id),email:String(rows[0].email),firstName:String(rows[0].name),
         eventType:'marketplace.'+job.event_type+'.'+job.request_id,
         title:msg.title,body:msg.body,subject:msg.title,text:msg.body,html:'<p>'+safe+'</p>'

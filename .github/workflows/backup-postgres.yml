@@ -1,0 +1,28 @@
+name: Encrypted PostgreSQL backup
+
+on:
+  schedule:
+    - cron: '13 3 * * *'
+  workflow_dispatch:
+
+jobs:
+  backup:
+    # Explicit owner opt-in. The R2 bucket must be private and restore-tested.
+    if: ${{ vars.ENABLE_R2_BACKUP == 'true' }}
+    runs-on: ubuntu-latest
+    concurrency:
+      group: vura-postgres-backup
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install backup tools
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client awscli gnupg
+      - name: Encrypted backup to private R2
+        run: bash scripts/backup-postgres.sh
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_BACKUP_BUCKET: ${{ secrets.R2_BACKUP_BUCKET }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          BACKUP_GPG_PASSPHRASE: ${{ secrets.BACKUP_GPG_PASSPHRASE }}

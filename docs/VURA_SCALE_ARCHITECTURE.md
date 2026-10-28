@@ -7,7 +7,7 @@
 | Transactional source of truth | Existing Neon PostgreSQL primary | Orders, stock, authentication, financial ledger and payouts must agree |
 | Read capacity | Neon Postgres read replica, via DATABASE_READ_URL | Optional, only public eventual-consistency catalogue traffic |
 | Caching | Upstash Redis REST | 20-second public marketplace list cache; never money, inventory or user data |
-| Jobs | PostgreSQL transactional outbox + Fly worker | Seller notifications and reminders survive API restarts, retries and dead-letter |
+| Jobs | PostgreSQL transactional outbox + scheduled worker | Seller notifications and reminders survive API restarts, retries and dead-letter |
 | Media / object storage | Existing Cloudinary; private Cloudflare R2 backup bucket | Store public product images and encrypted offsite backups outside SQL |
 | Edge protection | Cloudflare DNS, CDN, WAF | Configure in Cloudflare dashboard; bypass all private /api/ traffic |
 | Recovery | Neon point-in-time restore + encrypted offsite PostgreSQL exports | Backup success requires a verified RESTORE, not just upload |
@@ -18,9 +18,9 @@ One writer keeps payment/order/stock relationships consistent. A 'million users'
 - api/_lib/db.ts offers primary sql and optional publicReadSql. Only public listing GETs should read replicas.
 - api/_lib/public-cache.ts uses server-only UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN. Caching is OFF until PUBLIC_CATALOG_CACHE_ENABLED=true is set. Redis failures fall back to Postgres. Cache only public discovery lists; item details and transactional checks use primary.
 - db/migrations/036_commerce_outbox.sql creates a durable notification outbox with a trigger on buyer/seller request transitions. It also adds order/listing indexes.
-- api/_lib/commerce-outbox.ts claims with FOR UPDATE SKIP LOCKED, retries and a dead-letter state. Scheduler creates 20-minute and 2-hour seller reminders and expires old requests.
-- Existing Fly worker can deliver commerce jobs if COMMERCE_OUTBOX_ENABLED=true. Existing operations-jobs GitHub workflow calls the npm jobs:run script, which now exists.
-- scripts/backup-postgres.sh encrypts a logical backup before uploading to private R2; it is MANUAL and requires pg_dump, aws cli, gpg and private credentials.
+- scripts/commerce-outbox.ts claims with FOR UPDATE SKIP LOCKED, retries and a dead-letter state. Scheduler creates 20-minute and 2-hour seller reminders and expires old requests.
+- A dedicated commerce workflow is scheduled every five minutes, but does not run until repository variable ENABLE_COMMERCE_JOBS=true and required secrets exist. GitHub Actions schedules can be delayed or unavailable, so this is not a guaranteed real-time notification path. The API continues best-effort immediate notifications, while the outbox is recoverable. The 30-minute operations runner also supports commerce jobs if enabled.
+- scripts/backup-postgres.sh encrypts a logical backup before uploading to private R2. It can be run manually, or through the disabled-by-default daily backup workflow after credentials and a restore drill.
 - npm run infra:check reports configuration presence without revealing credentials.
 
 ## Cloud settings (server only)
@@ -53,5 +53,5 @@ DO NOT add credentials to GitHub source or VITE_ variables. Use secret managers.
 - Notification delivery is at least once; external email/push can rarely repeat after worker restarts. Notification records are deduped.
 - Cloudflare can serve static assets but is not a database.
 - Neon backups/PITR retention and read-replica capacities depend on plan. Set test and production limits.
-- The existing fly.toml has release_command 'npm run db:migrate'. Fly deployments could apply pending migrations automatically; review the connected DATABASE_URL and checksum history before redeployment.
+- Fly automatic migrations are now gated behind ALLOW_RELEASE_MIGRATIONS=true. The daily encrypted R2 backup workflow is also disabled by default and needs ENABLE_R2_BACKUP=true and private secrets. Never enable either until backup restoration and schema state have been verified.
 - Future large-scale capacity: separate analytics and search workloads and introduce additional replicas. Sharding transactional finances demands specialized consistency design; do not do that ahead of actual load.

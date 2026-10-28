@@ -1,0 +1,28 @@
+name: Commerce notifications
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+jobs:
+  process:
+    # The owner must explicitly enable this after migrations and provider secrets.
+    if: ${{ vars.ENABLE_COMMERCE_JOBS == 'true' }}
+    runs-on: ubuntu-latest
+    concurrency:
+      group: vura-commerce-notifications
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run commerce:jobs
+        env:
+          COMMERCE_OUTBOX_ENABLED: 'true'
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          ONESIGNAL_APP_ID: ${{ secrets.ONESIGNAL_APP_ID }}
+          ONESIGNAL_REST_API_KEY: ${{ secrets.ONESIGNAL_REST_API_KEY }}
